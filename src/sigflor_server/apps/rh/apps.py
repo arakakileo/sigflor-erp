@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 from django.apps import AppConfig
 
 
 class RhConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.rh'
+    verbose_name = 'RH - Recursos Humanos'

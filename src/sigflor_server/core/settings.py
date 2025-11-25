@@ -23,13 +23,12 @@ INSTALLED_APPS = [
 
     'rest_framework',
 
-    'apps.enderecos',
-    'apps.contatos',
-    'apps.empresas',
     'apps.comum',
-    'apps.contratos',
     'apps.rh',
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = 'comum.Usuario'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

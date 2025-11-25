@@ -1,2 +1,0 @@
-from .contratos_filiais import ContratoFiliaisService
-from .contratos_contratantes import ContratoContratanteService
