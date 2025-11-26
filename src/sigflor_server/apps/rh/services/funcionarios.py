@@ -1,52 +1,47 @@
-# -*- coding: utf-8 -*-
 from typing import Optional
 from django.db import transaction
 from django.utils import timezone
 
 from apps.comum.models import PessoaFisica
+# Importamos o service da pessoa física
+from apps.comum.services import PessoaFisicaService
 from ..models import Funcionario
 
 
 class FuncionarioService:
-    """Service layer para operacoes com Funcionario."""
+    """Service layer para operações com Funcionario."""
 
     @staticmethod
     @transaction.atomic
     def create(
-        pessoa_fisica_data: Optional[dict] = None,
-        pessoa_fisica: Optional[PessoaFisica] = None,
+        pessoa_fisica_data: dict,  # Agora esperamos um dict completo
         created_by=None,
+        pessoa_fisica: Optional[PessoaFisica] = None, # Mantemos opcional para retrocompatibilidade
         **kwargs
     ) -> Funcionario:
-        """
-        Cria um novo funcionario.
-
-        Pode receber:
-        - pessoa_fisica_data: dict com dados para criar nova PessoaFisica
-        - pessoa_fisica: instancia existente de PessoaFisica
-        """
-        # Se nao tem pessoa_fisica, cria uma nova
+        
+        # 1. Se não passou uma instância, cria usando os dados (que incluem aninhados)
         if not pessoa_fisica and pessoa_fisica_data:
-            pessoa_fisica = PessoaFisica.objects.create(
+            # O PessoaFisicaService agora sabe lidar com enderecos, contatos, etc.
+            pessoa_fisica = PessoaFisicaService.create(
                 created_by=created_by,
                 **pessoa_fisica_data
             )
         elif not pessoa_fisica:
-            raise ValueError('pessoa_fisica ou pessoa_fisica_data e obrigatorio')
+            raise ValueError('É necessário informar os dados da Pessoa Física.')
 
-        # Verifica se ja existe funcionario para esta pessoa
-        if Funcionario.objects.filter(
-            pessoa_fisica=pessoa_fisica,
-            deleted_at__isnull=True
-        ).exists():
-            raise ValueError('Ja existe um funcionario cadastrado para esta pessoa')
+        # 2. Validação de unicidade
+        if Funcionario.objects.filter(pessoa_fisica=pessoa_fisica, deleted_at__isnull=True).exists():
+            raise ValueError('Já existe um funcionário cadastrado para esta pessoa.')
 
+        # 3. Criação do Funcionário
         funcionario = Funcionario(
             pessoa_fisica=pessoa_fisica,
             created_by=created_by,
             **kwargs
         )
         funcionario.save()
+
         return funcionario
 
     @staticmethod

@@ -3,7 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 
 from ..models import EmpresaCNPJ
-from ..serializers import EmpresaCNPJSerializer, EmpresaCNPJCreateSerializer
+from ..serializers import (
+    EmpresaCNPJSerializer, 
+    EmpresaCNPJCreateSerializer, 
+    EmpresaCNPJListSerializer
+)
 from ..services import EmpresaCNPJService
 from .. import selectors
 
@@ -15,6 +19,8 @@ class EmpresaCNPJViewSet(viewsets.ModelViewSet):
     serializer_class = EmpresaCNPJSerializer
 
     def get_serializer_class(self):
+        if self.action == 'list':
+            return EmpresaCNPJListSerializer
         if self.action in ['create', 'update', 'partial_update']:
             return EmpresaCNPJCreateSerializer
         return EmpresaCNPJSerializer

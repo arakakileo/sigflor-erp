@@ -42,7 +42,7 @@ class SoftDeleteModel(AuditModel):
         self.updated_at = timezone.now()
 
         if getattr(self, 'principal', None) is not None:
-            self.principal = None
+            self.principal = False
             
         #user deve ser obrigatório quando tiver autenticação
         if user:

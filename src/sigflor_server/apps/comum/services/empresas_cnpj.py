@@ -2,7 +2,7 @@ from typing import Optional
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-from ..models import EmpresaCNPJ, PessoaJuridica
+from ..models import EmpresaCNPJ
 from .pessoa_juridica import PessoaJuridicaService
 
 
@@ -19,17 +19,22 @@ class EmpresaCNPJService:
         created_by=None,
     ) -> EmpresaCNPJ:
         """Cria uma nova EmpresaCNPJ."""
-        # Verifica se já existe matriz e impede criar outra
         if matriz and EmpresaCNPJ.objects.filter(matriz=True, deleted_at__isnull=True).exists():
             raise ValidationError("Já existe uma empresa matriz cadastrada.")
 
-        # Cria ou obtém a PessoaJuridica
+        # O get_or_create agora sabe lidar com os dados aninhados dentro de 'defaults'
+        # passamos todo o resto do dicionário como kwargs
+        cnpj = pessoa_juridica_data.pop('cnpj')
+        
         pessoa_juridica, _ = PessoaJuridicaService.get_or_create_by_cnpj(
-            cnpj=pessoa_juridica_data.get('cnpj'),
-            razao_social=pessoa_juridica_data.get('razao_social'),
-            nome_fantasia=pessoa_juridica_data.get('nome_fantasia'),
+            cnpj=cnpj,
             created_by=created_by,
+            **pessoa_juridica_data 
         )
+
+        # Verifica se essa PJ já está vinculada a outra EmpresaCNPJ (regra de unicidade 1:1)
+        if hasattr(pessoa_juridica, 'empresa_cnpj') and pessoa_juridica.empresa_cnpj:
+            raise ValidationError("Esta Pessoa Jurídica já está vinculada a uma Empresa do grupo.")
 
         empresa = EmpresaCNPJ(
             pessoa_juridica=pessoa_juridica,
@@ -44,7 +49,12 @@ class EmpresaCNPJService:
     @staticmethod
     @transaction.atomic
     def update(empresa: EmpresaCNPJ, updated_by=None, **kwargs) -> EmpresaCNPJ:
-        """Atualiza uma EmpresaCNPJ existente."""
+        """Atualiza uma EmpresaCNPJ e seus dados vinculados de Pessoa Jurídica."""
+        
+        # 1. Extrair dados da Pessoa Jurídica (se houver)
+        pessoa_juridica_data = kwargs.pop('pessoa_juridica', None)
+
+        # 2. Atualizar dados da própria EmpresaCNPJ
         # Se está tornando matriz, remove matriz anterior
         if kwargs.get('matriz') and not empresa.matriz:
             EmpresaCNPJ.objects.filter(
@@ -57,6 +67,14 @@ class EmpresaCNPJService:
                 setattr(empresa, attr, value)
         empresa.updated_by = updated_by
         empresa.save()
+        # 3. Delegar atualização da Pessoa Jurídica (incluindo listas aninhadas)
+        if pessoa_juridica_data:
+            PessoaJuridicaService.update(
+                pessoa=empresa.pessoa_juridica,
+                updated_by=updated_by,
+                **pessoa_juridica_data
+            )
+
         return empresa
 
     @staticmethod

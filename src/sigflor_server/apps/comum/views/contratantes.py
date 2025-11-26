@@ -3,7 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 
 from ..models import Contratante
-from ..serializers import ContratanteSerializer, ContratanteCreateSerializer
+from ..serializers import (
+    ContratanteSerializer, 
+    ContratanteCreateSerializer,
+    ContratanteListSerializer
+)
 from ..services import ContratanteService
 from .. import selectors
 
@@ -15,6 +19,8 @@ class ContratanteViewSet(viewsets.ModelViewSet):
     serializer_class = ContratanteSerializer
 
     def get_serializer_class(self):
+        if self.action == 'list':
+            return ContratanteListSerializer
         if self.action in ['create', 'update', 'partial_update']:
             return ContratanteCreateSerializer
         return ContratanteSerializer

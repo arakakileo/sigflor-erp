@@ -1,12 +1,35 @@
 from rest_framework import serializers
+from django.core.exceptions import ValidationError as DjangoValidationError
 
-from ..models import EmpresaCNPJ, PessoaJuridica
-from .pessoa_juridica import PessoaJuridicaSerializer
+from ..models import EmpresaCNPJ
+from .pessoa_juridica import (
+    PessoaJuridicaSerializer, 
+    PessoaJuridicaCreateSerializer, 
+    PessoaJuridicaListSerializer
+)
+
+
+class EmpresaCNPJListSerializer(serializers.ModelSerializer):
+
+    pessoa_juridica = PessoaJuridicaListSerializer(read_only=True)
+    
+    razao_social = serializers.ReadOnlyField()
+    cnpj_formatado = serializers.ReadOnlyField()
+
+    class Meta:
+        model = EmpresaCNPJ
+        fields = [
+            'id',
+            'pessoa_juridica',
+            'razao_social',
+            'cnpj_formatado',
+            'descricao',
+            'ativa',
+            'matriz',
+        ]
 
 
 class EmpresaCNPJSerializer(serializers.ModelSerializer):
-    """Serializer para leitura de EmpresaCNPJ."""
-
     pessoa_juridica = PessoaJuridicaSerializer(read_only=True)
     razao_social = serializers.ReadOnlyField()
     cnpj = serializers.ReadOnlyField()
@@ -30,9 +53,7 @@ class EmpresaCNPJSerializer(serializers.ModelSerializer):
 
 
 class EmpresaCNPJCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criação de EmpresaCNPJ."""
-
-    pessoa_juridica = PessoaJuridicaSerializer()
+    pessoa_juridica = PessoaJuridicaCreateSerializer(required=True)
 
     class Meta:
         model = EmpresaCNPJ
@@ -46,21 +67,27 @@ class EmpresaCNPJCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def create(self, validated_data):
+        from ..services import EmpresaCNPJService
+
         pessoa_juridica_data = validated_data.pop('pessoa_juridica')
-        pessoa_juridica = PessoaJuridica.objects.create(**pessoa_juridica_data)
-        empresa = EmpresaCNPJ.objects.create(
-            pessoa_juridica=pessoa_juridica,
-            **validated_data
-        )
-        return empresa
+        
+        try:
+            return EmpresaCNPJService.create(
+                pessoa_juridica_data=pessoa_juridica_data,
+                created_by=self.context.get('request').user if self.context.get('request') else None,
+                **validated_data
+            )
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
 
     def update(self, instance, validated_data):
-        pessoa_juridica_data = validated_data.pop('pessoa_juridica', None)
-        if pessoa_juridica_data:
-            for attr, value in pessoa_juridica_data.items():
-                setattr(instance.pessoa_juridica, attr, value)
-            instance.pessoa_juridica.save()
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+
+        from ..services import EmpresaCNPJService
+        try:
+            return EmpresaCNPJService.update(
+                empresa=instance,
+                updated_by=self.context.get('request').user if self.context.get('request') else None,
+                **validated_data
+            )
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))

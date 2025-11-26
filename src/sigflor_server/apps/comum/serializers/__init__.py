@@ -2,8 +2,8 @@ from .pessoa_fisica import PessoaFisicaSerializer
 from .pessoa_juridica import PessoaJuridicaSerializer
 from .usuarios import UsuarioSerializer, UsuarioCreateSerializer
 from .permissoes import PermissaoSerializer, PapelSerializer
-from .empresas_cnpj import EmpresaCNPJSerializer, EmpresaCNPJCreateSerializer
-from .contratantes import ContratanteSerializer, ContratanteCreateSerializer
+from .empresas_cnpj import EmpresaCNPJSerializer, EmpresaCNPJCreateSerializer, EmpresaCNPJListSerializer
+from .contratantes import ContratanteSerializer, ContratanteCreateSerializer, ContratanteListSerializer
 from .enderecos import EnderecoSerializer
 from .contatos import ContatoSerializer
 from .documentos import DocumentoSerializer
@@ -36,8 +36,10 @@ __all__ = [
     'UsuarioCreateSerializer',
     'PermissaoSerializer',
     'PapelSerializer',
+    'EmpresaCNPJListSerializer',
     'EmpresaCNPJSerializer',
     'EmpresaCNPJCreateSerializer',
+    'ContratanteListSerializer',
     'ContratanteSerializer',
     'ContratanteCreateSerializer',
     'EnderecoSerializer',

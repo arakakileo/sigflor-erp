@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 from rest_framework import serializers
-
-from apps.comum.serializers import PessoaFisicaSerializer
+# Importar o novo serializer
+from apps.comum.serializers.pessoa_fisica import PessoaFisicaCreateSerializer, PessoaFisicaSerializer
 from ..models import Funcionario
 
 
@@ -146,115 +145,70 @@ class FuncionarioSerializer(serializers.ModelSerializer):
 
 
 class FuncionarioCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criacao/edicao de funcionario."""
+    """Serializer para criação de funcionário usando estrutura aninhada."""
 
-    # Campos da PessoaFisica para criacao inline
-    nome_completo = serializers.CharField(write_only=True)
-    cpf = serializers.CharField(write_only=True)
-    rg = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    orgao_emissor = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    data_nascimento = serializers.DateField(write_only=True, required=False, allow_null=True)
-    sexo = serializers.ChoiceField(
-        choices=[('M', 'Masculino'), ('F', 'Feminino'), ('O', 'Outro')],
-        write_only=True,
-        required=False,
-        allow_blank=True
-    )
-    estado_civil = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    nacionalidade = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    naturalidade = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    pessoa_fisica = PessoaFisicaCreateSerializer(required=True)
 
     class Meta:
         model = Funcionario
         fields = [
-            # Campos PessoaFisica (write_only)
-            'nome_completo',
-            'cpf',
-            'rg',
-            'orgao_emissor',
-            'data_nascimento',
-            'sexo',
-            'estado_civil',
-            'nacionalidade',
-            'naturalidade',
-            # Campos Funcionario
-            'pessoa_fisica',
-            'matricula',
-            'cargo',
-            'departamento',
+            'pessoa_fisica', 
+            'matricula', 
+            'cargo', 
+            'departamento', 
             'subcontrato',
-            'tipo_contrato',
-            'data_admissao',
-            'data_demissao',
+            'tipo_contrato', 
+            'data_admissao', 
+            'data_demissao', 
             'salario',
-            'carga_horaria_semanal',
-            'turno',
-            'horario_entrada',
+            'carga_horaria_semanal', 
+            'turno', 
+            'horario_entrada', 
             'horario_saida',
-            'status',
-            'banco',
-            'agencia',
-            'conta',
-            'tipo_conta',
+            'status', 
+            'banco', 
+            'agencia', 
+            'conta', 
+            'tipo_conta', 
             'pix',
-            'ctps_numero',
-            'ctps_serie',
-            'ctps_uf',
+            'ctps_numero', 
+            'ctps_serie', 
+            'ctps_uf', 
             'pis',
-            # Vestimenta
-            'tamanho_camisa',
-            'tamanho_calca',
+            'tamanho_camisa', 
+            'tamanho_calca', 
             'tamanho_botina',
-            # Vinculos
-            'empresa',
-            'gestor',
+            'empresa', 
+            'gestor', 
             'observacoes',
         ]
         extra_kwargs = {
-            'pessoa_fisica': {'required': False},
             'matricula': {'required': False},
         }
 
-    def validate_cpf(self, value):
-        """Remove formatacao do CPF."""
-        return ''.join(filter(str.isdigit, value))
-
     def create(self, validated_data):
-        """Cria funcionario com PessoaFisica."""
+        """
+        O validated_data agora virá limpo, com um dict 'pessoa_fisica'
+        contendo todos os dados pessoais e as listas aninhadas.
+        """
         from apps.rh.services import FuncionarioService
 
-        # Extrai dados da pessoa fisica
-        pessoa_fisica_data = {
-            'nome_completo': validated_data.pop('nome_completo', None),
-            'cpf': validated_data.pop('cpf', None),
-            'rg': validated_data.pop('rg', None),
-            'orgao_emissor': validated_data.pop('orgao_emissor', None),
-            'data_nascimento': validated_data.pop('data_nascimento', None),
-            'sexo': validated_data.pop('sexo', None),
-            'estado_civil': validated_data.pop('estado_civil', None),
-            'nacionalidade': validated_data.pop('nacionalidade', None),
-            'naturalidade': validated_data.pop('naturalidade', None),
-        }
-
-        # Remove valores None/vazios
-        pessoa_fisica_data = {k: v for k, v in pessoa_fisica_data.items() if v}
+        # Extrai o dicionário completo da pessoa física
+        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
 
         return FuncionarioService.create(
-            pessoa_fisica_data=pessoa_fisica_data if pessoa_fisica_data else None,
+            pessoa_fisica_data=pessoa_fisica_data,
             created_by=self.context.get('request').user if self.context.get('request') else None,
             **validated_data
         )
 
     def update(self, instance, validated_data):
-        """Atualiza funcionario."""
+        # No update, geralmente não permitimos alterar dados aninhados complexos
+        # diretamente pelo endpoint do funcionário para evitar efeitos colaterais.
+        # Removemos 'pessoa_fisica' se vier no payload.
+        validated_data.pop('pessoa_fisica', None)
+
         from apps.rh.services import FuncionarioService
-
-        # Remove campos de pessoa fisica (nao atualiza por aqui)
-        for field in ['nome_completo', 'cpf', 'rg', 'orgao_emissor',
-                      'data_nascimento', 'sexo', 'estado_civil',
-                      'nacionalidade', 'naturalidade']:
-            validated_data.pop(field, None)
-
         return FuncionarioService.update(
             funcionario=instance,
             updated_by=self.context.get('request').user if self.context.get('request') else None,

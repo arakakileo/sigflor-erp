@@ -27,3 +27,10 @@ class ContatoSerializer(serializers.ModelSerializer):
 
     def get_content_type_name(self, obj):
         return obj.content_type.model if obj.content_type else None
+    
+class ContatoNestedSerializer(ContatoSerializer):
+    """
+    Usado para criação aninhada. Ignora obrigatoriedade de vínculo.
+    """
+    class Meta(ContatoSerializer.Meta):
+        read_only_fields = ContatoSerializer.Meta.read_only_fields + ['content_type', 'object_id']

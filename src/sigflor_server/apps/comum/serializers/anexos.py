@@ -34,3 +34,7 @@ class AnexoSerializer(serializers.ModelSerializer):
 
     def get_content_type_name(self, obj):
         return obj.content_type.model if obj.content_type else None
+
+class AnexoNestedSerializer(AnexoSerializer):
+    class Meta(AnexoSerializer.Meta):
+        read_only_fields = AnexoSerializer.Meta.read_only_fields + ['content_type', 'object_id']

@@ -1,7 +1,13 @@
-from typing import Optional
+from typing import Optional, List
 from django.db import transaction
+from django.core.exceptions import ValidationError
 
-from ..models import PessoaFisica
+from ..models import PessoaFisica, Endereco, Contato, Documento, Anexo
+from .enderecos import EnderecoService
+from .contatos import ContatoService
+from .documentos import DocumentoService
+from .anexos import AnexoService
+from .utils import ServiceUtils
 
 
 class PessoaFisicaService:
@@ -21,8 +27,12 @@ class PessoaFisicaService:
         naturalidade: Optional[str] = None,
         observacoes: Optional[str] = None,
         created_by=None,
+        enderecos: List[dict] = [],
+        contatos: List[dict] = [],
+        documentos: List[dict] = [],
+        anexos: List[dict] = [],
     ) -> PessoaFisica:
-        """Cria uma nova Pessoa Física."""
+        """Cria uma nova Pessoa Física e suas entidades relacionadas."""
         pessoa = PessoaFisica(
             nome_completo=nome_completo,
             cpf=cpf,
@@ -37,17 +47,81 @@ class PessoaFisicaService:
             created_by=created_by,
         )
         pessoa.save()
+
+        if enderecos:
+            for end_data in enderecos:
+                EnderecoService.create(entidade=pessoa, created_by=created_by, **end_data)
+        
+        if contatos:
+            for ctt_data in contatos:
+                ContatoService.create(entidade=pessoa, created_by=created_by, **ctt_data)
+
+        if documentos:
+            for doc_data in documentos:
+                DocumentoService.create(entidade=pessoa, created_by=created_by, **doc_data)
+
+        if anexos:
+            for anx_data in anexos:
+                AnexoService.create(entidade=pessoa, created_by=created_by, **anx_data)
+
         return pessoa
 
     @staticmethod
     @transaction.atomic
     def update(pessoa: PessoaFisica, updated_by=None, **kwargs) -> PessoaFisica:
-        """Atualiza uma Pessoa Física existente."""
+        """Atualiza uma Pessoa Física e sincroniza suas listas aninhadas."""
+        
+        enderecos = kwargs.pop('enderecos', None)
+        contatos = kwargs.pop('contatos', None)
+        documentos = kwargs.pop('documentos', None)
+        anexos = kwargs.pop('anexos', None)
+
         for attr, value in kwargs.items():
             if hasattr(pessoa, attr):
                 setattr(pessoa, attr, value)
         pessoa.updated_by = updated_by
         pessoa.save()
+
+        if enderecos is not None:
+            ServiceUtils.sincronizar_lista_aninhada(
+                entidade_pai=pessoa,
+                dados_lista=enderecos,
+                service_filho=EnderecoService,
+                model_filho=Endereco,
+                user=updated_by,
+                metodo_busca_existentes='get_enderecos_por_entidade'
+            )
+
+        if contatos is not None:
+            ServiceUtils.sincronizar_lista_aninhada(
+                entidade_pai=pessoa,
+                dados_lista=contatos,
+                service_filho=ContatoService,
+                model_filho=Contato,
+                user=updated_by,
+                metodo_busca_existentes='get_contatos_por_entidade'
+            )
+
+        if documentos is not None:
+            ServiceUtils.sincronizar_lista_aninhada(
+                entidade_pai=pessoa,
+                dados_lista=documentos,
+                service_filho=DocumentoService,
+                model_filho=Documento,
+                user=updated_by,
+                metodo_busca_existentes='get_documentos_por_entidade'
+            )
+
+        if anexos is not None:
+            ServiceUtils.sincronizar_lista_aninhada(
+                entidade_pai=pessoa,
+                dados_lista=anexos,
+                service_filho=AnexoService,
+                model_filho=Anexo,
+                user=updated_by,
+                metodo_busca_existentes='get_anexos_por_entidade'
+            )
+
         return pessoa
 
     @staticmethod
@@ -78,5 +152,6 @@ class PessoaFisicaService:
         cpf_limpo = ''.join(filter(str.isdigit, cpf))
         pessoa = PessoaFisicaService.get_by_cpf(cpf_limpo)
         if pessoa:
-            return pessoa, False
+            # return pessoa, False
+            raise ValidationError({'cpf': "Esta Pessoa Física já está cadastrada no sistema."})
         return PessoaFisicaService.create(cpf=cpf_limpo, **defaults), True

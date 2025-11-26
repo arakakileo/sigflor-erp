@@ -35,3 +35,7 @@ class DocumentoSerializer(serializers.ModelSerializer):
 
     def get_content_type_name(self, obj):
         return obj.content_type.model if obj.content_type else None
+
+class DocumentoNestedSerializer(DocumentoSerializer):
+    class Meta(DocumentoSerializer.Meta):
+        read_only_fields = DocumentoSerializer.Meta.read_only_fields + ['content_type', 'object_id']
