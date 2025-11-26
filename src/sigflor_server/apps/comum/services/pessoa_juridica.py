@@ -135,52 +135,6 @@ class PessoaJuridicaService:
         return pessoa
 
     @staticmethod
-    def _atualizar_lista_aninhada(entidade_pai, dados_lista, service_filho, user):
-        """
-        Lógica genérica para criar, atualizar ou remover itens de uma lista.
-        """
-
-        ids_recebidos = [item.get('id') for item in dados_lista if item.get('id')]
-        
-        # A. REMOVER: Itens que existem no banco mas NÃO vieram na lista
-        # (Isso assume que o frontend sempre manda a lista completa atualizada)
-        # Para descobrir os itens atuais, usamos o método que já existe no service filho
-        if service_filho == EnderecoService:
-            itens_atuais = service_filho.get_enderecos_por_entidade(entidade_pai)
-        elif service_filho == ContatoService:
-            itens_atuais = service_filho.get_contatos_por_entidade(entidade_pai)
-        elif service_filho == DocumentoService:
-            itens_atuais = service_filho.get_documentos_por_entidade(entidade_pai)
-        elif service_filho == AnexoService:
-            itens_atuais = service_filho.get_anexos_por_entidade(entidade_pai)
-        
-        for item_db in itens_atuais:
-            if str(item_db.id) not in ids_recebidos:
-                service_filho.delete(item_db, user=user)
-
-        # B. CRIAR ou ATUALIZAR
-        for item_data in dados_lista:
-            item_id = item_data.get('id')
-            
-            if item_id:
-                # ATUALIZAR existente
-                # Precisamos buscar o objeto específico. 
-                # Simplificação: Assumimos que o service tem um método get ou filter
-                # Num caso real, você pode otimizar buscando todos antes.
-                # Aqui vou usar o model direto para exemplificar, mas o ideal é usar selector
-                from ..models import Endereco, Contato
-                ModelClass = Endereco if service_filho == EnderecoService else Contato
-                
-                try:
-                    instancia = ModelClass.objects.get(pk=item_id, deleted_at__isnull=True)
-                    service_filho.update(instancia, updated_by=user, **item_data)
-                except ModelClass.DoesNotExist:
-                    pass # Ou lançar erro
-            else:
-                # CRIAR novo
-                service_filho.create(entidade=entidade_pai, created_by=user, **item_data)
-
-    @staticmethod
     @transaction.atomic
     def delete(pessoa: PessoaJuridica, user=None) -> None:
         """Soft delete de uma Pessoa Jurídica."""
