@@ -53,11 +53,7 @@ class Deficiencia(SoftDeleteModel):
         null=True,
         help_text='Grau da deficiencia (leve, moderado, grave, etc.)'
     )
-    data_diagnostico = models.DateField(
-        blank=True,
-        null=True,
-        help_text='Data do diagnostico'
-    )
+
     congenita = models.BooleanField(
         default=False,
         help_text='Indica se a deficiencia e congenita (de nascenca)'

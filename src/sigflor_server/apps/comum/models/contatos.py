@@ -1,8 +1,6 @@
 import uuid
 from django.db import models
 from django.db.models import Q
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
 from .base import SoftDeleteModel
 from ..validators import ContatosValidator
@@ -10,8 +8,8 @@ from ..validators import ContatosValidator
 
 class Contato(SoftDeleteModel):
     """
-    Entidade genérica de contatos utilizando GenericForeignKey.
-    Pode ser vinculada a qualquer entidade do sistema.
+    Entidade centralizada de contatos.
+    Não possui vínculo direto, sendo ligada a outras entidades por tabelas de junção.
     """
 
     class Tipo(models.TextChoices):
@@ -23,12 +21,7 @@ class Contato(SoftDeleteModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=20, choices=Tipo.choices)
     valor = models.CharField(max_length=150)
-    principal = models.BooleanField(default=False)
-
-    # GenericForeignKey
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=36)  # UUID como string
-    entidade = GenericForeignKey('content_type', 'object_id')
+    tem_whatsapp = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'contatos'
@@ -37,19 +30,12 @@ class Contato(SoftDeleteModel):
         indexes = [
             models.Index(fields=['tipo']),
             models.Index(fields=['valor']),
-            models.Index(fields=['content_type', 'object_id']),
-            models.Index(fields=['content_type', 'object_id', 'tipo']),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['content_type', 'object_id', 'tipo', 'valor'],
+                fields=['tipo', 'valor'],
                 condition=Q(deleted_at__isnull=True),
-                name='uniq_contatos_tipo_valor_entidade'
-            ),
-            models.UniqueConstraint(
-                fields=['content_type', 'object_id', 'tipo'],
-                condition=Q(principal=True, deleted_at__isnull=True),
-                name='uniq_contato_principal_por_tipo_entidade',
+                name='uniq_contato_tipo_valor_vivo'
             ),
         ]
 
@@ -85,3 +71,66 @@ class Contato(SoftDeleteModel):
             if len(self.valor) == 10:
                 return f"({self.valor[:2]}) {self.valor[2:6]}-{self.valor[6:]}"
         return self.valor
+
+
+class PessoaFisicaContato(SoftDeleteModel):
+    """Tabela de ligação entre PessoaFisica e Contato."""
+    pessoa_fisica = models.ForeignKey('comum.PessoaFisica', on_delete=models.CASCADE)
+    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    principal = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'pessoas_fisicas_contatos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_fisica', 'contato'],
+                name='uniq_pf_contato'
+            ),
+            models.UniqueConstraint(
+                fields=['pessoa_fisica'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pf_contato_principal'
+            ),
+        ]
+
+
+class PessoaJuridicaContato(SoftDeleteModel):
+    """Tabela de ligação entre PessoaJuridica e Contato."""
+    pessoa_juridica = models.ForeignKey('comum.PessoaJuridica', on_delete=models.CASCADE)
+    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    principal = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'pessoas_juridicas_contatos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_juridica', 'contato'],
+                name='uniq_pj_contato'
+            ),
+            models.UniqueConstraint(
+                fields=['pessoa_juridica'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pj_contato_principal'
+            ),
+        ]
+
+
+class FilialContato(SoftDeleteModel):
+    """Tabela de ligação entre Filial e Contato."""
+    filial = models.ForeignKey('comum.Filial', on_delete=models.CASCADE)
+    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    principal = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'filiais_contatos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['filial', 'contato'],
+                name='uniq_filial_contato'
+            ),
+            models.UniqueConstraint(
+                fields=['filial'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_filial_contato_principal'
+            ),
+        ]

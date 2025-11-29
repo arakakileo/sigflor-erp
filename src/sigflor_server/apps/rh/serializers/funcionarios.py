@@ -24,6 +24,7 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
     subcontrato_numero = serializers.ReadOnlyField()
     filial_nome = serializers.ReadOnlyField()
     contratante_nome = serializers.ReadOnlyField()
+    projeto_nome = serializers.CharField(source='projeto.nome', read_only=True) # Adicionado projeto_nome
 
     class Meta:
         model = Funcionario
@@ -39,6 +40,7 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
             'subcontrato_numero',
             'filial_nome',
             'contratante_nome',
+            'projeto_nome', # Adicionado projeto_nome
             'status',
             'tipo_contrato',
             'data_admissao',
@@ -74,6 +76,7 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     filial_nome = serializers.ReadOnlyField()
     contrato_numero = serializers.ReadOnlyField()
     contratante_nome = serializers.ReadOnlyField()
+    projeto_nome = serializers.CharField(source='projeto.nome', read_only=True) # Adicionado projeto_nome
 
     class Meta:
         model = Funcionario
@@ -93,6 +96,8 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             'filial_nome',
             'contrato_numero',
             'contratante_nome',
+            'projeto', # Adicionado projeto
+            'projeto_nome', # Adicionado projeto_nome
             # Dados contratuais
             'tipo_contrato',
             'data_admissao',

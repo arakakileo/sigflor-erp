@@ -42,7 +42,7 @@ class Filial(SoftDeleteModel):
 
     # Vinculo com empresa do grupo (opcional)
     empresa = models.ForeignKey(
-        'comum.EmpresaCNPJ',
+        'comum.Empresa',
         on_delete=models.PROTECT,
         related_name='filiais',
         blank=True,
@@ -55,9 +55,11 @@ class Filial(SoftDeleteModel):
         'comum.Endereco',
         related_query_name='filial'
     )
-    contatos = GenericRelation(
+    contatos = models.ManyToManyField(
         'comum.Contato',
-        related_query_name='filial'
+        through='comum.FilialContato',
+        related_name='filiais',
+        help_text='Contatos da filial'
     )
 
     class Meta:
@@ -88,10 +90,6 @@ class Filial(SoftDeleteModel):
         """Retorna o endereco principal da filial."""
         return self.enderecos.filter(principal=True, deleted_at__isnull=True).first()
 
-    @property
-    def contato_principal(self):
-        """Retorna o contato principal da filial."""
-        return self.contatos.filter(principal=True, deleted_at__isnull=True).first()
 
     @property
     def empresa_nome(self):

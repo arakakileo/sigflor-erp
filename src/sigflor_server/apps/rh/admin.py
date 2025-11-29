@@ -109,7 +109,7 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'id',
         'matricula',
         'tem_dependente',
-        'tempo_empresa',
+        # 'tempo_empresa',
         'created_at',
         'updated_at',
         'deleted_at',

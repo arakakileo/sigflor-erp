@@ -7,7 +7,7 @@ from .base import SoftDeleteModel
 
 class Contrato(SoftDeleteModel):
     """
-    Cadastro de contratos entre uma Contratante e uma EmpresaCNPJ.
+    Cadastro de contratos entre uma Cliente e uma Empresa.
     Representa acordos comerciais formais entre as partes.
     """
 
@@ -27,14 +27,14 @@ class Contrato(SoftDeleteModel):
     )
 
     # Vinculos
-    contratante = models.ForeignKey(
-        'comum.Contratante',
+    cliente = models.ForeignKey(
+        'comum.Cliente',
         on_delete=models.PROTECT,
         related_name='contratos',
-        help_text='Contratante do contrato'
+        help_text='Cliente do contrato'
     )
     empresa = models.ForeignKey(
-        'comum.EmpresaCNPJ',
+        'comum.Empresa',
         on_delete=models.PROTECT,
         related_name='contratos',
         help_text='Empresa do grupo contratada'
@@ -76,7 +76,7 @@ class Contrato(SoftDeleteModel):
             models.Index(fields=['numero_externo']),
             models.Index(fields=['ativo']),
             models.Index(fields=['data_inicio']),
-            models.Index(fields=['contratante']),
+            models.Index(fields=['cliente']),
             models.Index(fields=['empresa']),
         ]
         constraints = [
@@ -92,7 +92,7 @@ class Contrato(SoftDeleteModel):
         ]
 
     def __str__(self):
-        return f'{self.numero_interno} - {self.contratante}'
+        return f'{self.numero_interno} - {self.cliente}'
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -110,9 +110,9 @@ class Contrato(SoftDeleteModel):
         return self.data_inicio <= hoje
 
     @property
-    def contratante_nome(self):
-        """Retorna o nome do contratante."""
-        return self.contratante.pessoa_juridica.razao_social if self.contratante else None
+    def cliente_nome(self):
+        """Retorna o nome do cliente."""
+        return self.cliente.pessoa_juridica.razao_social if self.cliente else None
 
     @property
     def empresa_nome(self):

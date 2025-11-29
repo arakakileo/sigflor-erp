@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
 
+from .filiais import Filial
 
 class UsuarioManager(BaseUserManager):
     """Manager customizado para criação de usuários."""
@@ -66,7 +67,14 @@ class Usuario(AbstractUser):
         blank=True,
         related_name='usuarios_diretos'
     )
-
+    
+    # Filiais às quais o usuário tem acesso (controle de acesso regional)
+    allowed_filiais = models.ManyToManyField(
+        Filial,
+        blank=True,
+        related_name='usuarios_com_acesso',
+        help_text='Filiais às quais o usuário tem permissão para acessar e gerenciar.'
+    )
     objects = UsuarioManager()
 
     USERNAME_FIELD = 'username'

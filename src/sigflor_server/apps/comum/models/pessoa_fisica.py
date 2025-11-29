@@ -66,9 +66,11 @@ class PessoaFisica(SoftDeleteModel):
         'comum.Endereco',
         related_query_name='pessoa_fisica'
     )
-    contatos = GenericRelation(
+    contatos = models.ManyToManyField(
         'comum.Contato',
-        related_query_name='pessoa_fisica'
+        through='comum.PessoaFisicaContato',
+        related_name='pessoas_fisicas',
+        help_text='Contatos da pessoa física'
     )
     documentos = GenericRelation(
         'comum.Documento',

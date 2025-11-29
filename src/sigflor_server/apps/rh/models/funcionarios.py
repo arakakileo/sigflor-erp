@@ -4,6 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.comum.models.base import SoftDeleteModel
+from apps.comum.models import Projeto
 
 
 class Funcionario(SoftDeleteModel):
@@ -69,6 +70,16 @@ class Funcionario(SoftDeleteModel):
         blank=True,
         null=True,
         help_text='SubContrato para alocacao de custos'
+    )
+
+    # Vinculo com projeto (Centro de Custo)
+    projeto = models.ForeignKey(
+        'comum.Projeto',
+        on_delete=models.PROTECT,
+        related_name='alocacoes_projeto',
+        blank=True,
+        null=True,
+        help_text='Projeto/Centro de Custo ao qual o funcionario esta alocado'
     )
 
     # Dados contratuais
@@ -221,6 +232,7 @@ class Funcionario(SoftDeleteModel):
             models.Index(fields=['departamento']),
             models.Index(fields=['data_admissao']),
             models.Index(fields=['subcontrato']),
+            models.Index(fields=['projeto']),
         ]
 
     def __str__(self):
@@ -264,11 +276,11 @@ class Funcionario(SoftDeleteModel):
         """Retorna o CPF formatado."""
         return self.pessoa_fisica.cpf_formatado
 
-    @property
-    def tempo_empresa(self):
-        """Retorna o tempo de empresa em dias."""
-        data_fim = self.data_demissao or timezone.now().date()
-        return (data_fim - self.data_admissao).days
+    # @property
+    # def tempo_empresa(self):
+    #     """Retorna o tempo de empresa em dias."""
+    #     data_fim = self.data_demissao or timezone.now().date()
+    #     return (data_fim - self.data_admissao).days
 
     @property
     def is_ativo(self):

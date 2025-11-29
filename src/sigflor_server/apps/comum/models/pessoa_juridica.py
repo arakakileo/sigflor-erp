@@ -15,19 +15,6 @@ class PessoaJuridica(SoftDeleteModel):
     Nao e criado diretamente pelo usuario - apenas via modulos dependentes.
     """
 
-    class Porte(models.TextChoices):
-        MEI = 'mei', 'MEI'
-        ME = 'me', 'Microempresa'
-        EPP = 'epp', 'Empresa de Pequeno Porte'
-        MEDIO = 'medio', 'Medio Porte'
-        GRANDE = 'grande', 'Grande Porte'
-
-    class SituacaoCadastral(models.TextChoices):
-        ATIVA = 'ativa', 'Ativa'
-        SUSPENSA = 'suspensa', 'Suspensa'
-        INAPTA = 'inapta', 'Inapta'
-        BAIXADA = 'baixada', 'Baixada'
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     razao_social = models.CharField(max_length=200)
     nome_fantasia = models.CharField(max_length=200, blank=True, null=True)
@@ -38,22 +25,7 @@ class PessoaJuridica(SoftDeleteModel):
         help_text="CNPJ com 14 digitos (apenas numeros)"
     )
     inscricao_estadual = models.CharField(max_length=20, blank=True, null=True)
-    inscricao_municipal = models.CharField(max_length=20, blank=True, null=True)
-    porte = models.CharField(
-        max_length=10,
-        choices=Porte.choices,
-        blank=True,
-        null=True
-    )
-    natureza_juridica = models.CharField(max_length=100, blank=True, null=True)
     data_abertura = models.DateField(blank=True, null=True)
-    atividade_principal = models.CharField(max_length=200, blank=True, null=True)
-    atividades_secundarias = ArrayField(
-        models.CharField(max_length=200),
-        blank=True,
-        null=True,
-        default=list
-    )
     situacao_cadastral = models.CharField(
         max_length=20,
         choices=SituacaoCadastral.choices,
@@ -66,16 +38,14 @@ class PessoaJuridica(SoftDeleteModel):
         'comum.Endereco',
         related_query_name='pessoa_juridica'
     )
-    contatos = GenericRelation(
+    contatos = models.ManyToManyField(
         'comum.Contato',
-        related_query_name='pessoa_juridica'
+        through='comum.PessoaJuridicaContato',
+        related_name='pessoas_juridicas',
+        help_text='Contatos da pessoa jurídica'
     )
     documentos = GenericRelation(
         'comum.Documento',
-        related_query_name='pessoa_juridica'
-    )
-    anexos = GenericRelation(
-        'comum.Anexo',
         related_query_name='pessoa_juridica'
     )
 

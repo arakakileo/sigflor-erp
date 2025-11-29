@@ -10,6 +10,8 @@ from .deficiencias import DeficienciaViewSet
 from .filiais import FilialViewSet
 from .contratos import ContratoViewSet
 from .subcontratos import SubContratoViewSet
+from .projeto import ProjetoViewSet
+from .exame import ExameViewSet
 
 __all__ = [
     'EmpresaCNPJViewSet',
@@ -25,4 +27,6 @@ __all__ = [
     'FilialViewSet',
     'ContratoViewSet',
     'SubContratoViewSet',
+    'ProjetoViewSet',
+    'ExameViewSet',
 ]

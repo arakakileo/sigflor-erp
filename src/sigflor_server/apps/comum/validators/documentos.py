@@ -45,3 +45,27 @@ def validar_cpf(cpf: str) -> None:
 
     if int(cpf[9]) != digito1 or int(cpf[10]) != digito2:
         raise ValidationError("CPF inválido: dígitos verificadores incorretos.")
+
+
+def validar_tipo_arquivo(file_mimetype: str, allowed_mimetypes: list = None) -> None:
+    """
+    Valida o mimetype de um arquivo.
+    Se allowed_mimetypes não for fornecido, usa uma lista padrão de tipos comuns.
+    """
+    if allowed_mimetypes is None:
+        # Tipos de arquivo comuns permitidos por padrão
+        allowed_mimetypes = [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'application/msword', # .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', # .docx
+            'application/vnd.ms-excel', # .xls
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', # .xlsx
+        ]
+
+    if file_mimetype not in allowed_mimetypes:
+        raise ValidationError(
+            f"Tipo de arquivo não permitido: {file_mimetype}. Tipos permitidos: {', '.join(allowed_mimetypes)}",
+            code='tipo_arquivo_invalido'
+        )

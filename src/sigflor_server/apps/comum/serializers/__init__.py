@@ -28,6 +28,8 @@ from .subcontratos import (
     SubContratoCreateSerializer,
     SubContratoListSerializer
 )
+from .projeto import ProjetoSerializer, ProjetoListSerializer
+from .exame import ExameSerializer
 
 __all__ = [
     'PessoaFisicaSerializer',
@@ -61,4 +63,9 @@ __all__ = [
     'SubContratoSerializer',
     'SubContratoCreateSerializer',
     'SubContratoListSerializer',
+    # Projeto
+    'ProjetoSerializer',
+    'ProjetoListSerializer',
+    # Exame
+    'ExameSerializer',
 ]

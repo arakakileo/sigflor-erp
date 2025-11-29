@@ -3,16 +3,18 @@ from .pessoa_fisica import PessoaFisica
 from .pessoa_juridica import PessoaJuridica
 from .usuarios import Usuario, UsuarioManager
 from .permissoes import Permissao, Papel
-from .empresas_cnpj import EmpresaCNPJ
-from .contratantes import Contratante
+from .empresas import Empresa
+from .clientes import Cliente
 from .filiais import Filial
 from .contratos import Contrato
 from .subcontratos import SubContrato
 from .enderecos import Endereco
-from .contatos import Contato
+from .contatos import Contato, PessoaFisicaContato, PessoaJuridicaContato, FilialContato
 from .documentos import Documento
 from .anexos import Anexo
 from .deficiencias import Deficiencia
+from .projeto import Projeto
+from .exame import Exame
 
 __all__ = [
     # Base
@@ -28,14 +30,19 @@ __all__ = [
     'Permissao',
     'Papel',
     # Empresas e Estrutura
-    'EmpresaCNPJ',
-    'Contratante',
+    'Empresa',
+    'Cliente',
     'Filial',
     'Contrato',
     'SubContrato',
+    'Projeto',
+    'Exame',
     # Entidades genericas
     'Endereco',
     'Contato',
+    'PessoaFisicaContato',
+    'PessoaJuridicaContato',
+    'FilialContato',
     'Documento',
     'Anexo',
     'Deficiencia',
