@@ -37,7 +37,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):
         try:
             cliente = selectors.cliente_detail(pk=pk)
-            serializer = self.get_serializer(contratante)
+            serializer = self.get_serializer(cliente)
             return Response(serializer.data)
         except Cliente.DoesNotExist:
             return Response(
@@ -47,8 +47,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, pk=None):
         try:
-            contratante = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
-            ClienteService.delete(contratante, user=request.user if request.user.is_authenticated else None)
+            cliente = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
+            ClienteService.delete(cliente, user=request.user if request.user.is_authenticated else None)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Cliente.DoesNotExist:
             return Response(
@@ -58,14 +58,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):
-        """Ativa o contratante."""
+        """Ativa o cliente."""
         try:
-            contratante = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
+            cliente = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
             ClienteService.ativar(
-                contratante,
+                cliente,
                 updated_by=request.user if request.user.is_authenticated else None
             )
-            serializer = self.get_serializer(contratante)
+            serializer = self.get_serializer(cliente)
             return Response(serializer.data)
         except Cliente.DoesNotExist:
             return Response(
@@ -75,14 +75,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def desativar(self, request, pk=None):
-        """Desativa o contratante."""
+        """Desativa o cliente."""
         try:
-            contratante = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
+            cliente = Cliente.objects.get(pk=pk, deleted_at__isnull=True)
             ClienteService.desativar(
-                contratante,
+                cliente,
                 updated_by=request.user if request.user.is_authenticated else None
             )
-            serializer = self.get_serializer(contratante)
+            serializer = self.get_serializer(cliente)
             return Response(serializer.data)
         except Cliente.DoesNotExist:
             return Response(

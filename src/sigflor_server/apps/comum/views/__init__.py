@@ -1,5 +1,5 @@
-from .empresas_cnpj import EmpresaCNPJViewSet
-from .contratantes import ContratanteViewSet
+from .empresas import EmpresaViewSet
+from .clientes import ClienteViewSet
 from .usuarios import UsuarioViewSet
 from .permissoes import PermissaoViewSet, PapelViewSet
 from .enderecos import EnderecoViewSet
@@ -13,8 +13,8 @@ from .projeto import ProjetoViewSet
 from .exame import ExameViewSet
 
 __all__ = [
-    'EmpresaCNPJViewSet',
-    'ContratanteViewSet',
+    'EmpresaViewSet',
+    'ClienteViewSet',
     'UsuarioViewSet',
     'PermissaoViewSet',
     'PapelViewSet',

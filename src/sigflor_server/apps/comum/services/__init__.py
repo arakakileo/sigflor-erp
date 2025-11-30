@@ -2,8 +2,8 @@ from .pessoa_fisica import PessoaFisicaService
 from .pessoa_juridica import PessoaJuridicaService
 from .usuarios import UsuarioService
 from .permissoes import PermissaoService, PapelService
-from .empresas_cnpj import EmpresaCNPJService
-from .contratantes import ContratanteService
+from .empresas import EmpresaService
+from .clientes import ClienteService
 from .enderecos import EnderecoService
 from .contatos import ContatoService
 from .documentos import DocumentoService
@@ -20,8 +20,8 @@ __all__ = [
     'UsuarioService',
     'PermissaoService',
     'PapelService',
-    'EmpresaCNPJService',
-    'ContratanteService',
+    'EmpresaService',
+    'ClienteService',
     'EnderecoService',
     'ContatoService',
     'DocumentoService',

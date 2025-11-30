@@ -9,7 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from ..models import (
     PessoaFisica, PessoaJuridica, Usuario, Permissao, Papel,
-    EmpresaCNPJ, Contratante, Endereco, Contato, Documento, Anexo, Deficiencia,
+    Empresa, Cliente, Endereco, Contato, Documento, Anexo, Deficiencia,
     Filial, Contrato, Projeto, Exame
 )
 
@@ -129,9 +129,9 @@ def papel_detail(*, pk) -> Papel:
 
 # ============ Empresa CNPJ ============
 
-def empresa_cnpj_list(*, filters: dict = None, search: str = None, ativa: bool = None) -> QuerySet:
+def empresa_list(*, filters: dict = None, search: str = None, ativa: bool = None) -> QuerySet:
     """Lista empresas do grupo com filtros opcionais."""
-    qs = EmpresaCNPJ.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica')
+    qs = Empresa.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica')
 
     if ativa is not None:
         qs = qs.filter(ativa=ativa)
@@ -148,9 +148,9 @@ def empresa_cnpj_list(*, filters: dict = None, search: str = None, ativa: bool =
     return qs.order_by('pessoa_juridica__razao_social')
 
 
-def empresa_cnpj_detail(*, pk) -> EmpresaCNPJ:
+def empresa_detail(*, pk) -> Empresa:
     """Obtem detalhes de uma empresa com relacionamentos."""
-    return EmpresaCNPJ.objects.select_related(
+    return Empresa.objects.select_related(
         'pessoa_juridica'
     ).prefetch_related(
         'pessoa_juridica__enderecos',
@@ -158,17 +158,17 @@ def empresa_cnpj_detail(*, pk) -> EmpresaCNPJ:
     ).get(pk=pk, deleted_at__isnull=True)
 
 
-# ============ Contratante ============
+# ============ Cliente ============
 
-def contratante_list(
+def cliente_list(
     *,
     filters: dict = None,
     search: str = None,
     ativo: bool = None,
-    empresa_id: str = None # Adicionado para filtrar contratantes por empresa gestora
+    empresa_id: str = None # Adicionado para filtrar clientes por empresa gestora
 ) -> QuerySet:
-    """Lista contratantes com filtros opcionais."""
-    qs = Contratante.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica', 'empresa_gestora')
+    """Lista clientes com filtros opcionais."""
+    qs = Cliente.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica', 'empresa_gestora')
 
     if ativo is not None:
         qs = qs.filter(ativo=ativo)
@@ -189,9 +189,9 @@ def contratante_list(
     return qs.order_by('pessoa_juridica__razao_social')
 
 
-def contratante_detail(*, pk) -> Contratante:
-    """Obtem detalhes de um contratante com relacionamentos."""
-    return Contratante.objects.select_related(
+def cliente_detail(*, pk) -> Cliente:
+    """Obtem detalhes de um cliente com relacionamentos."""
+    return Cliente.objects.select_related(
         'pessoa_juridica', 'empresa_gestora'
     ).prefetch_related(
         'pessoa_juridica__enderecos',
@@ -459,7 +459,7 @@ def contrato_list(
     search: str = None,
     ativo: bool = None,
     vigente: bool = None,
-    contratante_id: str = None,
+    cliente_id: str = None,
     empresa_id: str = None
 ) -> QuerySet:
     """Lista contratos com filtros opcionais, respeitando permissoes regionais do usuario."""
@@ -467,13 +467,13 @@ def contrato_list(
 
     qs = Contrato.objects.filter(
         deleted_at__isnull=True
-    ).select_related('contratante', 'empresa', 'contratante__pessoa_juridica', 'empresa__pessoa_juridica')
+    ).select_related('cliente', 'empresa', 'cliente__pessoa_juridica', 'empresa__pessoa_juridica')
 
     if not user.is_superuser:
         # Contratos são associados a Empresas e Clientes, que podem estar em Filiais.
         # Para o MVP, assumimos que a permissão é pela filial associada à empresa do contrato
         # ou que o contrato em si não tem restrição regional direta, mas é acessível se as filiais do usuário
-        # estão em alguma Empresa que gerencia o contratante do contrato.
+        # estão em alguma Empresa que gerencia o cliente do contrato.
         # Esta é uma lógica que pode ser refinada, mas para o MVP, vamos considerar a empresa do contrato.
         qs = qs.filter(empresa__filiais__in=user.allowed_filiais.all()).distinct()
 
@@ -496,8 +496,8 @@ def contrato_list(
             Q(data_fim__lt=hoje)
         )
 
-    if contratante_id:
-        qs = qs.filter(contratante_id=contratante_id)
+    if cliente_id:
+        qs = qs.filter(cliente_id=cliente_id)
 
     if empresa_id:
         qs = qs.filter(empresa_id=empresa_id)
@@ -509,7 +509,7 @@ def contrato_list(
         qs = qs.filter(
             Q(numero_interno__icontains=search) |
             Q(numero_externo__icontains=search) |
-            Q(contratante__pessoa_juridica__razao_social__icontains=search)
+            Q(cliente__pessoa_juridica__razao_social__icontains=search)
         )
 
     return qs.order_by('-data_inicio', 'numero_interno')
@@ -522,8 +522,8 @@ def contrato_detail(
 ) -> Contrato:
     """Obtem detalhes de um contrato com relacionamentos, verificando permissao regional."""
     contrato = Contrato.objects.select_related(
-        'contratante', 'empresa',
-        'contratante__pessoa_juridica', 'empresa__pessoa_juridica'
+        'cliente', 'empresa',
+        'cliente__pessoa_juridica', 'empresa__pessoa_juridica'
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:
@@ -536,7 +536,7 @@ def contrato_detail(
 def contratos_vigentes(
     *,
     user: Usuario, # Adicionado parametro user
-    contratante_id: str = None, empresa_id: str = None
+    cliente_id: str = None, empresa_id: str = None
 ) -> QuerySet:
     """Lista contratos vigentes, respeitando permissoes regionais do usuario."""
     from django.utils import timezone
@@ -548,13 +548,13 @@ def contratos_vigentes(
         deleted_at__isnull=True
     ).filter(
         Q(data_fim__isnull=True) | Q(data_fim__gte=hoje)
-    ).select_related('contratante', 'empresa')
+    ).select_related('cliente', 'empresa')
 
     if not user.is_superuser:
         qs = qs.filter(empresa__filiais__in=user.allowed_filiais.all()).distinct()
 
-    if contratante_id:
-        qs = qs.filter(contratante_id=contratante_id)
+    if cliente_id:
+        qs = qs.filter(cliente_id=cliente_id)
 
     if empresa_id:
         qs = qs.filter(empresa_id=empresa_id)

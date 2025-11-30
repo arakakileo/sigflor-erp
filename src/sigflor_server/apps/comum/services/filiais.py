@@ -3,7 +3,7 @@ from typing import Optional
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied
 
-from ..models import Filial, EmpresaCNPJ
+from ..models import Filial, Empresa
 from apps.comum.models.usuarios import Usuario # Importando Usuario para type hinting
 
 
@@ -24,7 +24,7 @@ class FilialService:
     @staticmethod
     @transaction.atomic
     def create(
-        *, user: Usuario, nome: str, codigo_interno: str, empresa: Optional[EmpresaCNPJ] = None,
+        *, user: Usuario, nome: str, codigo_interno: str, empresa: Optional[Empresa] = None,
         status: str = Filial.Status.ATIVA, descricao: Optional[str] = None,
         created_by=None,
     ) -> Filial:

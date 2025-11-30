@@ -2,8 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    EmpresaCNPJViewSet,
-    ContratanteViewSet,
+    EmpresaViewSet,
+    ClienteViewSet,
     UsuarioViewSet,
     PermissaoViewSet,
     PapelViewSet,
@@ -21,8 +21,8 @@ from .views import (
 router = DefaultRouter()
 
 # Cadastros principais
-router.register(r'empresas-cnpj', EmpresaCNPJViewSet, basename='empresa-cnpj')
-router.register(r'contratantes', ContratanteViewSet, basename='contratante')
+router.register(r'empresas-cnpj', EmpresaViewSet, basename='empresa-cnpj')
+router.register(r'contratantes', ClienteViewSet, basename='contratante')
 
 # Usuários e permissões
 router.register(r'usuarios', UsuarioViewSet, basename='usuario')

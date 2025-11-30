@@ -1,13 +1,12 @@
 from rest_framework import serializers
 
-from ..models import Contato
+from ..models import Contato, PessoaFisicaContato, PessoaJuridicaContato, FilialContato
 
 
 class ContatoSerializer(serializers.ModelSerializer):
     """Serializer para Contato."""
 
     valor_formatado = serializers.ReadOnlyField()
-    content_type_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Contato
@@ -16,21 +15,112 @@ class ContatoSerializer(serializers.ModelSerializer):
             'tipo',
             'valor',
             'valor_formatado',
-            'principal',
-            'content_type',
-            'content_type_name',
-            'object_id',
+            'tem_whatsapp',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'valor_formatado', 'content_type_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'valor_formatado', 'created_at', 'updated_at']
 
-    def get_content_type_name(self, obj):
-        return obj.content_type.model if obj.content_type else None
-    
-class ContatoNestedSerializer(ContatoSerializer):
-    """
-    Usado para criação aninhada. Ignora obrigatoriedade de vínculo.
-    """
-    class Meta(ContatoSerializer.Meta):
-        read_only_fields = ContatoSerializer.Meta.read_only_fields + ['content_type', 'object_id']
+
+class PessoaFisicaContatoSerializer(serializers.ModelSerializer):
+    """Serializer para vínculo PessoaFisica-Contato."""
+
+    contato = ContatoSerializer(read_only=True)
+    contato_id = serializers.UUIDField(write_only=True, required=False)
+
+    class Meta:
+        model = PessoaFisicaContato
+        fields = [
+            'id',
+            'pessoa_fisica',
+            'contato',
+            'contato_id',
+            'principal',
+            'contato_emergencia',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'contato', 'created_at', 'updated_at']
+
+
+class PessoaFisicaContatoListSerializer(serializers.ModelSerializer):
+    """Serializer para listagem de contatos de PessoaFisica."""
+
+    contato = ContatoSerializer(read_only=True)
+
+    class Meta:
+        model = PessoaFisicaContato
+        fields = [
+            'id',
+            'contato',
+            'principal',
+            'contato_emergencia',
+        ]
+
+
+class PessoaJuridicaContatoSerializer(serializers.ModelSerializer):
+    """Serializer para vínculo PessoaJuridica-Contato."""
+
+    contato = ContatoSerializer(read_only=True)
+    contato_id = serializers.UUIDField(write_only=True, required=False)
+
+    class Meta:
+        model = PessoaJuridicaContato
+        fields = [
+            'id',
+            'pessoa_juridica',
+            'contato',
+            'contato_id',
+            'principal',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'contato', 'created_at', 'updated_at']
+
+
+class PessoaJuridicaContatoListSerializer(serializers.ModelSerializer):
+    """Serializer para listagem de contatos de PessoaJuridica."""
+
+    contato = ContatoSerializer(read_only=True)
+
+    class Meta:
+        model = PessoaJuridicaContato
+        fields = [
+            'id',
+            'contato',
+            'principal',
+        ]
+
+
+class FilialContatoSerializer(serializers.ModelSerializer):
+    """Serializer para vínculo Filial-Contato."""
+
+    contato = ContatoSerializer(read_only=True)
+    contato_id = serializers.UUIDField(write_only=True, required=False)
+
+    class Meta:
+        model = FilialContato
+        fields = [
+            'id',
+            'filial',
+            'contato',
+            'contato_id',
+            'principal',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'contato', 'created_at', 'updated_at']
+
+
+class FilialContatoListSerializer(serializers.ModelSerializer):
+    """Serializer para listagem de contatos de Filial."""
+
+    contato = ContatoSerializer(read_only=True)
+
+    class Meta:
+        model = FilialContato
+        fields = [
+            'id',
+            'contato',
+            'principal',
+        ]

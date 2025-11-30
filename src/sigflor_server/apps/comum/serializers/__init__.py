@@ -7,8 +7,8 @@ from .pessoa_juridica import (
 )
 from .usuarios import UsuarioSerializer, UsuarioCreateSerializer
 from .permissoes import PermissaoSerializer, PapelSerializer
-from .empresas_cnpj import EmpresaCNPJSerializer, EmpresaCNPJCreateSerializer, EmpresaCNPJListSerializer
-from .contratantes import ContratanteSerializer, ContratanteCreateSerializer, ContratanteListSerializer
+from .empresas import EmpresaListSerializer, EmpresaSerializer, EmpresaCreateSerializer
+from .clientes import ClienteListSerializer, ClienteSerializer, ClienteCreateSerializer
 from .enderecos import EnderecoSerializer
 from .contatos import ContatoSerializer
 from .documentos import DocumentoSerializer
@@ -46,12 +46,12 @@ __all__ = [
     'UsuarioCreateSerializer',
     'PermissaoSerializer',
     'PapelSerializer',
-    'EmpresaCNPJListSerializer',
-    'EmpresaCNPJSerializer',
-    'EmpresaCNPJCreateSerializer',
-    'ContratanteListSerializer',
-    'ContratanteSerializer',
-    'ContratanteCreateSerializer',
+    'EmpresaCreateSerializer',
+    'EmpresaListSerializer',
+    'EmpresaSerializer',
+    'ClienteListSerializer',
+    'ClienteSerializer',
+    'ClienteCreateSerializer',
     'EnderecoSerializer',
     'ContatoSerializer',
     'DocumentoSerializer',

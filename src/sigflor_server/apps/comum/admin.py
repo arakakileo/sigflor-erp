@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.contenttypes.admin import GenericTabularInline # Re-importar para AnexoInline
 
 from .models import (
     PessoaFisica,
@@ -8,8 +9,8 @@ from .models import (
     Usuario,
     Permissao,
     Papel,
-    EmpresaCNPJ,
-    Contratante,
+    Empresa,
+    Cliente,
     Endereco,
     Contato,
     Documento,
@@ -17,10 +18,76 @@ from .models import (
     Deficiencia,
     Filial,
     Contrato,
+    PessoaFisicaEndereco, PessoaFisicaContato, PessoaFisicaDocumento,
+    PessoaJuridicaEndereco, PessoaJuridicaContato, PessoaJuridicaDocumento
 )
 
 
-# ============ Pessoa Fisica ============
+# ============ Deficiencia Inline (Movido para antes de PessoaFisicaAdmin) ============ #
+
+class DeficienciaInline(admin.TabularInline):
+    """Inline para exibir deficiencias no formulario de pessoa fisica."""
+    model = Deficiencia
+    extra = 0
+    fields = ['nome', 'tipo', 'cid', 'grau', 'congenita']
+    readonly_fields = []
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(deleted_at__isnull=True)
+
+
+# ============ Anexo Inline (Movido para antes de PessoaJuridicaAdmin) ============ #
+
+class AnexoInline(GenericTabularInline):
+    model = Anexo
+    extra = 0
+    fields = ('arquivo', 'nome_original', 'descricao')
+    readonly_fields = ('tamanho_formatado', 'mimetype',) # Corrigido para AnexoInline
+
+
+# ============ Inlines Específicos para Pessoa Física ============ #
+
+class PessoaFisicaEnderecoInline(admin.TabularInline):
+    model = PessoaFisicaEndereco
+    extra = 0
+    fields = ('endereco', 'tipo', 'principal')
+    raw_id_fields = ('endereco',)
+
+class PessoaFisicaContatoInline(admin.TabularInline):
+    model = PessoaFisicaContato
+    extra = 0
+    fields = ('contato', 'principal', 'contato_emergencia')
+    raw_id_fields = ('contato',)
+
+class PessoaFisicaDocumentoInline(admin.TabularInline):
+    model = PessoaFisicaDocumento
+    extra = 0
+    fields = ('documento', 'principal')
+    raw_id_fields = ('documento',)
+
+
+# ============ Inlines Específicos para Pessoa Jurídica ============ #
+
+class PessoaJuridicaEnderecoInline(admin.TabularInline):
+    model = PessoaJuridicaEndereco
+    extra = 0
+    fields = ('endereco', 'tipo', 'principal')
+    raw_id_fields = ('endereco',)
+
+class PessoaJuridicaContatoInline(admin.TabularInline):
+    model = PessoaJuridicaContato
+    extra = 0
+    fields = ('contato', 'principal')
+    raw_id_fields = ('contato',)
+
+class PessoaJuridicaDocumentoInline(admin.TabularInline):
+    model = PessoaJuridicaDocumento
+    extra = 0
+    fields = ('documento', 'principal')
+    raw_id_fields = ('documento',)
+
+
+# ============ Pessoa Fisica ============ #
 
 @admin.register(PessoaFisica)
 class PessoaFisicaAdmin(admin.ModelAdmin):
@@ -29,6 +96,7 @@ class PessoaFisicaAdmin(admin.ModelAdmin):
     search_fields = ['nome_completo', 'cpf', 'rg']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
     ordering = ['nome_completo']
+    inlines = [DeficienciaInline, PessoaFisicaEnderecoInline, PessoaFisicaContatoInline, PessoaFisicaDocumentoInline]
 
     fieldsets = (
         ('Dados Pessoais', {
@@ -51,7 +119,7 @@ class PessoaFisicaAdmin(admin.ModelAdmin):
     )
 
 
-# ============ Pessoa Juridica ============
+# ============ Pessoa Juridica ============ #
 
 @admin.register(PessoaJuridica)
 class PessoaJuridicaAdmin(admin.ModelAdmin):
@@ -60,6 +128,7 @@ class PessoaJuridicaAdmin(admin.ModelAdmin):
     search_fields = ['razao_social', 'nome_fantasia', 'cnpj']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
     ordering = ['razao_social']
+    inlines = [PessoaJuridicaEnderecoInline, PessoaJuridicaContatoInline, PessoaJuridicaDocumentoInline, AnexoInline]
 
     fieldsets = (
         ('Dados Principais', {
@@ -86,7 +155,7 @@ class PessoaJuridicaAdmin(admin.ModelAdmin):
     )
 
 
-# ============ Usuario ============
+# ============ Usuario ============ #
 
 @admin.register(Usuario)
 class UsuarioAdmin(BaseUserAdmin):
@@ -124,7 +193,7 @@ class UsuarioAdmin(BaseUserAdmin):
     )
 
 
-# ============ Permissao ============
+# ============ Permissao ============ #
 
 @admin.register(Permissao)
 class PermissaoAdmin(admin.ModelAdmin):
@@ -144,7 +213,7 @@ class PermissaoAdmin(admin.ModelAdmin):
     )
 
 
-# ============ Papel ============
+# ============ Papel ============ #
 
 @admin.register(Papel)
 class PapelAdmin(admin.ModelAdmin):
@@ -172,16 +241,18 @@ class PapelAdmin(admin.ModelAdmin):
     get_permissoes_count.short_description = 'Qtd. Permissoes'
 
 
-# ============ Empresa CNPJ ============
+# ============ Empresa CNPJ ============ #
 
-@admin.register(EmpresaCNPJ)
-class EmpresaCNPJAdmin(admin.ModelAdmin):
+@admin.register(Empresa)
+class EmpresaAdmin(admin.ModelAdmin):
     list_display = ['get_razao_social', 'get_cnpj', 'ativa', 'matriz', 'created_at']
     list_filter = ['ativa', 'matriz', 'created_at']
     search_fields = ['pessoa_juridica__razao_social', 'pessoa_juridica__cnpj']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
     raw_id_fields = ['pessoa_juridica']
     ordering = ['pessoa_juridica__razao_social']
+    # Inlines para Empresa devem vir da PessoaJuridicaAdmin
+    # inlines = [EnderecoInline, ContatoInline, DocumentoInline, AnexoInline] # Removido conforme plano
 
     fieldsets = (
         ('Dados da Empresa', {
@@ -206,19 +277,21 @@ class EmpresaCNPJAdmin(admin.ModelAdmin):
     get_cnpj.short_description = 'CNPJ'
 
 
-# ============ Contratante ============
+# ============ Cliente ============ #
 
-@admin.register(Contratante)
-class ContratanteAdmin(admin.ModelAdmin):
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
     list_display = ['get_razao_social', 'get_cnpj', 'ativo', 'created_at']
     list_filter = ['ativo', 'created_at']
     search_fields = ['pessoa_juridica__razao_social', 'pessoa_juridica__cnpj', 'pessoa_juridica__nome_fantasia']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
     raw_id_fields = ['pessoa_juridica']
     ordering = ['pessoa_juridica__razao_social']
+    # Inlines para Cliente devem vir da PessoaJuridicaAdmin
+    # inlines = [EnderecoInline, ContatoInline, DocumentoInline, AnexoInline] # Removido conforme plano
 
     fieldsets = (
-        ('Dados do Contratante', {
+        ('Dados do Cliente', {
             'fields': ('pessoa_juridica', 'descricao')
         }),
         ('Status', {
@@ -240,11 +313,11 @@ class ContratanteAdmin(admin.ModelAdmin):
     get_cnpj.short_description = 'CNPJ'
 
 
-# ============ Endereco ============
+# ============ Endereco ============ #
 
 @admin.register(Endereco)
 class EnderecoAdmin(admin.ModelAdmin):
-    list_display = ['logradouro', 'numero', 'cidade', 'estado', 'cep_formatado', 'principal', 'get_entidade']
+    list_display = ['logradouro', 'numero', 'cidade', 'estado', 'cep_formatado', 'principal']
     list_filter = ['estado', 'principal', 'created_at']
     search_fields = ['logradouro', 'bairro', 'cidade', 'cep']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
@@ -257,25 +330,18 @@ class EnderecoAdmin(admin.ModelAdmin):
         ('Localizacao', {
             'fields': ('cidade', 'estado', 'cep', 'pais')
         }),
-        ('Vinculo', {
-            'fields': ('content_type', 'object_id', 'principal')
-        }),
         ('Auditoria', {
             'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
-    def get_entidade(self, obj):
-        return f"{obj.content_type.model}: {obj.object_id[:8]}..."
-    get_entidade.short_description = 'Entidade'
 
-
-# ============ Contato ============
+# ============ Contato ============ #
 
 @admin.register(Contato)
 class ContatoAdmin(admin.ModelAdmin):
-    list_display = ['tipo', 'valor', 'principal', 'get_entidade', 'created_at']
+    list_display = ['tipo', 'valor', 'principal']
     list_filter = ['tipo', 'principal', 'created_at']
     search_fields = ['valor']
     readonly_fields = ['id', 'created_at', 'updated_at', 'deleted_at']
@@ -285,25 +351,18 @@ class ContatoAdmin(admin.ModelAdmin):
         ('Dados do Contato', {
             'fields': ('tipo', 'valor', 'principal')
         }),
-        ('Vinculo', {
-            'fields': ('content_type', 'object_id')
-        }),
         ('Auditoria', {
             'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
-    def get_entidade(self, obj):
-        return f"{obj.content_type.model}: {obj.object_id[:8]}..."
-    get_entidade.short_description = 'Entidade'
 
-
-# ============ Documento ============
+# ============ Documento ============ #
 
 @admin.register(Documento)
 class DocumentoAdmin(admin.ModelAdmin):
-    list_display = ['tipo', 'descricao', 'data_validade', 'vencido', 'principal', 'get_entidade']
+    list_display = ['tipo', 'descricao', 'data_validade', 'vencido', 'principal']
     list_filter = ['tipo', 'principal', 'created_at']
     search_fields = ['tipo', 'descricao']
     readonly_fields = ['id', 'vencido', 'nome_arquivo', 'created_at', 'updated_at', 'deleted_at']
@@ -316,67 +375,16 @@ class DocumentoAdmin(admin.ModelAdmin):
         ('Validade', {
             'fields': ('data_emissao', 'data_validade', 'vencido', 'principal')
         }),
-        ('Vinculo', {
-            'fields': ('content_type', 'object_id')
-        }),
         ('Auditoria', {
             'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
-    def get_entidade(self, obj):
-        return f"{obj.content_type.model}: {obj.object_id[:8]}..."
-    get_entidade.short_description = 'Entidade'
 
+# ============ Deficiencia ============ #
 
-# ============ Anexo ============
-
-@admin.register(Anexo)
-class AnexoAdmin(admin.ModelAdmin):
-    list_display = ['nome_original', 'mimetype', 'tamanho_formatado', 'get_entidade', 'created_at']
-    list_filter = ['mimetype', 'created_at']
-    search_fields = ['nome_original', 'descricao']
-    readonly_fields = ['id', 'tamanho', 'tamanho_formatado', 'extensao', 'created_at', 'updated_at', 'deleted_at']
-    ordering = ['-created_at']
-
-    fieldsets = (
-        ('Dados do Anexo', {
-            'fields': ('nome_original', 'arquivo', 'descricao')
-        }),
-        ('Metadados', {
-            'fields': ('tamanho', 'tamanho_formatado', 'mimetype', 'extensao'),
-            'classes': ('collapse',)
-        }),
-        ('Vinculo', {
-            'fields': ('content_type', 'object_id')
-        }),
-        ('Auditoria', {
-            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-    def get_entidade(self, obj):
-        return f"{obj.content_type.model}: {obj.object_id[:8]}..."
-    get_entidade.short_description = 'Entidade'
-
-
-# ============ Deficiencia ============
-
-class DeficienciaInline(admin.TabularInline):
-    """Inline para exibir deficiencias no formulario de pessoa fisica."""
-    model = Deficiencia
-    extra = 0
-    fields = ['nome', 'tipo', 'cid', 'grau', 'congenita']
-    readonly_fields = []
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(deleted_at__isnull=True)
-
-
-# Adiciona inline ao PessoaFisicaAdmin
-PessoaFisicaAdmin.inlines = [DeficienciaInline]
+# A classe DeficienciaInline foi movida para o topo do arquivo para evitar NameError.
 
 
 @admin.register(Deficiencia)
@@ -436,7 +444,7 @@ class DeficienciaAdmin(admin.ModelAdmin):
     get_pessoa_nome.admin_order_field = 'pessoa_fisica__nome_completo'
 
 
-# ============ Filial ============
+# ============ Filial ============ #
 
 @admin.register(Filial)
 class FilialAdmin(admin.ModelAdmin):
@@ -469,14 +477,14 @@ class FilialAdmin(admin.ModelAdmin):
     get_empresa_nome.admin_order_field = 'empresa__pessoa_juridica__razao_social'
 
 
-# ============ Contrato ============
+# ============ Contrato ============ #
 
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
     list_display = [
         'numero_interno',
         'numero_externo',
-        'get_contratante_nome',
+        'get_cliente_nome',
         'get_empresa_nome',
         'data_inicio',
         'data_fim',
@@ -487,11 +495,11 @@ class ContratoAdmin(admin.ModelAdmin):
     search_fields = [
         'numero_interno',
         'numero_externo',
-        'contratante__pessoa_juridica__razao_social',
+        'cliente__pessoa_juridica__razao_social',
         'empresa__pessoa_juridica__razao_social',
     ]
     readonly_fields = ['id', 'is_vigente', 'created_at', 'updated_at', 'deleted_at']
-    raw_id_fields = ['contratante', 'empresa']
+    raw_id_fields = ['cliente', 'empresa']
     ordering = ['-data_inicio', 'numero_interno']
 
     fieldsets = (
@@ -499,7 +507,7 @@ class ContratoAdmin(admin.ModelAdmin):
             'fields': ('numero_interno', 'numero_externo')
         }),
         ('Partes', {
-            'fields': ('contratante', 'empresa')
+            'fields': ('cliente', 'empresa')
         }),
         ('Vigencia', {
             'fields': ('data_inicio', 'data_fim', 'ativo', 'is_vigente')
@@ -517,10 +525,10 @@ class ContratoAdmin(admin.ModelAdmin):
         }),
     )
 
-    def get_contratante_nome(self, obj):
-        return obj.contratante_nome
-    get_contratante_nome.short_description = 'Contratante'
-    get_contratante_nome.admin_order_field = 'contratante__pessoa_juridica__razao_social'
+    def get_cliente_nome(self, obj):
+        return obj.cliente_nome
+    get_cliente_nome.short_description = 'cliente'
+    get_cliente_nome.admin_order_field = 'cliente__pessoa_juridica__razao_social'
 
     def get_empresa_nome(self, obj):
         return obj.empresa_nome

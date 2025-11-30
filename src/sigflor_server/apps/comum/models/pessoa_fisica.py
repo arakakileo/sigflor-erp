@@ -61,25 +61,28 @@ class PessoaFisica(SoftDeleteModel):
 
     observacoes = models.TextField(blank=True, null=True)
 
-    # GenericRelations
-    enderecos = GenericRelation(
+    # Relações com Enderecos e Documentos via tabelas de vínculo explícitas
+    enderecos = models.ManyToManyField(
         'comum.Endereco',
-        related_query_name='pessoa_fisica'
+        through='comum.PessoaFisicaEndereco',
+        related_name='pessoas_fisicas',
+        help_text='Endereços da pessoa física'
     )
+    # Relação com Contatos via tabela de vínculo explícita
     contatos = models.ManyToManyField(
         'comum.Contato',
         through='comum.PessoaFisicaContato',
         related_name='pessoas_fisicas',
         help_text='Contatos da pessoa física'
     )
-    documentos = GenericRelation(
+    # Relação com Documentos via tabela de vínculo explícita
+    documentos = models.ManyToManyField(
         'comum.Documento',
-        related_query_name='pessoa_fisica'
+        through='comum.PessoaFisicaDocumento',
+        related_name='pessoas_fisicas',
+        help_text='Documentos da pessoa física'
     )
-    anexos = GenericRelation(
-        'comum.Anexo',
-        related_query_name='pessoa_fisica'
-    )
+    # anexos = GenericRelation(
 
     class Meta:
         db_table = 'pessoa_fisica'

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import uuid
 from django.db import models
-from django.contrib.contenttypes.fields import GenericRelation
 
 from .base import SoftDeleteModel
 
@@ -50,10 +49,12 @@ class Filial(SoftDeleteModel):
         help_text='Empresa do grupo a qual a filial pertence'
     )
 
-    # GenericRelations para endereco e contato
-    enderecos = GenericRelation(
+    # Relacionamento com Enderecos via tabela de vínculo explícita (FilialEndereco)
+    enderecos = models.ManyToManyField(
         'comum.Endereco',
-        related_query_name='filial'
+        through='comum.FilialEndereco',
+        related_name='filiais',
+        help_text='Endereços da filial'
     )
     contatos = models.ManyToManyField(
         'comum.Contato',
@@ -84,12 +85,6 @@ class Filial(SoftDeleteModel):
     def is_ativa(self):
         """Verifica se a filial esta ativa."""
         return self.status == self.Status.ATIVA and self.deleted_at is None
-
-    @property
-    def endereco_principal(self):
-        """Retorna o endereco principal da filial."""
-        return self.enderecos.filter(principal=True, deleted_at__isnull=True).first()
-
 
     @property
     def empresa_nome(self):

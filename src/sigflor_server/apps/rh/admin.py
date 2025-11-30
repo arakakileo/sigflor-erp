@@ -1,25 +1,74 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from .models import Cargo, Funcionario, Dependente
+from apps.comum.models import Projeto # Importar Projeto do app comum
+from .models import (
+    Cargo, Funcionario, Dependente, Alocacao, CargoDocumento, Equipe, EquipeFuncionario
+)
 
 
-# ============ Cargo ============
+# ============ Inlines para RH ============ #
+
+class CargoDocumentoInline(admin.TabularInline):
+    model = CargoDocumento
+    extra = 0
+    fields = ['documento_tipo', 'obrigatorio', 'condicional']
+    raw_id_fields = [] # Nenhum raw_id_field aqui
+
+
+class AlocacaoInline(admin.TabularInline):
+    model = Alocacao
+    extra = 0
+    fields = ['projeto', 'data_inicio', 'data_fim', 'is_ativa']
+    readonly_fields = ['is_ativa']
+    raw_id_fields = ['projeto']
+
+
+class DependenteInline(admin.TabularInline):
+    model = Dependente
+    extra = 0
+    fields = [
+        'pessoa_fisica',
+        'parentesco',
+        'dependencia_irrf',
+        'ativo',
+    ]
+    raw_id_fields = ['pessoa_fisica']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(deleted_at__isnull=True)
+
+
+class EquipeFuncionarioInline(admin.TabularInline):
+    model = EquipeFuncionario
+    extra = 0
+    fields = ['funcionario', 'data_entrada', 'data_saida', 'is_ativo']
+    readonly_fields = ['is_ativo']
+    raw_id_fields = ['funcionario']
+
+
+# ============ Cargo ============ #
 
 @admin.register(Cargo)
 class CargoAdmin(admin.ModelAdmin):
     list_display = [
         'nome',
-        'salario',
+        'salario_base',
         'cbo',
         'nivel',
         'ativo',
         'funcionarios_count',
+        'tem_risco',
         'created_at',
     ]
     list_filter = [
         'ativo',
         'nivel',
+        'risco_fisico',
+        'risco_biologico',
+        'risco_quimico',
+        'risco_ergonomico',
+        'risco_acidente',
         'created_at',
     ]
     search_fields = [
@@ -30,64 +79,52 @@ class CargoAdmin(admin.ModelAdmin):
     readonly_fields = [
         'id',
         'funcionarios_count',
+        'tem_risco',
         'created_at',
         'updated_at',
         'deleted_at',
     ]
     ordering = ['nome']
+    inlines = [CargoDocumentoInline] # Adicionado inline
 
     fieldsets = (
         ('Dados do Cargo', {
-            'fields': ('id', 'nome', 'salario', 'cbo', 'nivel')
+            'fields': ('nome', 'salario_base', 'cbo', 'nivel')
+        }),
+        ('Riscos Ocupacionais', {
+            'fields': ('risco_fisico', 'risco_biologico', 'risco_quimico', 'risco_ergonomico', 'risco_acidente'),
+            'classes': ('collapse',)
         }),
         ('Descricao', {
             'fields': ('descricao',),
             'classes': ('collapse',)
         }),
         ('Status', {
-            'fields': ('ativo', 'funcionarios_count')
+            'fields': ('ativo', 'funcionarios_count', 'tem_risco')
         }),
         ('Auditoria', {
-            'fields': ('created_at', 'updated_at', 'deleted_at'),
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
 
-# ============ Funcionario ============
-
-
-class DependenteInline(admin.TabularInline):
-    """Inline para exibir dependentes no formulario do funcionario."""
-    model = Dependente
-    extra = 0
-    fields = [
-        'nome_completo',
-        'cpf',
-        'data_nascimento',
-        'parentesco',
-        'incluso_ir',
-        'incluso_plano_saude'
-    ]
-    readonly_fields = []
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(deleted_at__isnull=True)
-
+# ============ Funcionario ============ #
 
 @admin.register(Funcionario)
 class FuncionarioAdmin(admin.ModelAdmin):
     list_display = [
         'matricula',
-        'get_nome',
-        'get_cpf',
-        'cargo',
-        'departamento',
+        'nome',
+        'cpf_formatado',
+        'cargo_nome',
+        'projeto_nome',
         'status',
         'tem_dependente',
         'tipo_contrato',
         'data_admissao',
-        'get_empresa',
+        'empresa_nome',
+        'is_ativo',
     ]
     list_filter = [
         'status',
@@ -95,8 +132,8 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'tem_dependente',
         'tipo_contrato',
         'turno',
-        'departamento',
         'empresa',
+        'projeto',
         'created_at',
     ]
     search_fields = [
@@ -104,61 +141,65 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'pessoa_fisica__nome_completo',
         'pessoa_fisica__cpf',
         'cargo__nome',
+        'empresa__pessoa_juridica__razao_social',
+        'projeto__descricao',
     ]
     readonly_fields = [
         'id',
         'matricula',
         'tem_dependente',
-        # 'tempo_empresa',
+        'is_ativo',
+        'nome',
+        'cpf_formatado',
+        'cargo_nome',
+        'empresa_nome',
+        'projeto_nome',
         'created_at',
         'updated_at',
         'deleted_at',
     ]
-    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'gestor', 'subcontrato']
+    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'gestor_imediato', 'projeto']
     ordering = ['pessoa_fisica__nome_completo']
-    inlines = [DependenteInline]
+    inlines = [DependenteInline, AlocacaoInline] # Adicionado inlines
 
     fieldsets = (
         ('Identificacao', {
             'fields': ('id', 'matricula', 'pessoa_fisica')
         }),
         ('Dados Profissionais', {
-            'fields': ('cargo', 'departamento', 'subcontrato', 'empresa')
+            'fields': ('cargo', 'empresa', 'projeto')
         }),
         ('Contrato', {
             'fields': (
                 'tipo_contrato',
                 'data_admissao',
                 'data_demissao',
-                'salario',
-                'tempo_empresa'
-            )
-        }),
-        ('Jornada de Trabalho', {
-            'fields': (
-                'carga_horaria_semanal',
+                'salario_nominal',
                 'turno',
-                'horario_entrada',
-                'horario_saida'
             )
         }),
-        ('Status e Dependentes', {
-            'fields': ('status', 'tem_dependente')
-        }),
-        ('Vestimenta / Uniforme', {
-            'fields': ('tamanho_camisa', 'tamanho_calca', 'tamanho_botina'),
+        ('Dados Físicos e Adicionais', {
+            'fields': ('peso_corporal', 'altura', 'indicacao', 'cidade_atual'),
             'classes': ('collapse',)
         }),
-        ('Dados Bancarios', {
-            'fields': ('banco', 'agencia', 'conta', 'tipo_conta', 'pix'),
+        ('Status e Dependentes', {
+            'fields': ('status', 'tem_dependente', 'is_ativo')
+        }),
+        ('Vestimenta / EPI', {
+            'fields': ('tamanho_camisa', 'tamanho_calca', 'tamanho_calcado'),
+            'classes': ('collapse',)
+        }),
+        ('Dados Bancários', {
+            'fields': ('banco', 'agencia', 'conta_corrente', 'tipo_conta', 'chave_pix'),
             'classes': ('collapse',)
         }),
         ('Documentos Trabalhistas', {
-            'fields': ('ctps_numero', 'ctps_serie', 'ctps_uf', 'pis'),
+            'fields': ('ctps_numero', 'ctps_serie', 'ctps_uf', 'pis_pasep'),
             'classes': ('collapse',)
         }),
         ('Hierarquia', {
-            'fields': ('gestor',)
+            'fields': ('gestor_imediato',),
+            'classes': ('collapse',)
         }),
         ('Observacoes', {
             'fields': ('observacoes',),
@@ -170,99 +211,252 @@ class FuncionarioAdmin(admin.ModelAdmin):
         }),
     )
 
-    def get_nome(self, obj):
-        return obj.pessoa_fisica.nome_completo
-    get_nome.short_description = 'Nome'
-    get_nome.admin_order_field = 'pessoa_fisica__nome_completo'
 
-    def get_cpf(self, obj):
-        return obj.pessoa_fisica.cpf_formatado
-    get_cpf.short_description = 'CPF'
+# ============ Alocacao ============ #
 
-    def get_empresa(self, obj):
-        if obj.empresa:
-            return obj.empresa.pessoa_juridica.razao_social
-        return '-'
-    get_empresa.short_description = 'Empresa'
-    get_empresa.admin_order_field = 'empresa__pessoa_juridica__razao_social'
+@admin.register(Alocacao)
+class AlocacaoAdmin(admin.ModelAdmin):
+    list_display = [
+        'funcionario',
+        'projeto',
+        'data_inicio',
+        'data_fim',
+        'is_ativa',
+        'created_at',
+    ]
+    list_filter = [
+        'is_ativa',
+        'data_inicio',
+        'data_fim',
+        'created_at',
+    ]
+    search_fields = [
+        'funcionario__pessoa_fisica__nome_completo',
+        'funcionario__matricula',
+        'projeto__descricao',
+    ]
+    readonly_fields = [
+        'id',
+        'is_ativa',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ]
+    raw_id_fields = ['funcionario', 'projeto']
+    ordering = ['-data_inicio', 'funcionario__pessoa_fisica__nome_completo']
 
+    fieldsets = (
+        ('Vínculo', {
+            'fields': ('funcionario', 'projeto')
+        }),
+        ('Período', {
+            'fields': ('data_inicio', 'data_fim', 'is_ativa')
+        }),
+        ('Observações', {
+            'fields': ('observacoes',),
+            'classes': ('collapse',)
+        }),
+        ('Auditoria', {
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# ============ CargoDocumento ============ #
+
+@admin.register(CargoDocumento)
+class CargoDocumentoAdmin(admin.ModelAdmin):
+    list_display = [
+        'cargo',
+        'documento_tipo',
+        'obrigatorio',
+        'condicional',
+        'created_at',
+    ]
+    list_filter = [
+        'obrigatorio',
+        'documento_tipo',
+        'created_at',
+    ]
+    search_fields = [
+        'cargo__nome',
+        'documento_tipo',
+        'condicional',
+    ]
+    readonly_fields = [
+        'id',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ]
+    raw_id_fields = ['cargo']
+    ordering = ['cargo__nome', 'documento_tipo']
+
+    fieldsets = (
+        ('Vínculo', {
+            'fields': ('cargo',)
+        }),
+        ('Documento', {
+            'fields': ('documento_tipo', 'obrigatorio', 'condicional')
+        }),
+        ('Auditoria', {
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# ============ Dependente ============ #
 
 @admin.register(Dependente)
 class DependenteAdmin(admin.ModelAdmin):
     list_display = [
         'nome_completo',
-        'get_cpf_formatado',
+        'cpf_formatado',
         'parentesco',
-        'get_funcionario',
-        'get_funcionario_matricula',
-        'idade',
-        'incluso_ir',
-        'incluso_plano_saude',
+        'funcionario',
+        'ativo',
+        'dependencia_irrf',
+        'created_at',
     ]
     list_filter = [
         'parentesco',
-        'incluso_ir',
-        'incluso_plano_saude',
-        'sexo',
+        'ativo',
+        'dependencia_irrf',
         'created_at',
     ]
     search_fields = [
-        'nome_completo',
-        'cpf',
-        'funcionario__matricula',
+        'pessoa_fisica__nome_completo',
+        'pessoa_fisica__cpf',
         'funcionario__pessoa_fisica__nome_completo',
+        'funcionario__matricula',
     ]
     readonly_fields = [
         'id',
-        'idade',
+        'nome_completo',
         'cpf_formatado',
         'created_at',
         'updated_at',
         'deleted_at',
     ]
-    raw_id_fields = ['funcionario']
-    ordering = ['funcionario__pessoa_fisica__nome_completo', 'nome_completo']
+    raw_id_fields = ['funcionario', 'pessoa_fisica']
+    ordering = ['pessoa_fisica__nome_completo']
 
     fieldsets = (
-        ('Vinculo', {
-            'fields': ('id', 'funcionario')
+        ('Vínculo', {
+            'fields': ('funcionario', 'pessoa_fisica')
         }),
-        ('Dados Pessoais', {
-            'fields': (
-                'nome_completo',
-                'cpf',
-                'cpf_formatado',
-                'data_nascimento',
-                'idade',
-                'sexo'
-            )
-        }),
-        ('Parentesco', {
-            'fields': ('parentesco',)
-        }),
-        ('Beneficios', {
-            'fields': ('incluso_ir', 'incluso_plano_saude')
-        }),
-        ('Observacoes', {
-            'fields': ('observacoes',),
-            'classes': ('collapse',)
+        ('Dados do Dependente', {
+            'fields': ('parentesco', 'dependencia_irrf', 'ativo')
         }),
         ('Auditoria', {
-            'fields': ('created_at', 'updated_at', 'deleted_at'),
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
             'classes': ('collapse',)
         }),
     )
 
-    def get_funcionario(self, obj):
-        return obj.funcionario.pessoa_fisica.nome_completo
-    get_funcionario.short_description = 'Funcionario'
-    get_funcionario.admin_order_field = 'funcionario__pessoa_fisica__nome_completo'
 
-    def get_funcionario_matricula(self, obj):
-        return obj.funcionario.matricula
-    get_funcionario_matricula.short_description = 'Matricula'
-    get_funcionario_matricula.admin_order_field = 'funcionario__matricula'
+# ============ Equipe ============ #
 
-    def get_cpf_formatado(self, obj):
-        return obj.cpf_formatado or '-'
-    get_cpf_formatado.short_description = 'CPF'
+@admin.register(Equipe)
+class EquipeAdmin(admin.ModelAdmin):
+    list_display = [
+        'nome',
+        'tipo_equipe',
+        'projeto',
+        'lider',
+        'coordenador',
+        'ativa',
+        'membros_count',
+        'created_at',
+    ]
+    list_filter = [
+        'tipo_equipe',
+        'ativa',
+        'projeto',
+        'created_at',
+    ]
+    search_fields = [
+        'nome',
+        'projeto__descricao',
+        'lider__pessoa_fisica__nome_completo',
+        'coordenador__pessoa_fisica__nome_completo',
+    ]
+    readonly_fields = [
+        'id',
+        'membros_count',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ]
+    raw_id_fields = ['projeto', 'lider', 'coordenador']
+    ordering = ['nome']
+    inlines = [EquipeFuncionarioInline]
+
+    fieldsets = (
+        ('Dados da Equipe', {
+            'fields': ('nome', 'tipo_equipe', 'projeto')
+        }),
+        ('Liderança', {
+            'fields': ('lider', 'coordenador')
+        }),
+        ('Status', {
+            'fields': ('ativa', 'membros_count')
+        }),
+        ('Observações', {
+            'fields': ('observacoes',),
+            'classes': ('collapse',)
+        }),
+        ('Auditoria', {
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# ============ EquipeFuncionario ============ #
+
+@admin.register(EquipeFuncionario)
+class EquipeFuncionarioAdmin(admin.ModelAdmin):
+    list_display = [
+        'equipe',
+        'funcionario',
+        'data_entrada',
+        'data_saida',
+        'is_ativo',
+        'created_at',
+    ]
+    list_filter = [
+        'is_ativo',
+        'data_entrada',
+        'data_saida',
+        'created_at',
+    ]
+    search_fields = [
+        'equipe__nome',
+        'funcionario__pessoa_fisica__nome_completo',
+        'funcionario__matricula',
+    ]
+    readonly_fields = [
+        'id',
+        'is_ativo',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ]
+    raw_id_fields = ['equipe', 'funcionario']
+    ordering = ['-data_entrada', 'equipe__nome']
+
+    fieldsets = (
+        ('Vínculo', {
+            'fields': ('equipe', 'funcionario')
+        }),
+        ('Período', {
+            'fields': ('data_entrada', 'data_saida', 'is_ativo')
+        }),
+        ('Auditoria', {
+            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
+            'classes': ('collapse',)
+        }),
+    )

@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import date
 from django.db import transaction
 
-from ..models import Contrato, Contratante, EmpresaCNPJ
+from ..models import Contrato, Cliente, Empresa
 
 
 class ContratoService:
@@ -14,8 +14,8 @@ class ContratoService:
     @transaction.atomic
     def create(
         numero_interno: str,
-        contratante: Contratante,
-        empresa: EmpresaCNPJ,
+        cliente: Cliente,
+        empresa: Empresa,
         data_inicio: date,
         numero_externo: Optional[str] = None,
         descricao: Optional[str] = None,
@@ -29,7 +29,7 @@ class ContratoService:
         contrato = Contrato(
             numero_interno=numero_interno,
             numero_externo=numero_externo,
-            contratante=contratante,
+            cliente=cliente,
             empresa=empresa,
             descricao=descricao,
             data_inicio=data_inicio,
