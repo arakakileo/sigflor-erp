@@ -4,56 +4,122 @@ from rest_framework import serializers
 from ..models import Cargo
 
 
-class CargoSerializer(serializers.ModelSerializer):
-    """Serializer completo para Cargo."""
-
-    funcionarios_count = serializers.ReadOnlyField()
-
-    class Meta:
-        model = Cargo
-        fields = [
-            'id',
-            'nome',
-            'salario',
-            'cbo',
-            'descricao',
-            'nivel',
-            'ativo',
-            'funcionarios_count',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = ['id', 'funcionarios_count', 'created_at', 'updated_at']
-
-
-class CargoCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criacao/edicao de Cargo."""
-
-    class Meta:
-        model = Cargo
-        fields = [
-            'nome',
-            'salario',
-            'cbo',
-            'descricao',
-            'nivel',
-            'ativo',
-        ]
-
-
 class CargoListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listagem de Cargos."""
 
     funcionarios_count = serializers.ReadOnlyField()
+    tem_risco = serializers.ReadOnlyField()
 
     class Meta:
         model = Cargo
         fields = [
             'id',
             'nome',
-            'salario',
+            'salario_base',
             'cbo',
             'nivel',
             'ativo',
+            'tem_risco',
             'funcionarios_count',
         ]
+
+
+class CargoSerializer(serializers.ModelSerializer):
+    """Serializer completo para detalhes do Cargo."""
+
+    funcionarios_count = serializers.ReadOnlyField()
+    tem_risco = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Cargo
+        fields = [
+            'id',
+            'nome',
+            'salario_base',
+            'cbo',
+            'descricao',
+            'nivel',
+            # Riscos ocupacionais
+            'risco_fisico',
+            'risco_biologico',
+            'risco_quimico',
+            'risco_ergonomico',
+            'risco_acidente',
+            'tem_risco',
+            # Status
+            'ativo',
+            'funcionarios_count',
+            # Auditoria
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'funcionarios_count', 'tem_risco',
+            'created_at', 'updated_at'
+        ]
+
+
+class CargoCreateSerializer(serializers.ModelSerializer):
+    """Serializer para criação de Cargo."""
+
+    class Meta:
+        model = Cargo
+        fields = [
+            'nome',
+            'salario_base',
+            'cbo',
+            'descricao',
+            'nivel',
+            # Riscos ocupacionais
+            'risco_fisico',
+            'risco_biologico',
+            'risco_quimico',
+            'risco_ergonomico',
+            'risco_acidente',
+            # Status
+            'ativo',
+        ]
+        extra_kwargs = {
+            'nivel': {'required': True},
+        }
+
+    def create(self, validated_data):
+        """Cria cargo usando o service."""
+        from ..services import CargoService
+
+        return CargoService.create(
+            created_by=self.context.get('request').user if self.context.get('request') else None,
+            **validated_data
+        )
+
+
+class CargoUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para atualização de Cargo."""
+
+    class Meta:
+        model = Cargo
+        fields = [
+            'nome',
+            'salario_base',
+            'cbo',
+            'descricao',
+            'nivel',
+            # Riscos ocupacionais
+            'risco_fisico',
+            'risco_biologico',
+            'risco_quimico',
+            'risco_ergonomico',
+            'risco_acidente',
+            # Status
+            'ativo',
+        ]
+
+    def update(self, instance, validated_data):
+        """Atualiza cargo usando o service."""
+        from ..services import CargoService
+
+        return CargoService.update(
+            cargo=instance,
+            updated_by=self.context.get('request').user if self.context.get('request') else None,
+            **validated_data
+        )

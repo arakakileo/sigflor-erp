@@ -1,13 +1,41 @@
 # -*- coding: utf-8 -*-
 from rest_framework import serializers
 
+from apps.comum.serializers.pessoa_fisica import PessoaFisicaSerializer, PessoaFisicaCreateSerializer
 from ..models import Dependente
 
 
-class DependenteSerializer(serializers.ModelSerializer):
-    """Serializer completo para Dependente."""
+class DependenteListSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para listagem de dependentes."""
 
+    nome_completo = serializers.ReadOnlyField()
     cpf_formatado = serializers.ReadOnlyField()
+    data_nascimento = serializers.ReadOnlyField()
+    idade = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Dependente
+        fields = [
+            'id',
+            'funcionario',
+            'nome_completo',
+            'cpf_formatado',
+            'data_nascimento',
+            'idade',
+            'parentesco',
+            'dependencia_irrf',
+            'ativo',
+        ]
+
+
+class DependenteSerializer(serializers.ModelSerializer):
+    """Serializer completo para detalhes do dependente."""
+
+    pessoa_fisica = PessoaFisicaSerializer(read_only=True)
+    nome_completo = serializers.ReadOnlyField()
+    cpf = serializers.ReadOnlyField()
+    cpf_formatado = serializers.ReadOnlyField()
+    data_nascimento = serializers.ReadOnlyField()
     idade = serializers.ReadOnlyField()
     funcionario_nome = serializers.CharField(
         source='funcionario.pessoa_fisica.nome_completo',
@@ -25,53 +53,63 @@ class DependenteSerializer(serializers.ModelSerializer):
             'funcionario',
             'funcionario_nome',
             'funcionario_matricula',
+            'pessoa_fisica',
             'nome_completo',
             'cpf',
             'cpf_formatado',
             'data_nascimento',
             'idade',
-            'sexo',
             'parentesco',
-            'incluso_ir',
-            'incluso_plano_saude',
-            'observacoes',
+            'dependencia_irrf',
+            'ativo',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'cpf_formatado', 'idade', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'nome_completo', 'cpf', 'cpf_formatado',
+            'data_nascimento', 'idade', 'created_at', 'updated_at'
+        ]
 
 
 class DependenteCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criacao/edicao de Dependente."""
+    """Serializer para criação de dependente usando estrutura aninhada."""
+
+    pessoa_fisica = PessoaFisicaCreateSerializer(required=True)
 
     class Meta:
         model = Dependente
         fields = [
             'funcionario',
-            'nome_completo',
-            'cpf',
-            'data_nascimento',
-            'sexo',
+            'pessoa_fisica',
             'parentesco',
-            'incluso_ir',
-            'incluso_plano_saude',
-            'observacoes',
+            'dependencia_irrf',
         ]
-
-    def validate_cpf(self, value):
-        """Remove formatacao do CPF."""
-        if value:
-            return ''.join(filter(str.isdigit, value))
-        return value
 
     def create(self, validated_data):
         """Cria dependente usando o service."""
         from ..services import DependenteService
 
-        return DependenteService.create(
+        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
+        funcionario = validated_data.pop('funcionario')
+
+        return DependenteService.vincular_dependente(
+            funcionario=funcionario,
+            pessoa_fisica_data=pessoa_fisica_data,
             created_by=self.context.get('request').user if self.context.get('request') else None,
             **validated_data
         )
+
+
+class DependenteUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para atualização de dependente."""
+
+    class Meta:
+        model = Dependente
+        fields = [
+            'parentesco',
+            'dependencia_irrf',
+            'ativo',
+        ]
 
     def update(self, instance, validated_data):
         """Atualiza dependente usando o service."""
@@ -82,23 +120,3 @@ class DependenteCreateSerializer(serializers.ModelSerializer):
             updated_by=self.context.get('request').user if self.context.get('request') else None,
             **validated_data
         )
-
-
-class DependenteListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listagem de dependentes."""
-
-    cpf_formatado = serializers.ReadOnlyField()
-    idade = serializers.ReadOnlyField()
-
-    class Meta:
-        model = Dependente
-        fields = [
-            'id',
-            'nome_completo',
-            'cpf_formatado',
-            'data_nascimento',
-            'idade',
-            'parentesco',
-            'incluso_ir',
-            'incluso_plano_saude',
-        ]

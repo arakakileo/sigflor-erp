@@ -1,61 +1,180 @@
+# -*- coding: utf-8 -*-
+import uuid
 from django.db import models
-from .base import SoftDeleteModel, AuditModel
-from .clientes import Cliente
-from .empresas import Empresa
-from .filiais import Filial
+from django.utils import timezone
 
-class Projeto(SoftDeleteModel, AuditModel):
+from .base import SoftDeleteModel
+
+
+class StatusProjeto(models.TextChoices):
+    """Status do projeto."""
+    PLANEJADO = 'PLANEJADO', 'Planejado'
+    EM_EXECUCAO = 'EM_EXECUCAO', 'Em Execução'
+    CONCLUIDO = 'CONCLUIDO', 'Concluído'
+    CANCELADO = 'CANCELADO', 'Cancelado'
+
+
+class Projeto(SoftDeleteModel):
     """
     Representa um Projeto (Centro de Custo/Obra) que une Empresa, Cliente e Filial.
     É uma entidade transversal utilizada por diversos módulos.
+
+    O "Tripé" do projeto:
+    - Quem Paga: Cliente
+    - Quem Fatura: Empresa (automático, via cliente.empresa_gestora)
+    - Onde Executa: Filial
     """
-    nome = models.CharField(max_length=255, verbose_name="Nome do Projeto")
-    
-    # FK para o Contratante (Cliente) que é quem paga pelo serviço
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    numero = models.CharField(
+        max_length=20,
+        unique=True,
+        editable=False,
+        help_text="Código único gerado automaticamente"
+    )
+    descricao = models.TextField(
+        help_text="Nome ou objeto do projeto (ex: Manutenção da Fazenda X - Bloco Y)"
+    )
+
+    # FK para o Cliente (quem paga pelo serviço)
     cliente = models.ForeignKey(
-        Cliente,
+        'comum.Cliente',
         on_delete=models.PROTECT,
         related_name="projetos",
-        verbose_name="Cliente"
+        help_text="Cliente para quem o serviço está sendo prestado"
     )
-    
-    # FK para a Filial (Onde o serviço é executado)
-    filial = models.ForeignKey(
-        Filial,
-        on_delete=models.PROTECT,
-        related_name="projetos",
-        verbose_name="Filial"
-    )
-    
+
     # FK para a Empresa (CNPJ do próprio Grupo Econômico)
-    # Este campo é preenchido automaticamente pela empresa_gestora do cliente.
-    # Conforme ADRs, ele é denormalizado para otimizar queries e garantir consistência.
+    # Preenchido automaticamente via cliente.empresa_gestora
     empresa = models.ForeignKey(
-        Empresa,
+        'comum.Empresa',
         on_delete=models.PROTECT,
         related_name="projetos_gerenciados",
-        verbose_name="Empresa Gerenciadora"
+        help_text="Empresa do grupo que fatura (automático)"
+    )
+
+    # FK para a Filial (onde o serviço é executado)
+    filial = models.ForeignKey(
+        'comum.Filial',
+        on_delete=models.PROTECT,
+        related_name="projetos",
+        help_text="Base operacional responsável pela execução"
+    )
+
+    # FK para o Contrato (opcional)
+    contrato = models.ForeignKey(
+        'comum.Contrato',
+        on_delete=models.PROTECT,
+        related_name="projetos",
+        blank=True,
+        null=True,
+        help_text="Contrato comercial que ampara este projeto"
+    )
+
+    data_inicio = models.DateField(
+        help_text="Data de início das atividades"
+    )
+    data_fim = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Data de término prevista"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=StatusProjeto.choices,
+        default=StatusProjeto.PLANEJADO,
+        help_text="Status atual do projeto"
     )
 
     class Meta:
+        db_table = 'projetos'
         verbose_name = "Projeto"
         verbose_name_plural = "Projetos"
-        unique_together = ('nome', 'cliente', 'filial', 'empresa') # Garante unicidade do projeto
+        ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['nome']),
+            models.Index(fields=['numero']),
+            models.Index(fields=['status']),
             models.Index(fields=['cliente']),
             models.Index(fields=['filial']),
             models.Index(fields=['empresa']),
+            models.Index(fields=['data_inicio']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['numero'],
+                name='unique_numero_projeto'
+            ),
         ]
 
     def save(self, *args, **kwargs):
         """
-        Preenche automaticamente o campo 'empresa' com a empresa_gestora do cliente
-        antes de salvar.
+        Antes de salvar:
+        1. Gera o número do projeto automaticamente (se novo)
+        2. Preenche a empresa com a empresa_gestora do cliente
         """
-        if not self.empresa_id and self.cliente and self.cliente.empresa_gestora:
+        if not self.numero:
+            self.numero = self._generate_numero()
+
+        if self.cliente and self.cliente.empresa_gestora:
             self.empresa = self.cliente.empresa_gestora
+
+        self.full_clean()
         super().save(*args, **kwargs)
 
+    def _generate_numero(self) -> str:
+        """
+        Gera um número único para o projeto.
+        Formato: PRJ-YYYYMM-NNNN (ex: PRJ-202511-0001)
+        """
+        now = timezone.now()
+        prefix = f"PRJ-{now.year}{now.month:02d}-"
+
+        # Busca o último número do mês atual
+        last_projeto = Projeto.all_objects.filter(
+            numero__startswith=prefix
+        ).order_by('-numero').first()
+
+        if last_projeto:
+            try:
+                last_num = int(last_projeto.numero.split('-')[-1])
+                new_num = last_num + 1
+            except (ValueError, IndexError):
+                new_num = 1
+        else:
+            new_num = 1
+
+        return f"{prefix}{new_num:04d}"
+
     def __str__(self):
-        return f"{self.nome} ({self.cliente.pessoa_juridica.nome_fantasia}/{self.filial.nome})"
+        return f"{self.numero} - {self.descricao[:50]}"
+
+    @property
+    def is_ativo(self) -> bool:
+        """Verifica se o projeto está em execução."""
+        return self.status == StatusProjeto.EM_EXECUCAO
+
+    @property
+    def cliente_nome(self) -> str:
+        """Retorna o nome do cliente."""
+        if self.cliente and self.cliente.pessoa_juridica:
+            return self.cliente.pessoa_juridica.nome_fantasia or self.cliente.pessoa_juridica.razao_social
+        return ""
+
+    @property
+    def empresa_nome(self) -> str:
+        """Retorna o nome da empresa."""
+        if self.empresa and self.empresa.pessoa_juridica:
+            return self.empresa.pessoa_juridica.nome_fantasia or self.empresa.pessoa_juridica.razao_social
+        return ""
+
+    @property
+    def filial_nome(self) -> str:
+        """Retorna o nome da filial."""
+        return self.filial.nome if self.filial else ""
+
+    @property
+    def contrato_numero(self) -> str:
+        """Retorna o número do contrato, se houver."""
+        return self.contrato.numero_interno if self.contrato else ""

@@ -2,13 +2,15 @@
 
 ## 1. Visão Geral
 
-A entidade **Endereço** é um repositório centralizado para informações de localização. Ela é uma entidade genérica, projetada para ser reutilizada por qualquer outro modelo do sistema (como `PessoaFisica` ou `PessoaJuridica`) através de tabelas de vínculo.
+A entidade **Endereço** é um repositório centralizado para informações de localização. Ela é uma entidade genérica, projetada para ser reutilizada por qualquer outro modelo do sistema através de **tabelas de vínculo explícitas** (sem uso de Generic Foreign Keys).
 
 **Propósito Arquitetural:** Garantir um formato padronizado para endereços, centralizar a lógica de validação e normalização, e evitar a repetição de campos de endereço em múltiplas tabelas.
 
+**Status:** ✅ IMPLEMENTADO
+
 ---
 
-## 2. Estrutura do Modelo (`core.Endereco`)
+## 2. Estrutura do Modelo (`comum.Endereco`)
 
 | Atributo | Tipo Django | Tipo PostgreSQL | Constraints e Regras |
 | :--- | :--- | :--- | :--- |
@@ -22,38 +24,148 @@ A entidade **Endereço** é um repositório centralizado para informações de l
 | **cep** | `models.CharField` | `VARCHAR(8)` | `null=False`, `blank=False`. **Regra:** Armazenado sem máscara, apenas dígitos. |
 | **pais** | `models.CharField` | `VARCHAR(50)` | `default='Brasil'`. |
 
+### Campos Herdados (SoftDeleteModel)
+- `created_at`, `updated_at`, `deleted_at`
+- `created_by`, `updated_by`
+
+### Propriedades Computadas
+- **`cep_formatado`**: Retorna o CEP com máscara (ex: `12345-678`).
+- **`endereco_completo`**: Retorna o endereço formatado em uma linha.
+
+### Enum `UF` (Estados do Brasil)
+```python
+class UF(models.TextChoices):
+    AC = 'AC', 'Acre'
+    AL = 'AL', 'Alagoas'
+    # ... todos os 27 estados
+    TO = 'TO', 'Tocantins'
+```
+
 ---
 
-## 3. Relacionamentos (Modelo de Composição)
+## 3. Tipos de Endereço (`TipoEndereco`)
 
-A associação é feita por tabelas de vínculo explícitas.
+```python
+class TipoEndereco(models.TextChoices):
+    RESIDENCIAL = 'RESIDENCIAL', 'Residencial'
+    COMERCIAL = 'COMERCIAL', 'Comercial'
+    CORRESPONDENCIA = 'CORRESPONDENCIA', 'Correspondência'
+    OUTRO = 'OUTRO', 'Outro'
+```
 
-### Tabela de Vínculo Exemplo: `PessoaFisicaEndereco`
+---
+
+## 4. Relacionamentos (Modelo de Composição)
+
+O modelo `Endereco` não possui vínculo direto com entidades. A associação é feita através de **tabelas de vínculo explícitas**.
+
+### 4.1 Tabela de Vínculo: `PessoaFisicaEndereco`
+
 | Atributo | Tipo Django | Constraints e Regras |
 | :--- | :--- | :--- |
-| **pessoa_fisica** | `models.ForeignKey` para `PessoaFisica` | `on_delete=models.CASCADE`. |
-| **endereco** | `models.ForeignKey` para `Endereco` | `on_delete=models.CASCADE`. |
-| **tipo** | `models.CharField` | `choices=['RESIDENCIAL', 'COMERCIAL']`. **Regra:** Contextualiza o endereço. |
-| **principal** | `models.BooleanField` | `default=False`. **Constraint:** `UniqueConstraint` para `(pessoa_fisica, tipo)` onde `principal=True`. |
+| **id** | `models.UUIDField` | PK padrão. |
+| **pessoa_fisica** | `models.ForeignKey` para `PessoaFisica` | `on_delete=models.CASCADE`, `related_name='enderecos_vinculados'`. |
+| **endereco** | `models.ForeignKey` para `Endereco` | `on_delete=models.CASCADE`, `related_name='vinculos_pessoa_fisica'`. |
+| **tipo** | `models.CharField` | `choices=TipoEndereco.choices`, `default='RESIDENCIAL'`. |
+| **principal** | `models.BooleanField` | `default=False`. |
 
-**Nota:** Esta estrutura se repetiria para `PessoaJuridicaEndereco`, `FilialEndereco`, etc. O campo `principal` e `tipo` vivem na tabela de associação, pois eles descrevem a *relação* entre a pessoa e o endereço, não o endereço em si.
+**Constraints:**
+- `UniqueConstraint(fields=['pessoa_fisica', 'endereco'])` - Impede duplicação de vínculo.
+- `UniqueConstraint(fields=['pessoa_fisica', 'tipo'], condition=principal=True)` - Apenas um endereço principal por tipo.
+
+**Tabela PostgreSQL:** `pessoas_fisicas_enderecos`
+
+### 4.2 Tabela de Vínculo: `PessoaJuridicaEndereco`
+
+| Atributo | Tipo Django | Constraints e Regras |
+| :--- | :--- | :--- |
+| **id** | `models.UUIDField` | PK padrão. |
+| **pessoa_juridica** | `models.ForeignKey` para `PessoaJuridica` | `on_delete=models.CASCADE`, `related_name='enderecos_vinculados'`. |
+| **endereco** | `models.ForeignKey` para `Endereco` | `on_delete=models.CASCADE`, `related_name='vinculos_pessoa_juridica'`. |
+| **tipo** | `models.CharField` | `choices=TipoEndereco.choices`, `default='COMERCIAL'`. |
+| **principal** | `models.BooleanField` | `default=False`. |
+
+**Tabela PostgreSQL:** `pessoas_juridicas_enderecos`
+
+### 4.3 Tabela de Vínculo: `FilialEndereco`
+
+| Atributo | Tipo Django | Constraints e Regras |
+| :--- | :--- | :--- |
+| **id** | `models.UUIDField` | PK padrão. |
+| **filial** | `models.ForeignKey` para `Filial` | `on_delete=models.CASCADE`, `related_name='enderecos_vinculados'`. |
+| **endereco** | `models.ForeignKey` para `Endereco` | `on_delete=models.CASCADE`, `related_name='vinculos_filial'`. |
+| **tipo** | `models.CharField` | `choices=TipoEndereco.choices`, `default='COMERCIAL'`. |
+| **principal** | `models.BooleanField` | `default=False`. |
+
+**Tabela PostgreSQL:** `filiais_enderecos`
+
+### Sobre os Campos `tipo` e `principal`
+
+Os campos `tipo` e `principal` vivem nas tabelas de vínculo porque descrevem a **relação** entre a entidade e o endereço, não o endereço em si:
+- Uma pessoa pode ter um endereço residencial e um comercial
+- Pode ter múltiplos endereços do mesmo tipo (ex: dois comerciais), mas apenas um é o "principal"
+- A constraint de unicidade garante apenas um endereço principal por tipo por entidade
 
 ---
 
-## 4. Estratégia de Indexação
+## 5. Estratégia de Indexação
 
--   **Índice Padrão (B-Tree):** no campo `cep` para buscas rápidas por CEP.
--   **Índice Composto:** em `(cidade, estado)` para otimizar a busca de endereços por localidade.
+| Índice | Campos | Propósito |
+| :--- | :--- | :--- |
+| B-Tree | `cep` | Buscas rápidas por CEP |
+| Composto | `(cidade, estado)` | Busca de endereços por localidade |
 
 ---
 
-## 5. Camada de Serviço (`EnderecoService`)
+## 6. Camada de Serviço (`EnderecoService`)
 
-A interação deve ser feita via `EnderecoService`, que trabalhará em conjunto com os serviços das entidades principais (ex: `PessoaFisicaService`).
+### Métodos de Criação
 
--   **`add_endereco_to_pessoa_fisica(*, pessoa_fisica: PessoaFisica, data: dict)`**:
-    -   Recebe a instância da pessoa e um dicionário com os dados do endereço (`logradouro`, `cep`, etc.), o `tipo` e a flag `principal`.
-    -   Normaliza e valida os dados do endereço (ex: remove máscara do CEP).
-    -   Cria a instância de `Endereco`.
-    -   Cria a instância de `PessoaFisicaEndereco`, estabelecendo o vínculo.
-    -   **Lógica de Negócio:** Se `principal=True`, o serviço deve garantir que qualquer outro endereço do mesmo `tipo` para aquela `pessoa_fisica` seja marcado como `principal=False` (atomicamente, dentro de uma transação).
+- **`create(*, logradouro, cidade, estado, cep, ...)`**:
+  - Cria um endereço sem vínculo com entidade.
+
+- **`add_endereco_to_pessoa_fisica(*, pessoa_fisica, logradouro, cidade, estado, cep, tipo, principal, ...)`**:
+  - Cria o endereço e o vínculo com `PessoaFisica` em uma transação.
+  - Se `principal=True`, desmarca outros endereços do mesmo tipo como principal.
+  - Retorna a instância de `PessoaFisicaEndereco`.
+
+- **`add_endereco_to_pessoa_juridica(*, pessoa_juridica, ...)`**: Análogo ao acima.
+- **`add_endereco_to_filial(*, filial, ...)`**: Análogo ao acima.
+
+### Métodos de Atualização
+
+- **`update(endereco, updated_by, **kwargs)`**: Atualiza dados do endereço.
+- **`set_principal_pessoa_fisica(*, vinculo, updated_by)`**: Define como principal.
+- **`set_principal_pessoa_juridica(*, vinculo, updated_by)`**: Análogo.
+- **`set_principal_filial(*, vinculo, updated_by)`**: Análogo.
+
+### Métodos de Exclusão
+
+- **`delete(endereco, user)`**: Soft delete do endereço e todos os seus vínculos.
+- **`remove_vinculo_pessoa_fisica(vinculo, user)`**: Remove apenas o vínculo.
+- **`remove_vinculo_pessoa_juridica(vinculo, user)`**: Análogo.
+- **`remove_vinculo_filial(vinculo, user)`**: Análogo.
+
+### Métodos de Consulta
+
+- **`get_enderecos_pessoa_fisica(pessoa_fisica)`**: Retorna todos os endereços vinculados.
+- **`get_enderecos_pessoa_juridica(pessoa_juridica)`**: Análogo.
+- **`get_enderecos_filial(filial)`**: Análogo.
+- **`get_endereco_principal_pessoa_fisica(pessoa_fisica, tipo=None)`**: Retorna o endereço principal.
+- **`get_endereco_principal_pessoa_juridica(pessoa_juridica, tipo=None)`**: Análogo.
+- **`get_endereco_principal_filial(filial, tipo=None)`**: Análogo.
+
+---
+
+## 7. Serializers
+
+| Serializer | Propósito |
+| :--- | :--- |
+| `EnderecoSerializer` | Leitura completa do endereço |
+| `EnderecoCreateSerializer` | Criação com dados de vínculo |
+| `PessoaFisicaEnderecoSerializer` | Vínculo PF com endereço aninhado |
+| `PessoaFisicaEnderecoListSerializer` | Listagem simplificada |
+| `PessoaJuridicaEnderecoSerializer` | Vínculo PJ com endereço aninhado |
+| `PessoaJuridicaEnderecoListSerializer` | Listagem simplificada |
+| `FilialEnderecoSerializer` | Vínculo Filial com endereço aninhado |
+| `FilialEnderecoListSerializer` | Listagem simplificada |

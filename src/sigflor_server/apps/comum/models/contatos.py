@@ -13,10 +13,10 @@ class Contato(SoftDeleteModel):
     """
 
     class Tipo(models.TextChoices):
-        CELULAR = 'telefone_celular', 'Telefone Celular'
-        FIXO = 'telefone_fixo', 'Telefone Fixo'
-        EMAIL = 'email', 'E-mail'
-        OUTRO = 'outro', 'Outro'
+        CELULAR = 'CELULAR', 'Telefone Celular'
+        FIXO = 'FIXO', 'Telefone Fixo'
+        EMAIL = 'EMAIL', 'E-mail'
+        OUTRO = 'OUTRO', 'Outro'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=20, choices=Tipo.choices)
@@ -75,9 +75,21 @@ class Contato(SoftDeleteModel):
 
 class PessoaFisicaContato(SoftDeleteModel):
     """Tabela de ligação entre PessoaFisica e Contato."""
-    pessoa_fisica = models.ForeignKey('comum.PessoaFisica', on_delete=models.CASCADE)
-    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    pessoa_fisica = models.ForeignKey(
+        'comum.PessoaFisica',
+        on_delete=models.CASCADE,
+        related_name='contatos_vinculados'
+    )
+    contato = models.ForeignKey(
+        Contato,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_fisica'
+    )
     principal = models.BooleanField(default=False)
+    contato_emergencia = models.BooleanField(
+        default=False,
+        help_text='Indica se é um contato de emergência'
+    )
 
     class Meta:
         db_table = 'pessoas_fisicas_contatos'
@@ -96,8 +108,16 @@ class PessoaFisicaContato(SoftDeleteModel):
 
 class PessoaJuridicaContato(SoftDeleteModel):
     """Tabela de ligação entre PessoaJuridica e Contato."""
-    pessoa_juridica = models.ForeignKey('comum.PessoaJuridica', on_delete=models.CASCADE)
-    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    pessoa_juridica = models.ForeignKey(
+        'comum.PessoaJuridica',
+        on_delete=models.CASCADE,
+        related_name='contatos_vinculados'
+    )
+    contato = models.ForeignKey(
+        Contato,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_juridica'
+    )
     principal = models.BooleanField(default=False)
 
     class Meta:
@@ -117,8 +137,16 @@ class PessoaJuridicaContato(SoftDeleteModel):
 
 class FilialContato(SoftDeleteModel):
     """Tabela de ligação entre Filial e Contato."""
-    filial = models.ForeignKey('comum.Filial', on_delete=models.CASCADE)
-    contato = models.ForeignKey(Contato, on_delete=models.CASCADE)
+    filial = models.ForeignKey(
+        'comum.Filial',
+        on_delete=models.CASCADE,
+        related_name='contatos_vinculados'
+    )
+    contato = models.ForeignKey(
+        Contato,
+        on_delete=models.CASCADE,
+        related_name='vinculos_filial'
+    )
     principal = models.BooleanField(default=False)
 
     class Meta:

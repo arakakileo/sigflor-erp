@@ -1,5 +1,10 @@
 from .pessoa_fisica import PessoaFisicaSerializer
-from .pessoa_juridica import PessoaJuridicaSerializer
+from .pessoa_juridica import (
+    PessoaJuridicaSerializer,
+    PessoaJuridicaCreateSerializer,
+    PessoaJuridicaUpdateSerializer,
+    PessoaJuridicaListSerializer
+)
 from .usuarios import UsuarioSerializer, UsuarioCreateSerializer
 from .permissoes import PermissaoSerializer, PapelSerializer
 from .empresas_cnpj import EmpresaCNPJSerializer, EmpresaCNPJCreateSerializer, EmpresaCNPJListSerializer
@@ -23,17 +28,20 @@ from .contratos import (
     ContratoCreateSerializer,
     ContratoListSerializer
 )
-from .subcontratos import (
-    SubContratoSerializer,
-    SubContratoCreateSerializer,
-    SubContratoListSerializer
+from .projeto import (
+    ProjetoSerializer,
+    ProjetoListSerializer,
+    ProjetoCreateSerializer,
+    ProjetoUpdateSerializer
 )
-from .projeto import ProjetoSerializer, ProjetoListSerializer
 from .exame import ExameSerializer
 
 __all__ = [
     'PessoaFisicaSerializer',
     'PessoaJuridicaSerializer',
+    'PessoaJuridicaCreateSerializer',
+    'PessoaJuridicaUpdateSerializer',
+    'PessoaJuridicaListSerializer',
     'UsuarioSerializer',
     'UsuarioCreateSerializer',
     'PermissaoSerializer',
@@ -59,13 +67,11 @@ __all__ = [
     'ContratoSerializer',
     'ContratoCreateSerializer',
     'ContratoListSerializer',
-    # SubContratos
-    'SubContratoSerializer',
-    'SubContratoCreateSerializer',
-    'SubContratoListSerializer',
     # Projeto
     'ProjetoSerializer',
     'ProjetoListSerializer',
+    'ProjetoCreateSerializer',
+    'ProjetoUpdateSerializer',
     # Exame
     'ExameSerializer',
 ]

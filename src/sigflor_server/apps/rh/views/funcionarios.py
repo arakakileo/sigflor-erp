@@ -27,27 +27,30 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         return FuncionarioSerializer
 
     def get_queryset(self):
-        search = self.request.query_params.get('search')
+        busca = self.request.query_params.get('busca')
         status_filter = self.request.query_params.get('status')
-        departamento = self.request.query_params.get('departamento')
         tipo_contrato = self.request.query_params.get('tipo_contrato')
         empresa_id = self.request.query_params.get('empresa_id')
         gestor_id = self.request.query_params.get('gestor_id')
+        cargo_id = self.request.query_params.get('cargo_id')
+        projeto_id = self.request.query_params.get('projeto_id')
         apenas_ativos = self.request.query_params.get('apenas_ativos', '').lower() == 'true'
 
         return selectors.funcionario_list(
-            search=search,
+            user=self.request.user,
+            busca=busca,
             status=status_filter,
-            departamento=departamento,
             tipo_contrato=tipo_contrato,
             empresa_id=empresa_id,
             gestor_id=gestor_id,
+            cargo_id=cargo_id,
+            projeto_id=projeto_id,
             apenas_ativos=apenas_ativos
         )
 
     def retrieve(self, request, pk=None):
         try:
-            funcionario = selectors.funcionario_detail(pk=pk)
+            funcionario = selectors.funcionario_detail(user=request.user, pk=pk)
             serializer = self.get_serializer(funcionario)
             return Response(serializer.data)
         except Funcionario.DoesNotExist:
@@ -245,7 +248,7 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         """Retorna estatisticas gerais do RH."""
-        stats = selectors.estatisticas_rh()
+        stats = selectors.estatisticas_rh(user=request.user)
         return Response(stats)
 
     @action(detail=False, methods=['get'])
@@ -254,20 +257,20 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         mes = request.query_params.get('mes')
         if mes:
             mes = int(mes)
-        aniversariantes = selectors.aniversariantes_mes(mes=mes)
+        aniversariantes = selectors.aniversariantes_mes(user=request.user, mes=mes)
         serializer = FuncionarioListSerializer(aniversariantes, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def ativos(self, request):
         """Lista apenas funcionarios ativos."""
-        funcionarios = selectors.funcionarios_ativos()
+        funcionarios = selectors.funcionarios_ativos(user=request.user)
         serializer = FuncionarioListSerializer(funcionarios, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def afastados(self, request):
         """Lista funcionarios afastados."""
-        funcionarios = selectors.funcionarios_afastados()
+        funcionarios = selectors.funcionarios_afastados(user=request.user)
         serializer = FuncionarioListSerializer(funcionarios, many=True)
         return Response(serializer.data)

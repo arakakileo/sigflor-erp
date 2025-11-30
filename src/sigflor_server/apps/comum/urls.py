@@ -14,7 +14,6 @@ from .views import (
     DeficienciaViewSet,
     FilialViewSet,
     ContratoViewSet,
-    SubContratoViewSet,
     ProjetoViewSet,
     ExameViewSet,
 )
@@ -33,7 +32,6 @@ router.register(r'papeis', PapelViewSet, basename='papel')
 # Estrutura organizacional
 router.register(r'filiais', FilialViewSet, basename='filial')
 router.register(r'contratos', ContratoViewSet, basename='contrato')
-router.register(r'subcontratos', SubContratoViewSet, basename='subcontrato')
 router.register(r'projetos', ProjetoViewSet, basename='projeto')
 
 # Entidades genericas (polimorficas)

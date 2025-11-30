@@ -11,7 +11,6 @@ from .anexos import AnexoService
 from .deficiencias import DeficienciaService
 from .filiais import FilialService
 from .contratos import ContratoService
-from .subcontratos import SubContratoService
 from .projeto import ProjetoService
 from .exame import ExameService
 
@@ -30,7 +29,6 @@ __all__ = [
     'DeficienciaService',
     'FilialService',
     'ContratoService',
-    'SubContratoService',
     'ProjetoService',
     'ExameService',
 ]

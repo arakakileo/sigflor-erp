@@ -10,7 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 from ..models import (
     PessoaFisica, PessoaJuridica, Usuario, Permissao, Papel,
     EmpresaCNPJ, Contratante, Endereco, Contato, Documento, Anexo, Deficiencia,
-    Filial, Contrato, SubContrato, Projeto, Exame
+    Filial, Contrato, Projeto, Exame
 )
 
 
@@ -401,7 +401,7 @@ def filial_detail(*, user: Usuario, pk) -> Filial:
     filial = Filial.objects.select_related(
         'empresa', 'empresa__pessoa_juridica'
     ).prefetch_related(
-        'enderecos', 'contatos', 'subcontratos'
+        'enderecos', 'contatos'
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:
@@ -524,8 +524,6 @@ def contrato_detail(
     contrato = Contrato.objects.select_related(
         'contratante', 'empresa',
         'contratante__pessoa_juridica', 'empresa__pessoa_juridica'
-    ).prefetch_related(
-        'subcontratos'
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:
@@ -595,193 +593,6 @@ def estatisticas_contratos(*, user: Usuario) -> dict:
         'inativos': total - ativos,
         'vigentes': vigentes,
         'valor_total': valor_total,
-    }
-
-
-# ============ SubContrato ============
-
-def subcontrato_list(
-    *,
-    user: Usuario, # Adicionado parametro user
-    filters: dict = None,
-    search: str = None,
-    ativo: bool = None,
-    vigente: bool = None,
-    filial_id: str = None,
-    contrato_id: str = None
-) -> QuerySet:
-    """Lista subcontratos com filtros opcionais, respeitando permissoes regionais do usuario."""
-    from django.utils import timezone
-
-    qs = SubContrato.objects.filter(
-        deleted_at__isnull=True
-    ).select_related(
-        'filial', 'contrato',
-        'contrato__contratante', 'contrato__empresa',
-        'contrato__contratante__pessoa_juridica', 'contrato__empresa__pessoa_juridica'
-    )
-
-    if not user.is_superuser:
-        qs = qs.filter(filial__in=user.allowed_filiais.all()).distinct()
-
-    if ativo is not None:
-        qs = qs.filter(ativo=ativo)
-
-    if vigente is True:
-        hoje = timezone.now().date()
-        qs = qs.filter(
-            ativo=True,
-            data_inicio__lte=hoje
-        ).filter(
-            Q(data_fim__isnull=True) | Q(data_fim__gte=hoje)
-        )
-    elif vigente is False:
-        hoje = timezone.now().date()
-        qs = qs.filter(
-            Q(ativo=False) |
-            Q(data_inicio__gt=hoje) |
-            Q(data_fim__lt=hoje)
-        )
-
-    if filial_id:
-        qs = qs.filter(filial_id=filial_id)
-
-    if contrato_id:
-        qs = qs.filter(contrato_id=contrato_id)
-
-    if filters:
-        qs = qs.filter(**filters)
-
-    if search:
-        qs = qs.filter(
-            Q(numero__icontains=search) |
-            Q(filial__nome__icontains=search) |
-            Q(contrato__numero_interno__icontains=search)
-        )
-
-    return qs.order_by('-data_inicio', 'numero')
-
-
-def subcontrato_detail(
-    *,
-    user: Usuario, # Adicionado parametro user
-    pk
-) -> SubContrato:
-    """Obtem detalhes de um subcontrato com relacionamentos, verificando permissao regional."""
-    subcontrato = SubContrato.objects.select_related(
-        'filial', 'contrato',
-        'contrato__contratante', 'contrato__empresa',
-        'contrato__contratante__pessoa_juridica', 'contrato__empresa__pessoa_juridica'
-    ).get(pk=pk, deleted_at__isnull=True)
-
-    if not user.is_superuser:
-        if not user.allowed_filiais.filter(id=subcontrato.filial.id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso ao subcontrato {subcontrato.numero} via filial {subcontrato.filial.nome}.")
-
-    return subcontrato
-
-
-def subcontratos_vigentes(
-    *,
-    user: Usuario, # Adicionado parametro user
-    filial_id: str = None, contrato_id: str = None
-) -> QuerySet:
-    """Lista subcontratos vigentes, respeitando permissoes regionais do usuario."""
-    from django.utils import timezone
-
-    hoje = timezone.now().date()
-    qs = SubContrato.objects.filter(
-        ativo=True,
-        data_inicio__lte=hoje,
-        deleted_at__isnull=True
-    ).filter(
-        Q(data_fim__isnull=True) | Q(data_fim__gte=hoje)
-    ).select_related('filial', 'contrato')
-
-    if not user.is_superuser:
-        qs = qs.filter(filial__in=user.allowed_filiais.all()).distinct()
-
-    if filial_id:
-        qs = qs.filter(filial_id=filial_id)
-
-    if contrato_id:
-        qs = qs.filter(contrato_id=contrato_id)
-
-    return qs.order_by('-data_inicio', 'numero')
-
-
-def subcontratos_por_filial(
-    *,
-    user: Usuario, # Adicionado parametro user
-    filial_id: str
-) -> QuerySet:
-    """Lista subcontratos de uma filial especifica, verificando permissoes regionais."""
-    qs = SubContrato.objects.filter(
-        filial_id=filial_id,
-        deleted_at__isnull=True
-    ).select_related('contrato')
-
-    if not user.is_superuser:
-        if not user.allowed_filiais.filter(id=filial_id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso à filial {filial_id}.")
-
-    return qs.order_by('-data_inicio', 'numero')
-
-
-def subcontratos_por_contrato(
-    *,
-    user: Usuario, # Adicionado parametro user
-    contrato_id: str
-) -> QuerySet:
-    """Lista subcontratos de um contrato especifico, verificando permissoes regionais."""
-    # Esta lógica assume que a permissão de contrato já foi verificada em nível superior
-    # ou que o contrato é acessível se suas filiais associadas são acessíveis.
-    # Para simplicidade do MVP, apenas verificaremos se o usuário tem acesso às filiais do contrato, se existirem.
-    qs = SubContrato.objects.filter(
-        contrato_id=contrato_id,
-        deleted_at__isnull=True
-    ).select_related('filial')
-
-    if not user.is_superuser:
-        # Precisamos garantir que as filiais associadas a este subcontrato estão entre as permitidas ao usuário.
-        # Alternativamente, poderiamos obter o contrato primeiro e checar a permissao do contrato.
-        # Para este MVP, vamos apenas garantir que a filial do subcontrato é permitida.
-        qs = qs.filter(filial__in=user.allowed_filiais.all()).distinct()
-
-    return qs.order_by('-data_inicio', 'numero')
-
-
-def estatisticas_subcontratos(*, user: Usuario) -> dict:
-    """Retorna estatisticas de subcontratos, respeitando permissoes regionais do usuario."""
-    from django.db.models import Count
-    from django.utils import timezone
-
-    qs = SubContrato.objects.filter(deleted_at__isnull=True)
-
-    if not user.is_superuser:
-        qs = qs.filter(filial__in=user.allowed_filiais.all()).distinct()
-
-    hoje = timezone.now().date()
-
-    total = qs.count()
-    ativos = qs.filter(ativo=True).count()
-    vigentes = qs.filter(
-        ativo=True,
-        data_inicio__lte=hoje
-    ).filter(
-        Q(data_fim__isnull=True) | Q(data_fim__gte=hoje)
-    ).count()
-
-    por_filial = qs.values('filial__nome').annotate(
-        total=Count('id')
-    ).order_by('-total')[:10]
-
-    return {
-        'total': total,
-        'ativos': ativos,
-        'inativos': total - ativos,
-        'vigentes': vigentes,
-        'por_filial': list(por_filial),
     }
 
 

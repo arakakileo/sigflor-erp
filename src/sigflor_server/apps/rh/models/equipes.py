@@ -1,95 +1,167 @@
+# -*- coding: utf-8 -*-
+import uuid
 from django.db import models
-from apps.comum.models.base import SoftDeleteModel, AuditModel
-from apps.comum.models import Projeto # Importa o modelo Projeto
-from .funcionarios import Funcionario
+from django.db.models import Q
+
+from apps.comum.models.base import SoftDeleteModel
 
 
-class Equipe(SoftDeleteModel, AuditModel):
+class Equipe(SoftDeleteModel):
     """
     Representa uma equipe de trabalho, vinculada a um Projeto.
     Pode ter um líder e um coordenador.
     """
 
     class TipoEquipe(models.TextChoices):
-        MANUAL = 'manual', 'Manual'
-        MECANIZADA = 'mecanizada', 'Mecanizada'
+        MANUAL = 'MANUAL', 'Manual'
+        MECANIZADA = 'MECANIZADA', 'Mecanizada'
 
-    nome = models.CharField(max_length=100, unique=True, verbose_name="Nome da Equipe")
-    tipo_equipe = models.CharField(max_length=20, choices=TipoEquipe.choices, verbose_name="Tipo de Equipe")
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    nome = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text='Nome único da equipe'
+    )
+    tipo_equipe = models.CharField(
+        max_length=20,
+        choices=TipoEquipe.choices,
+        help_text='Tipo de equipe (Manual ou Mecanizada)'
+    )
 
     # Uma equipe está alocada a um Projeto (Centro de Custo)
     projeto = models.ForeignKey(
-        Projeto,
+        'comum.Projeto',
         on_delete=models.PROTECT,
-        related_name="equipes",
-        verbose_name="Projeto"
+        related_name='equipes',
+        help_text='Projeto ao qual a equipe está alocada'
     )
 
-    # Líder da equipe (pode ser nulo)
-    lider = models.ForeignKey(
-        Funcionario,
-        on_delete=models.SET_NULL,
+    # Líder da equipe - Um funcionário só pode ser líder de uma equipe por vez
+    lider = models.OneToOneField(
+        'rh.Funcionario',
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="equipes_lideradas",
-        verbose_name="Líder da Equipe"
+        related_name='equipe_liderada',
+        help_text='Líder da equipe'
     )
 
-    # Coordenador da equipe (pode ser nulo)
+    # Coordenador da equipe
     coordenador = models.ForeignKey(
-        Funcionario,
+        'rh.Funcionario',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="equipes_coordenadas",
-        verbose_name="Coordenador da Equipe"
+        related_name='equipes_coordenadas',
+        help_text='Coordenador da equipe'
     )
 
-    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    ativa = models.BooleanField(
+        default=True,
+        help_text='Indica se a equipe está ativa e operacional'
+    )
+
+    observacoes = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Observações'
+    )
 
     class Meta:
-        verbose_name = "Equipe"
-        verbose_name_plural = "Equipes"
+        db_table = 'equipes'
+        verbose_name = 'Equipe'
+        verbose_name_plural = 'Equipes'
         ordering = ['nome']
         indexes = [
-            models.Index(fields=['nome']),
-            models.Index(fields=['projeto']),
-            models.Index(fields=['lider']),
+            models.Index(fields=['projeto', 'ativa', 'nome']),
             models.Index(fields=['coordenador']),
         ]
 
     def __str__(self):
         return self.nome
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
-class EquipeFuncionario(SoftDeleteModel, AuditModel):
+    @property
+    def membros_count(self):
+        """Retorna a quantidade de membros ativos na equipe."""
+        return self.membros.filter(
+            data_saida__isnull=True,
+            deleted_at__isnull=True
+        ).count()
+
+    @property
+    def projeto_nome(self):
+        """Retorna o nome/descrição do projeto."""
+        return self.projeto.descricao if self.projeto else None
+
+    @property
+    def lider_nome(self):
+        """Retorna o nome do líder."""
+        return self.lider.nome if self.lider else None
+
+    @property
+    def coordenador_nome(self):
+        """Retorna o nome do coordenador."""
+        return self.coordenador.nome if self.coordenador else None
+
+
+class EquipeFuncionario(SoftDeleteModel):
     """
-    Tabela de relacionamento N:M entre Equipe e Funcionario, com datas de entrada e saída.
+    Tabela de relacionamento N:M entre Equipe e Funcionário.
+    Registra o histórico de participação de funcionários em equipes.
     """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     equipe = models.ForeignKey(
         Equipe,
-        on_delete=models.PROTECT,
-        related_name="membros",
-        verbose_name="Equipe"
+        on_delete=models.CASCADE,
+        related_name='membros',
+        help_text='Equipe'
     )
     funcionario = models.ForeignKey(
-        Funcionario,
-        on_delete=models.PROTECT,
-        related_name="alocacoes_equipe",
-        verbose_name="Funcionário"
+        'rh.Funcionario',
+        on_delete=models.CASCADE,
+        related_name='alocacoes_equipe',
+        help_text='Funcionário'
     )
-    data_entrada = models.DateField(verbose_name="Data de Entrada na Equipe")
-    data_saida = models.DateField(null=True, blank=True, verbose_name="Data de Saída da Equipe")
+    data_entrada = models.DateField(
+        help_text='Data de entrada do funcionário na equipe'
+    )
+    data_saida = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Data de saída do funcionário da equipe'
+    )
 
     class Meta:
-        verbose_name = "Membro de Equipe"
-        verbose_name_plural = "Membros de Equipe"
-        unique_together = ('equipe', 'funcionario', 'data_entrada') # Garante que não haja alocações duplicadas para o mesmo dia
+        db_table = 'equipes_funcionarios'
+        verbose_name = 'Membro de Equipe'
+        verbose_name_plural = 'Membros de Equipe'
         indexes = [
-            models.Index(fields=['equipe']),
-            models.Index(fields=['funcionario']),
-            models.Index(fields=['data_entrada']),
+            models.Index(fields=['equipe', 'data_saida']),
+            models.Index(fields=['funcionario', 'data_saida']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['equipe', 'funcionario', 'data_entrada'],
+                condition=Q(deleted_at__isnull=True),
+                name='uniq_equipe_funcionario_data_entrada'
+            ),
         ]
 
     def __str__(self):
-        return f"{self.funcionario.pessoa_fisica.nome_completo} em {self.equipe.nome}"
+        return f'{self.funcionario.nome} em {self.equipe.nome}'
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def is_ativo(self):
+        """Indica se o funcionário ainda está na equipe."""
+        return self.data_saida is None and self.deleted_at is None

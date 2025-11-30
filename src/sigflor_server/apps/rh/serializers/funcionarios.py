@@ -1,30 +1,22 @@
+# -*- coding: utf-8 -*-
 from rest_framework import serializers
-# Importar o novo serializer
+
 from apps.comum.serializers.pessoa_fisica import PessoaFisicaCreateSerializer, PessoaFisicaSerializer
 from ..models import Funcionario
 
 
 class FuncionarioListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listagem de funcionarios."""
+    """Serializer simplificado para listagem de funcionários."""
 
     nome = serializers.ReadOnlyField()
     cpf_formatado = serializers.ReadOnlyField()
-    cargo_nome = serializers.CharField(
-        source='cargo.nome',
-        read_only=True
-    )
-    empresa_nome = serializers.CharField(
-        source='empresa.pessoa_juridica.razao_social',
-        read_only=True
-    )
+    cargo_nome = serializers.ReadOnlyField()
+    empresa_nome = serializers.ReadOnlyField()
+    projeto_nome = serializers.ReadOnlyField()
     gestor_nome = serializers.CharField(
-        source='gestor.pessoa_fisica.nome_completo',
+        source='gestor_imediato.pessoa_fisica.nome_completo',
         read_only=True
     )
-    subcontrato_numero = serializers.ReadOnlyField()
-    filial_nome = serializers.ReadOnlyField()
-    contratante_nome = serializers.ReadOnlyField()
-    projeto_nome = serializers.CharField(source='projeto.nome', read_only=True) # Adicionado projeto_nome
 
     class Meta:
         model = Funcionario
@@ -35,48 +27,36 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
             'cpf_formatado',
             'cargo',
             'cargo_nome',
-            'departamento',
-            'subcontrato',
-            'subcontrato_numero',
-            'filial_nome',
-            'contratante_nome',
-            'projeto_nome', # Adicionado projeto_nome
+            'empresa',
+            'empresa_nome',
+            'projeto',
+            'projeto_nome',
             'status',
             'tipo_contrato',
+            'turno',
             'data_admissao',
-            'empresa_nome',
+            'gestor_imediato',
             'gestor_nome',
+            'is_ativo',
         ]
 
 
 class FuncionarioSerializer(serializers.ModelSerializer):
-    """Serializer completo para detalhes do funcionario."""
+    """Serializer completo para detalhes do funcionário."""
 
     pessoa_fisica = PessoaFisicaSerializer(read_only=True)
     nome = serializers.ReadOnlyField()
     cpf = serializers.ReadOnlyField()
     cpf_formatado = serializers.ReadOnlyField()
-    tempo_empresa = serializers.ReadOnlyField()
     is_ativo = serializers.ReadOnlyField()
-
-    cargo_nome = serializers.CharField(
-        source='cargo.nome',
-        read_only=True
-    )
-    empresa_nome = serializers.CharField(
-        source='empresa.pessoa_juridica.razao_social',
-        read_only=True
-    )
+    cargo_nome = serializers.ReadOnlyField()
+    empresa_nome = serializers.ReadOnlyField()
+    projeto_nome = serializers.ReadOnlyField()
     gestor_nome = serializers.CharField(
-        source='gestor.pessoa_fisica.nome_completo',
+        source='gestor_imediato.pessoa_fisica.nome_completo',
         read_only=True
     )
     subordinados_count = serializers.SerializerMethodField()
-    subcontrato_numero = serializers.ReadOnlyField()
-    filial_nome = serializers.ReadOnlyField()
-    contrato_numero = serializers.ReadOnlyField()
-    contratante_nome = serializers.ReadOnlyField()
-    projeto_nome = serializers.CharField(source='projeto.nome', read_only=True) # Adicionado projeto_nome
 
     class Meta:
         model = Funcionario
@@ -87,61 +67,55 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             'nome',
             'cpf',
             'cpf_formatado',
-            # Dados profissionais
+            # Vínculos
+            'empresa',
+            'empresa_nome',
             'cargo',
             'cargo_nome',
-            'departamento',
-            'subcontrato',
-            'subcontrato_numero',
-            'filial_nome',
-            'contrato_numero',
-            'contratante_nome',
-            'projeto', # Adicionado projeto
-            'projeto_nome', # Adicionado projeto_nome
+            'projeto',
+            'projeto_nome',
             # Dados contratuais
             'tipo_contrato',
             'data_admissao',
             'data_demissao',
-            'salario',
-            'tempo_empresa',
-            # Jornada
-            'carga_horaria_semanal',
+            'salario_nominal',
             'turno',
-            'horario_entrada',
-            'horario_saida',
             # Status
             'status',
             'is_ativo',
-            # Dados bancarios
-            'banco',
-            'agencia',
-            'conta',
-            'tipo_conta',
-            'pix',
-            # Documentos trabalhistas
+            # Dados físicos
+            'peso_corporal',
+            'altura',
+            # Dados adicionais
+            'indicacao',
+            'cidade_atual',
+            # Hierarquia
+            'gestor_imediato',
+            'gestor_nome',
+            'subordinados_count',
+            # Dependentes
+            'tem_dependente',
+            # Documentação trabalhista
             'ctps_numero',
             'ctps_serie',
             'ctps_uf',
-            'pis',
-            # Dependentes
-            'tem_dependente',
-            # Vestimenta
+            'pis_pasep',
+            # Dados bancários
+            'banco',
+            'agencia',
+            'conta_corrente',
+            'tipo_conta',
+            'chave_pix',
+            # Uniforme
             'tamanho_camisa',
             'tamanho_calca',
-            'tamanho_botina',
-            # Vinculos
-            'empresa',
-            'empresa_nome',
-            'gestor',
-            'gestor_nome',
-            'subordinados_count',
-            # Outros
-            'observacoes',
+            'tamanho_calcado',
+            # Auditoria
             'created_at',
             'updated_at',
         ]
         read_only_fields = [
-            'id', 'matricula', 'tempo_empresa', 'is_ativo',
+            'id', 'matricula', 'is_ativo', 'tem_dependente',
             'created_at', 'updated_at'
         ]
 
@@ -157,63 +131,92 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionario
         fields = [
-            'pessoa_fisica', 
-            'matricula', 
-            'cargo', 
-            'departamento', 
-            'subcontrato',
-            'tipo_contrato', 
-            'data_admissao', 
-            'data_demissao', 
-            'salario',
-            'carga_horaria_semanal', 
-            'turno', 
-            'horario_entrada', 
-            'horario_saida',
-            'status', 
-            'banco', 
-            'agencia', 
-            'conta', 
-            'tipo_conta', 
-            'pix',
-            'ctps_numero', 
-            'ctps_serie', 
-            'ctps_uf', 
-            'pis',
-            'tamanho_camisa', 
-            'tamanho_calca', 
-            'tamanho_botina',
-            'empresa', 
-            'gestor', 
-            'observacoes',
+            'pessoa_fisica',
+            'empresa',
+            'cargo',
+            'projeto',
+            'tipo_contrato',
+            'data_admissao',
+            'salario_nominal',
+            'turno',
+            # Dados físicos
+            'peso_corporal',
+            'altura',
+            # Dados adicionais
+            'indicacao',
+            'cidade_atual',
+            # Hierarquia
+            'gestor_imediato',
+            # Documentação trabalhista
+            'ctps_numero',
+            'ctps_serie',
+            'ctps_uf',
+            'pis_pasep',
+            # Dados bancários
+            'banco',
+            'agencia',
+            'conta_corrente',
+            'tipo_conta',
+            'chave_pix',
+            # Uniforme
+            'tamanho_camisa',
+            'tamanho_calca',
+            'tamanho_calcado',
         ]
         extra_kwargs = {
-            'matricula': {'required': False},
+            'salario_nominal': {'required': False},
         }
 
     def create(self, validated_data):
-        """
-        O validated_data agora virá limpo, com um dict 'pessoa_fisica'
-        contendo todos os dados pessoais e as listas aninhadas.
-        """
         from apps.rh.services import FuncionarioService
 
-        # Extrai o dicionário completo da pessoa física
         pessoa_fisica_data = validated_data.pop('pessoa_fisica')
 
-        return FuncionarioService.create(
+        return FuncionarioService.admitir_funcionario(
             pessoa_fisica_data=pessoa_fisica_data,
+            funcionario_data=validated_data,
             created_by=self.context.get('request').user if self.context.get('request') else None,
-            **validated_data
         )
 
-    def update(self, instance, validated_data):
-        # No update, geralmente não permitimos alterar dados aninhados complexos
-        # diretamente pelo endpoint do funcionário para evitar efeitos colaterais.
-        # Removemos 'pessoa_fisica' se vier no payload.
-        validated_data.pop('pessoa_fisica', None)
 
+class FuncionarioUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para atualização de funcionário."""
+
+    class Meta:
+        model = Funcionario
+        fields = [
+            'cargo',
+            'projeto',
+            'salario_nominal',
+            'turno',
+            # Dados físicos
+            'peso_corporal',
+            'altura',
+            # Dados adicionais
+            'indicacao',
+            'cidade_atual',
+            # Hierarquia
+            'gestor_imediato',
+            # Documentação trabalhista
+            'ctps_numero',
+            'ctps_serie',
+            'ctps_uf',
+            'pis_pasep',
+            # Dados bancários
+            'banco',
+            'agencia',
+            'conta_corrente',
+            'tipo_conta',
+            'chave_pix',
+            # Uniforme
+            'tamanho_camisa',
+            'tamanho_calca',
+            'tamanho_calcado',
+        ]
+
+    def update(self, instance, validated_data):
         from apps.rh.services import FuncionarioService
+
         return FuncionarioService.update(
             funcionario=instance,
             updated_by=self.context.get('request').user if self.context.get('request') else None,

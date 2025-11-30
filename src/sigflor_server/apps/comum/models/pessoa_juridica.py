@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
 import uuid
 from django.db import models
-from django.db.models import Q
-from django.contrib.contenttypes.fields import GenericRelation
-from django.contrib.postgres.fields import ArrayField
 
 from .base import SoftDeleteModel
 from ..validators import validar_cnpj
 
 
+class SituacaoCadastral(models.TextChoices):
+    """Situação cadastral na Receita Federal."""
+    ATIVA = 'ATIVA', 'Ativa'
+    SUSPENSA = 'SUSPENSA', 'Suspensa'
+    INAPTA = 'INAPTA', 'Inapta'
+    BAIXADA = 'BAIXADA', 'Baixada'
+    NULA = 'NULA', 'Nula'
+
+
 class PessoaJuridica(SoftDeleteModel):
     """
-    Cadastro tecnico e centralizado de pessoas juridicas.
-    Nao e criado diretamente pelo usuario - apenas via modulos dependentes.
+    Cadastro técnico e centralizado de pessoas jurídicas.
+    Não é criado diretamente pelo usuário - apenas via módulos dependentes.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -22,32 +28,18 @@ class PessoaJuridica(SoftDeleteModel):
         max_length=14,
         unique=True,
         validators=[validar_cnpj],
-        help_text="CNPJ com 14 digitos (apenas numeros)"
+        help_text="CNPJ com 14 dígitos (apenas números)"
     )
     inscricao_estadual = models.CharField(max_length=20, blank=True, null=True)
     data_abertura = models.DateField(blank=True, null=True)
     situacao_cadastral = models.CharField(
         max_length=20,
         choices=SituacaoCadastral.choices,
-        default=SituacaoCadastral.ATIVA
+        default=SituacaoCadastral.ATIVA,
+        blank=True,
+        null=True
     )
     observacoes = models.TextField(blank=True, null=True)
-
-    # GenericRelations
-    enderecos = GenericRelation(
-        'comum.Endereco',
-        related_query_name='pessoa_juridica'
-    )
-    contatos = models.ManyToManyField(
-        'comum.Contato',
-        through='comum.PessoaJuridicaContato',
-        related_name='pessoas_juridicas',
-        help_text='Contatos da pessoa jurídica'
-    )
-    documentos = GenericRelation(
-        'comum.Documento',
-        related_query_name='pessoa_juridica'
-    )
 
     class Meta:
         db_table = 'pessoa_juridica'

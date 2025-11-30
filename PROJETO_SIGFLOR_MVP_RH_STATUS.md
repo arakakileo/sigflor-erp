@@ -1,137 +1,237 @@
-# Progresso do Projeto Sigflor - MVP de RH
+# Projeto Sigflor — Status do MVP de RH
 
-Este documento serve como um guia de progresso, registrando o estado atual do projeto, as decisões tomadas, as implementações concluídas e o que ainda precisa ser feito para o MVP (Produto Mínimo Viável) focado no módulo de Recursos Humanos.
-
-## 1. Visão Geral do MVP
-
-O MVP do Sigflor foca na estruturação do "chão de fábrica" do RH, garantindo a integridade dos dados para gestão de pessoal, alocação de custos por projeto e logística de funcionários. O objetivo é padronizar cadastros e processos para empresas de grande porte no setor de reflorestamento.
-
-## 2. Decisões Arquiteturais Chave e Justificativas
-
-As seguintes decisões arquiteturais foram tomadas para garantir a escalabilidade, manutenibilidade e robustez do sistema, alinhadas com Django, DRF e PostgreSQL:
-
-*   **Arquitetura de Monólito Modular:** Adotada para balancear simplicidade de desenvolvimento/deploy com baixo acoplamento entre módulos, permitindo futuras extrações para microsserviços, se necessário.
-*   **Padrão em Camadas (Views -> Serializers -> Services -> Selectors -> Models):** Garante a separação de responsabilidades (SoC) e melhora a testabilidade do código, concentrando regras de negócio na camada de `Services`.
-*   **Soft Delete Global:** Implementado para todos os modelos via `SoftDeleteModel` (em `comum/models/base.py`), assegurando rastreabilidade total e auditoria, evitando a perda permanente de dados.
-*   **Veto a Chaves Estrangeiras Genéricas (GFKs):** Decisão para manter a integridade referencial e clareza do schema do banco de dados, preferindo tabelas de vínculo explícitas.
-*   **Centralização da Entidade `Projeto` no Módulo `comum`:** O `Projeto` foi definido como uma entidade transversal, representando o Centro de Custo/Obra, essencial para RH, Financeiro e Estoque. Sua localização no módulo `comum` facilita o acesso por outros apps.
-*   **Estrutura de "Tripé" para `Projeto`:** Um `Projeto` é vinculado a uma `Empresa` (quem fatura), um `Cliente` (quem paga) e uma `Filial` (onde o serviço é executado). Isso garante uma visão completa da alocação de custos.
-*   **Denormalização Controlada em `Projeto`:** O campo `empresa` no modelo `Projeto` é preenchido automaticamente a partir da `empresa_gestora` do `Cliente`. Isso otimiza consultas e garante a consistência e imutabilidade do histórico do projeto.
-*   **Tratamento de Erros Consistente na API:** Implementado um handler de exceções customizado no DRF (`core/exceptions.py`) para garantir respostas de erro padronizadas, amigáveis, com status codes corretos e detalhes de validação por campo. Isso centraliza e otimiza o tratamento de erros da API. (POSITIVO)
-*   **Sistema de Permissões (RBAC com Nível Regional/Setorial):** A arquitetura de permissões utiliza RBAC (`Permissao`, `Papel`). Para controle de acesso regional, o modelo `Usuario` (`comum.Usuario`) foi estendido com um campo Many-to-Many (`allowed_filiais`) para `Filial`. As verificações de permissão (genéricas e regionais) serão realizadas na camada de `Services`. Superusuários gerenciam usuários/papéis/permissões. A API REST com JWT suportará o app mobile. Esta decisão está documentada em `docs/02_arquitetura.md`.
-    *   **Escopo do MVP para Permissões:** Para o MVP, focamos em:
-        1.  **Extensão do Modelo `Usuario` com `allowed_filiais`:** Essencial para a base do controle regional.
-        2.  **Verificações de Permissão *Genérica* (RBAC) nas `Views`:** Rejeitar requisições inválidas cedo.
-        3.  **Estrutura para Verificações de Permissão *Regional* nos `Services`:** Garantir que `Services` possam receber contexto de usuário para futuras implementações granulares. A implementação completa pode ser faseada.
-        **Pode esperar para depois do MVP:** Implementação completa para todos os módulos, UI de gestão de permissões no frontend, otimizações de caching pesado. (POSITIVO)
-*   **Geração de Matrículas (Nova Decisão):**
-    *   **MVP:** Matrículas serão **inseridas manualmente**, mas o campo `matricula` no modelo `Funcionario` manterá a restrição `unique=True` para garantir a integridade dos dados.
-    *   **Futuro:** Uma função de geração dinâmica de matrícula (globalmente única e estruturada) será mantida **comentada** no código, com placeholders para a inclusão de um identificador de cliente/empresa, para ser ativada e formatada posteriormente. (POSITATIVO)
-
-## 3. Progresso da Implementação de Modelos (MVP de RH)
-
-### Módulo `comum` (Core/Entidades Centrais)
-
-*   **`PessoaFisica`:** Modelo existente. (POSITIVO)
-*   **`PessoaJuridica`:** Modelo existente. (POSITIVO)
-*   **`Usuario`:** Modelo existente. (POSITIVO)
-    *   **Campo Many-to-Many `allowed_filiais`:** **IMPLEMENTADO.** (POSITIVO)
-*   **`Permissao` / `Papel` (RBAC):** Modelos existentes. (POSITIVO)
-*   **`EmpresaCNPJ`:** Modelo existente. (POSITIVO)
-*   **`Contratante` (Cliente):** Modelo existente. (POSITIVO)
-*   **`Filial`:** Modelo existente. (POSITIVO)
-*   **`Projeto` (Centro de Custo):** Modelo **criado** em `models/projeto.py` e importado em `__init__.py`. Inclui lógica de auto-preenchimento da `empresa`. (POSITIVO)
-    *   **Serializadores (`serializers/projeto.py`), Serviços (`services/projeto.py`), Views (`views/projeto.py`) e URLs:** **IMPLEMENTADO.** (POSITIVO)
-    *   **Seletores (`selectors/__init__.py`):** **IMPLEMENTADO.** (POSITIVO)
-*   **`Endereco`:** Modelo existente. (POSITIVO)
-*   **`Contato`:** Modelo existente. (POSITIVO)
-*   **`Documento`:** Modelo existente. (POSITIVO)
-*   **`Anexo`:** Modelo existente. (POSITIVO)
-*   **`Deficiencia`:** Modelo existente. (POSITIVO)
-*   **`Contrato` / `SubContrato`:** Modelos existentes. (POSITIVO)
-*   **`Exame` (mestre):** Modelo **criado** em `models/exame.py` e importado em `__init__.py`. (POSITIVO)
-    *   **Serializadores (`serializers/exame.py`), Serviços (`services/exame.py`), Views (`views/exame.py`) e URLs:** **IMPLEMENTADO.** (POSITIVO)
-    *   **Seletores (`selectors/__init__.py`):** **IMPLEMENTADO.** (POSITIVO)
-
-### Módulo `rh` (Recursos Humanos)
-
-*   **`Funcionario`:** Modelo **atualizado** em `models/funcionarios.py` para incluir `ForeignKey` para `Projeto` e índice. (POSITIVO)
-    *   **Serializadores:** `FuncionarioListSerializer` atualizado para incluir `projeto_nome`. `FuncionarioSerializer` atualizado para incluir `projeto`, `projeto_nome`, e `matricula` em `read_only_fields`. (POSITIVO)
-    *   **Serviços:** `FuncionarioCreateSerializer` e `FuncionarioUpdateSerializer` (se existir) precisarão ter o `user` passado para os serviços correspondentes. `FuncionarioService` atualizado com método `_check_filial_access` e parâmetros `user` adicionados em `create`, `update`, `delete`, e outros métodos relevantes para permissão regional. (POSITIVO)
-    *   **Seletores (`selectors/__init__.py`):** Atualizado para incluir `user` e filtragem regional em `funcionario_list`, `funcionario_detail` e outras funções relacionadas.
-*   **`Cargo`:** Modelo existente. (POSITIVO)
-*   **`CargoDocumento`:** **Falta criar** o modelo. (NEGATIVO)
-*   **`Dependente`:** Modelo existente. (POSITIVO)
-*   **`Equipe` / `EquipeFuncionario`:** Modelos **criados** em `models/equipes.py` e importados em `__init__.py`. `Equipe` inclui `ForeignKey` para `Projeto`. (POSITIVO)
-
-### Módulo `sst` (Saúde e Segurança do Trabalho)
-
-*   **App `sst`:** O diretório existe, mas os modelos essenciais para o MVP estão faltando.
-*   **`ASO`:** **Falta criar** o modelo. (NEGATIVO)
-*   **`CargoExame`:** **Falta criar** o modelo. (NEGATIVO)
-*   **`ExameRealizado`:** **Falta criar** o modelo. (NEGATIVO)
-
-### Módulo `alojamento`
-
-*   **App `alojamento`:** **Falta criar** o app Django. (NEGATIVO)
-*   **`Alojamento` / `AlojamentoFuncionario`:** **Falta criar** os modelos. (NEGATIVO)
-
-## 4. Checklist de Próximas Tarefas (Priorizadas para o MVP de RH)
-
-Esta lista se concentra em completar as funcionalidades-chave de RH e suas dependências diretas, conforme os fluxos de negócio (`05_fluxos_de_negocio.md`).
-
-### Prioridade 1: Implementação Essencial de Modelos, Serializadores, Services e Views para `comum` e `rh`.
-
-1.  **Módulo `comum`:**
-    *   ~~**`Exame` (Entidade Mestra):** Criar `models/exame.py`, `serializers/exame.py`, `services/exame.py`, `views/exame.py` e adicionar ao `__init__.py` (e registrar URLs). (Concluído)~~ 
-    *   ~~**`Projeto` (Centro de Custo):** Criar `serializers/projeto.py`, `services/projeto.py`, `views/projeto.py` e adicionar ao `__init__.py` (e registrar URLs). (Concluído)~~ 
-    *   ~~**Implementar Seletores (`selectors`) para todas as entidades já existentes:** Criar os arquivos `selectors` para `PessoaFisica`, `PessoaJuridica`, `EmpresaCNPJ`, `Contratante`, `Filial`, `Contrato`, `SubContrato`, `Endereco`, `Contato`, `Documento`, `Anexo`, `Deficiencia`, `Usuario`, `Permissao`, `Papel`, `Projeto`, `Exame`. (Concluído)~~ 
-    *   ~~**Implementar Validadores (`validators`) para entidades que precisam de validação de negócio:** Criar validadores específicos para `PessoaFisica` (CPF), `PessoaJuridica` (CNPJ), `Contato` (formato de telefone/e-mail), `Documento` (tipos de arquivo), conforme necessário pelos fluxos de negócio e requisitos de dados. (Concluído)~~ 
-
-2.  **Módulo `rh`:**
-    *   **`Funcionario`:**
-        *   ~~Criar `selectors/funcionarios.py`. (Concluído)~~ 
-        *   ~~Atualizar `serializers/funcionarios.py` para incluir `projeto`, `projeto_nome` e `matricula` em `read_only_fields`. (Concluído)~~ 
-        *   **Atualizar `services/funcionarios.py`:** Incluir o parâmetro `user` nos métodos `create` e `update`, e a lógica de permissão regional. (CONCLUÍDO: `_check_filial_access` criado, parâmetros `user` adicionados e chamadas para `create`, `update`, `delete` e outros métodos de status/transferência foram feitos.)
-        *   **Atualizar `views/funcionarios.py`:** Integrar `HasPermission` e garantir que o `user` seja passado para os serviços.
-    *   **`CargoDocumento`:** Criar `models/cargo_documento.py`, `serializers/cargo_documento.py`, `services/cargo_documento.py`, `views/cargo_documento.py` e adicionar ao `__init__.py`. (Necessário para a validação de documentos obrigatórios na admissão, Fluxo 5.1).
-    *   **`Dependente`:**
-        *   Criar `selectors/dependentes.py`. 
-        *   Atualizar `serializers/dependentes.py`, `services/dependentes.py`, `views/dependentes.py` para incluir a lógica do fluxo de **Gestão de Dependentes (5.2)**.
-    *   **`Equipe` / `EquipeFuncionario`:**
-        *   Criar `selectors/equipes.py`. 
-        *   Criar `serializers/equipes.py`, `services/equipes.py`, `views/equipes.py` e adicionar ao `__init__.py`. (Essencial para o fluxo de **Criação e Gestão de Equipes (5.5)** e alocação de funcionários a projetos.)
-
-### Prioridade 2: Módulos de Suporte ao RH (SST e Alojamento)
-
-1.  **Módulo `sst`:**
-    *   **`ASO`:** Implementar `models/aso.py`, `serializers/aso.py`, `services/aso.py`, `views/aso.py` e adicionar ao `__init__.py` do `sst/models`. (Para o fluxo de **Gestão de ASO (5.3)**).
-    *   **`CargoExame`:** Implementar `models/cargo_exame.py`, `serializers/cargo_exame.py`, `services/cargo_exame.py`, `views/cargo_exame.py` e adicionar ao `__init__.py` do `sst/models`. (Dependência do ASO).
-    *   **`ExameRealizado`:** Implementar `models/exame_realizado.py`, `serializers/exame_realizado.py`, `services/exame_realizado.py`, `views/exame_realizado.py` e adicionar ao `__init__.py` do `sst/models`. (Dependência do ASO).
-    *   Criar `selectors` para os modelos de SST.
-
-2.  **Módulo `alojamento`:**
-    *   **Criar o app Django `alojamento`:** Criar a estrutura básica do app, incluindo `models/`, `serializers/`, `services/`, `views/` e `__init__.py`s.
-    *   **`Alojamento` / `AlojamentoFuncionario`:** Implementar `models/alojamentos.py`, `serializers/alojamentos.py`, `services/alojamentos.py`, `views/alojamentos.py` e adicionar ao `__init__.py` do `alojamento/models`. (Para o fluxo de **Alocação em Alojamento (5.4)**).
-    *   Criar `selectors` para os modelos de Alojamento.
-
-### Prioridade 3: Funcionalidades Adicionais e Melhorias
-
-1.  **`Funcionario`:** Implementar a lógica de **Desligamento de Funcionário (5.6)** no `FuncionarioService`, incluindo o encerramento de vínculos com alojamento e equipe.
-2.  **Testes:** Escrever testes unitários e de integração para todas as funcionalidades implementadas (altamente recomendado para cada nova funcionalidade).
-3.  **Documentação da API:** Integrar `drf-spectacular` para documentação automática da API (gera o OpenAPI spec).
-4.  **Configurações de Produção:** Rever e ajustar `settings.py` para produção (segurança, logging, etc.).
+**Última Atualização:** 2025-11-29
 
 ---
 
-**Próximas Tarefas (Permissões - MVP):**
+## 1. Visão Geral do MVP
 
-1.  ~~**Módulo `comum` - `Usuario`:** Estender o modelo `comum.Usuario` para incluir o campo Many-to-Many `allowed_filiais` para `Filial`. (CONCLUÍDO)~~ 
-2.  ~~**Módulo `comum` - Permissões DRF:** Criar classes de permissão customizadas no DRF (ex: `HasPermission`) para verificar permissões genéricas nas `Views`. (CONCLUÍDO)~~ 
-3.  ~~**Módulo `comum` - `Services` (Estrutura de Permissões):** Atualizar métodos relevantes nos `Services` e `Selectors` para aceitar o `user` como parâmetro, preparando para a lógica de filtro regional. (CONCLUÍDO)~~ 
+O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependências diretas, abrangendo:
 
-**Próximo Passo Sugerido:** Prosseguir com a próxima tarefa da Prioridade 1: **Módulo `rh` - `Funcionario`:** Atualizar `services/funcionarios.py` para:
-    *   Incluir o parâmetro `user` nos métodos `create` e `update`.
-    *   Implementar a lógica de permissão regional e de acesso nos métodos `create`, `update` e `delete` do `FuncionarioService`.
-    *   Adicionar `user` para o método `create` do `FuncionarioCreateSerializer` e passá-lo para o `FuncionarioService.create`.
-    *   Adicionar `user` ao método `update` do `FuncionarioSerializer` e passá-lo para o `FuncionarioService.update`.
+- **Gestão Organizacional:** Estrutura multi-CNPJ, Clientes, Filiais
+- **Cadastro Unificado de Pessoas:** PessoaFisica, PessoaJuridica
+- **Admissão e Contratos:** Funcionários, Cargos, Documentos
+- **Logística de Pessoal:** Projetos, Alocações, Equipes
+- **SST (Saúde Ocupacional):** ASOs, Exames
+- **Alojamentos:** Gestão de moradias
+
+### Fluxos de Negócio do MVP (docs/05_fluxos_de_negocio.md)
+1. **5.1** Admissão de um Novo Funcionário
+2. **5.2** Gestão de Dependentes
+3. **5.3** Gestão de ASO (Atestado de Saúde Ocupacional)
+4. **5.4** Alocação em Alojamento
+5. **5.5** Criação e Gestão de Equipes
+6. **5.6** Desligamento de Funcionário
+
+---
+
+## 2. Status de Implementação por Módulo
+
+### Legenda
+- ✅ **IMPLEMENTADO** — Modelo, Serializer, Service, View completos
+- 🔄 **PARCIAL** — Modelo existe, mas faltam componentes
+- ❌ **NÃO IMPLEMENTADO** — Precisa ser criado
+
+---
+
+### Módulo `comum` (Core)
+
+| Entidade | Model | Serializer | Service | View | Selectors | Status |
+|:---------|:-----:|:----------:|:-------:|:----:|:---------:|:------:|
+| PessoaFisica | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| PessoaJuridica | ✅ | ✅ | ✅ | — | ✅ | ✅ |
+| Usuario | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Permissao/Papel | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Empresa | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cliente | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Filial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Contrato | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Projeto | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Endereco + Vínculos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Contato + Vínculos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Documento + Vínculos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Anexo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Deficiencia | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Exame | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+### Módulo `rh` (Recursos Humanos)
+
+| Entidade | Model | Serializer | Service | View | Selectors | Status |
+|:---------|:-----:|:----------:|:-------:|:----:|:---------:|:------:|
+| Cargo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CargoDocumento | ✅ | ❌ | ❌ | ❌ | ❌ | 🔄 |
+| Funcionario | ✅ | 🔄 | 🔄 | ✅ | ✅ | 🔄 |
+| Dependente | ✅ | 🔄 | 🔄 | ✅ | ❌ | 🔄 |
+| Equipe | ✅ | ❌ | ❌ | ❌ | ❌ | 🔄 |
+| EquipeFuncionario | ✅ | ❌ | ❌ | ❌ | ❌ | 🔄 |
+| Alocacao | ✅ | ❌ | ❌ | ❌ | ❌ | 🔄 |
+
+**Observações:**
+- Funcionario: Serializers e Services precisam atualização para refletir mudanças no modelo
+- Dependente: Serializers e Services precisam atualização (agora usa PessoaFisica)
+- CargoDocumento, Equipe, EquipeFuncionario, Alocacao: Apenas models criados
+
+---
+
+### Módulo `sst` (Saúde e Segurança do Trabalho)
+
+| Entidade | Model | Serializer | Service | View | Selectors | Status |
+|:---------|:-----:|:----------:|:-------:|:----:|:---------:|:------:|
+| CargoExame | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ASO | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ExameRealizado | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Observação:** O app `sst` não existe ainda. Precisa ser criado.
+
+---
+
+### Módulo `alojamento`
+
+| Entidade | Model | Serializer | Service | View | Selectors | Status |
+|:---------|:-----:|:----------:|:-------:|:----:|:---------:|:------:|
+| Alojamento | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AlojamentoFuncionario | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Observação:** O app `alojamento` não existe ainda. Precisa ser criado.
+
+---
+
+## 3. Lista de Tarefas Priorizadas para Conclusão do MVP
+
+### PRIORIDADE 1: Correções Urgentes (Modelos alterados recentemente)
+
+Estas tarefas são necessárias porque os modelos foram refatorados e os componentes dependentes estão desatualizados.
+
+| # | Tarefa | Componentes | Esforço |
+|:-:|:-------|:------------|:-------:|
+| 1.1 | Atualizar FuncionarioSerializer para refletir novos campos | `rh/serializers/funcionarios.py` | Baixo |
+| 1.2 | Atualizar FuncionarioService para refletir novos campos | `rh/services/funcionarios.py` | Médio |
+| 1.3 | Atualizar DependenteSerializer (agora usa PessoaFisica) | `rh/serializers/dependentes.py` | Médio |
+| 1.4 | Atualizar DependenteService (agora usa PessoaFisica) | `rh/services/dependentes.py` | Médio |
+| 1.5 | Atualizar CargoSerializer para incluir campos de risco e Nivel enum | `rh/serializers/cargos.py` | Baixo |
+| 1.6 | Atualizar CargoService para incluir campos de risco | `rh/services/cargos.py` | Baixo |
+
+---
+
+### PRIORIDADE 2: Completar Módulo RH (Entidades com Model criado)
+
+| # | Tarefa | Componentes a Criar | Esforço |
+|:-:|:-------|:--------------------|:-------:|
+| 2.1 | Implementar CargoDocumento completo | Serializer, Service, View, Selectors, URLs | Médio |
+| 2.2 | Implementar Equipe completo | Serializer, Service, View, Selectors, URLs | Médio |
+| 2.3 | Implementar EquipeFuncionario completo | Serializer, Service (integrado com Equipe) | Médio |
+| 2.4 | Implementar Alocacao completo | Serializer, Service, View, Selectors, URLs | Médio |
+| 2.5 | Criar selectors para Dependente | `rh/selectors/dependentes.py` | Baixo |
+
+---
+
+### PRIORIDADE 3: Criar Módulo SST (Saúde e Segurança)
+
+Este módulo é **essencial para o Fluxo 5.3 (Gestão de ASO)**.
+
+| # | Tarefa | Componentes a Criar | Esforço |
+|:-:|:-------|:--------------------|:-------:|
+| 3.1 | Criar app Django `sst` | `apps.py`, `__init__.py`, estrutura de pastas | Baixo |
+| 3.2 | Criar model CargoExame | `sst/models/cargo_exame.py` | Baixo |
+| 3.3 | Criar model ASO | `sst/models/aso.py` | Médio |
+| 3.4 | Criar model ExameRealizado | `sst/models/exame_realizado.py` | Médio |
+| 3.5 | Implementar CargoExame completo | Serializer, Service, View, Selectors | Médio |
+| 3.6 | Implementar ASO completo | Serializer, Service (complexo), View | Alto |
+| 3.7 | Implementar ExameRealizado completo | Serializer, Service, View | Médio |
+| 3.8 | Registrar app `sst` em INSTALLED_APPS | `core/settings.py` | Baixo |
+| 3.9 | Configurar URLs do módulo SST | `sst/urls.py`, `core/urls.py` | Baixo |
+
+---
+
+### PRIORIDADE 4: Criar Módulo Alojamento
+
+Este módulo é **essencial para o Fluxo 5.4 (Alocação em Alojamento)**.
+
+| # | Tarefa | Componentes a Criar | Esforço |
+|:-:|:-------|:--------------------|:-------:|
+| 4.1 | Criar app Django `alojamento` | `apps.py`, `__init__.py`, estrutura de pastas | Baixo |
+| 4.2 | Criar model Alojamento | `alojamento/models/alojamentos.py` | Médio |
+| 4.3 | Criar model AlojamentoFuncionario | `alojamento/models/alojamentos.py` | Médio |
+| 4.4 | Implementar Alojamento completo | Serializer, Service, View, Selectors | Médio |
+| 4.5 | Implementar AlojamentoFuncionario completo | Serializer, Service, View | Médio |
+| 4.6 | Registrar app `alojamento` em INSTALLED_APPS | `core/settings.py` | Baixo |
+| 4.7 | Configurar URLs do módulo Alojamento | `alojamento/urls.py`, `core/urls.py` | Baixo |
+
+---
+
+### PRIORIDADE 5: Lógica de Negócio dos Fluxos
+
+Implementação das regras de negócio complexas descritas em `05_fluxos_de_negocio.md`.
+
+| # | Tarefa | Fluxo | Esforço |
+|:-:|:-------|:------|:-------:|
+| 5.1 | Implementar lógica de admissão completa | Fluxo 5.1 | Alto |
+| 5.2 | Implementar validação de documentos obrigatórios por cargo | Fluxo 5.1 | Médio |
+| 5.3 | Implementar lógica de gestão de dependentes | Fluxo 5.2 | Médio |
+| 5.4 | Implementar lógica de solicitação/finalização de ASO | Fluxo 5.3 | Alto |
+| 5.5 | Implementar lógica de alocação em alojamento | Fluxo 5.4 | Médio |
+| 5.6 | Implementar lógica de gestão de equipes | Fluxo 5.5 | Médio |
+| 5.7 | Implementar lógica de desligamento de funcionário | Fluxo 5.6 | Alto |
+
+---
+
+### PRIORIDADE 6: Qualidade e Infraestrutura
+
+| # | Tarefa | Descrição | Esforço |
+|:-:|:-------|:----------|:-------:|
+| 6.1 | Criar migrations para todos os modelos | `makemigrations` e revisão | Médio |
+| 6.2 | Executar migrations | `migrate` | Baixo |
+| 6.3 | Configurar admin para novos modelos | `admin.py` de cada app | Baixo |
+| 6.4 | Escrever testes unitários para Services | `tests/` | Alto |
+| 6.5 | Escrever testes de integração para Views | `tests/` | Alto |
+| 6.6 | Integrar drf-spectacular para documentação OpenAPI | `settings.py`, `urls.py` | Médio |
+
+---
+
+## 4. Resumo Executivo
+
+### O que está COMPLETO:
+- ✅ Módulo `comum` (Core) — todas as entidades base
+- ✅ Modelos do módulo `rh` — todos criados e alinhados com documentação
+
+### O que está PARCIAL:
+- 🔄 Serializers/Services/Views do `rh` — precisam atualização após refatoração dos models
+- 🔄 Equipe, EquipeFuncionario, Alocacao, CargoDocumento — apenas models criados
+
+### O que FALTA CRIAR:
+- ❌ App `sst` completo (CargoExame, ASO, ExameRealizado)
+- ❌ App `alojamento` completo (Alojamento, AlojamentoFuncionario)
+- ❌ Lógica de negócio dos 6 fluxos principais
+
+### Estimativa de Esforço Restante:
+- **Prioridade 1 (Correções):** ~1-2 dias
+- **Prioridade 2 (Completar RH):** ~2-3 dias
+- **Prioridade 3 (SST):** ~3-4 dias
+- **Prioridade 4 (Alojamento):** ~2-3 dias
+- **Prioridade 5 (Lógica de Negócio):** ~4-5 dias
+- **Prioridade 6 (Qualidade):** ~3-4 dias
+
+**Total Estimado:** ~15-21 dias de desenvolvimento
+
+---
+
+## 5. Histórico de Alterações
+
+| Data | Alteração | Arquivos Modificados |
+| :--- | :--- | :--- |
+| 2025-11-29 | **Refatoração do modelo `Documento`:** Remoção de GFK, adição de campos `nome_original`, `mimetype`, `tamanho`. Criação de tabelas de vínculo `PessoaFisicaDocumento` e `PessoaJuridicaDocumento` com campo `principal`. Atualização do enum `Tipo` conforme documentação. | `models/documentos.py`, `serializers/documentos.py`, `services/documentos.py`, `models/__init__.py`, `docs/core/documentos.md` |
+| 2025-11-29 | **Refatoração do modelo `Endereco`:** Remoção de GFK, criação de tabelas de vínculo `PessoaFisicaEndereco`, `PessoaJuridicaEndereco` e `FilialEndereco` com campos `tipo` e `principal`. Atualização do enum `UF` com nomes completos. | `models/enderecos.py`, `serializers/enderecos.py`, `services/enderecos.py`, `models/__init__.py`, `docs/core/enderecos.md` |
+| 2025-11-29 | **Refatoração do modelo `PessoaJuridica`:** Remoção de `GenericRelation` para endereços e documentos. Criação do enum `SituacaoCadastral`. Remoção de campos extras não documentados (`inscricao_municipal`, `porte`, `natureza_juridica`, `atividade_principal`, `atividades_secundarias`, `anexos`). Simplificação dos serializers e service. | `models/pessoa_juridica.py`, `serializers/pessoa_juridica.py`, `services/pessoa_juridica.py`, `models/__init__.py`, `serializers/__init__.py` |
+| 2025-11-29 | **Refatoração do modelo `Projeto`:** Adição de campos `numero` (auto-gerado), `descricao`, `contrato`, `data_inicio`, `data_fim`, `status`. Criação do enum `StatusProjeto`. Renomeado campo `nome` para `descricao`. Implementação de geração automática de número no formato `PRJ-YYYYMM-NNNN`. Novos serializers e métodos no service. | `models/projeto.py`, `serializers/projeto.py`, `services/projeto.py`, `models/__init__.py`, `serializers/__init__.py`, `docs/core/projeto.md` |
+| 2025-11-29 | **Remoção do modelo `SubContrato`:** Modelo removido pois não está na documentação. O conceito foi substituído pelo `Projeto` como centro de custo. Removidos: model, serializer, service, view, selectors, admin, urls. | Múltiplos arquivos em `comum/` |
+| 2025-11-29 | **Verificação e alinhamento das tabelas de vínculo de PessoaJuridica:** Verificação de `PessoaJuridicaEndereco`, `PessoaJuridicaContato`, `PessoaJuridicaDocumento`. Correção do enum `Contato.Tipo` para usar valores uppercase (`CELULAR`, `FIXO`, `EMAIL`, `OUTRO`). Adição de `related_name` às FKs das tabelas de vínculo de contato. Adição de `contato_emergencia` em `PessoaFisicaContato`. Atualização completa da documentação `contatos.md` e `pessoa_juridica.md`. | `models/contatos.py`, `docs/core/contatos.md`, `docs/core/pessoa_juridica.md` |
+| 2025-11-29 | **Refatoração completa dos modelos RH:** Alinhamento de todos os modelos do módulo RH com a documentação. | Múltiplos arquivos em `rh/models/` |
+|  | • **Funcionario:** Removida referência a `SubContrato`. Adicionados campos `peso_corporal`, `altura`, `indicacao`, `cidade_atual`. Renomeados campos para padrão (`salario_nominal`, `conta_corrente`, `pis_pasep`, `chave_pix`, `gestor_imediato`, `tamanho_calcado`). Adicionado `TipoConta` enum. Todos os enums alterados para uppercase. Referência alterada de `EmpresaCNPJ` para `Empresa`. Removidos campos não documentados (`departamento`, `carga_horaria_semanal`, `horario_entrada`, `horario_saida`). | `rh/models/funcionarios.py` |
+|  | • **Cargo:** Adicionados campos de risco ocupacional (`risco_fisico`, `risco_biologico`, `risco_quimico`, `risco_ergonomico`, `risco_acidente`). Criado enum `Nivel` com valores corretos. Renomeado `salario` para `salario_base`. | `rh/models/cargos.py` |
+|  | • **Dependente:** Modelo refatorado para usar referência a `PessoaFisica` (OneToOneField) em vez de armazenar dados diretamente. Removidos campos duplicados. Renomeado `incluso_ir` para `dependencia_irrf`. Adicionado campo `ativo`. Enum `Parentesco` alterado para uppercase. | `rh/models/dependentes.py` |
+|  | • **Equipe/EquipeFuncionario:** Adicionado campo `ativa`. `lider` alterado de ForeignKey para OneToOneField com `on_delete=PROTECT`. Enum `TipoEquipe` alterado para uppercase. Adicionado `db_table`. `on_delete` em EquipeFuncionario alterado para CASCADE. | `rh/models/equipes.py` |
+|  | • **Alocacao:** Modelo criado (não existia). Campos: `funcionario`, `projeto`, `data_inicio`, `data_fim`, `observacoes`. Constraint de unicidade e validação de datas. | `rh/models/alocacoes.py` (novo) |
+|  | • **CargoDocumento:** Modelo criado (não existia). Campos: `cargo`, `documento_tipo`, `obrigatorio`, `condicional`. Define documentos obrigatórios por cargo. | `rh/models/cargo_documento.py` (novo) |
+| 2025-11-29 | **Reavaliação completa do status do projeto:** Criação de lista priorizada de tarefas para conclusão do MVP. Identificação de gaps entre documentação e implementação. | `PROJETO_SIGFLOR_MVP_RH_STATUS.md` |

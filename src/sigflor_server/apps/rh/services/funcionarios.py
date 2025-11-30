@@ -1,11 +1,13 @@
+# -*- coding: utf-8 -*-
 from typing import Optional
+from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from apps.comum.models import PessoaFisica
-# Importamos o service da pessoa física
 from apps.comum.services import PessoaFisicaService
-from ..models import Funcionario
+from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe
 
 
 class FuncionarioService:
@@ -13,41 +15,126 @@ class FuncionarioService:
 
     @staticmethod
     @transaction.atomic
-    def create(
-        pessoa_fisica_data: dict,  # Agora esperamos um dict completo
+    def admitir_funcionario(
+        *,
+        pessoa_fisica_data: dict,
+        funcionario_data: dict,
         created_by=None,
-        pessoa_fisica: Optional[PessoaFisica] = None, # Mantemos opcional para retrocompatibilidade
-        **kwargs
     ) -> Funcionario:
-        
-        # 1. Se não passou uma instância, cria usando os dados (que incluem aninhados)
-        if not pessoa_fisica and pessoa_fisica_data:
-            # O PessoaFisicaService agora sabe lidar com enderecos, contatos, etc.
+        """
+        Realiza a admissão de um novo funcionário.
+
+        Fluxo:
+        1. Cria ou recupera a PessoaFisica via PessoaFisicaService
+        2. Gera matrícula automática
+        3. Valida e define salário nominal
+        4. Cria o registro de Funcionário
+        5. Cria alocação inicial se projeto informado
+
+        Args:
+            pessoa_fisica_data: Dados da pessoa física (incluindo endereços, contatos, documentos)
+            funcionario_data: Dados do funcionário (empresa, cargo, projeto, etc.)
+            created_by: Usuário que está realizando a operação
+
+        Returns:
+            Funcionario: Instância do funcionário criado
+
+        Raises:
+            ValidationError: Se dados inválidos ou funcionário já existe
+        """
+        # 1. Gerenciamento de PessoaFisica
+        cpf = pessoa_fisica_data.get('cpf')
+        if cpf:
+            # Tenta buscar pessoa física existente pelo CPF
+            pessoa_fisica = PessoaFisica.objects.filter(
+                cpf=cpf.replace('.', '').replace('-', ''),
+                deleted_at__isnull=True
+            ).first()
+
+            if pessoa_fisica:
+                # Verifica se já existe funcionário para esta pessoa
+                if Funcionario.objects.filter(
+                    pessoa_fisica=pessoa_fisica,
+                    deleted_at__isnull=True
+                ).exists():
+                    raise ValidationError(
+                        'Já existe um funcionário cadastrado para esta pessoa física.'
+                    )
+            else:
+                # Cria nova pessoa física
+                pessoa_fisica = PessoaFisicaService.create(
+                    created_by=created_by,
+                    **pessoa_fisica_data
+                )
+        else:
+            # Cria nova pessoa física sem CPF prévio
             pessoa_fisica = PessoaFisicaService.create(
                 created_by=created_by,
                 **pessoa_fisica_data
             )
-        elif not pessoa_fisica:
-            raise ValueError('É necessário informar os dados da Pessoa Física.')
 
-        # 2. Validação de unicidade
-        if Funcionario.objects.filter(pessoa_fisica=pessoa_fisica, deleted_at__isnull=True).exists():
-            raise ValueError('Já existe um funcionário cadastrado para esta pessoa.')
+        # 2. Validação e Definição do Salário
+        cargo = funcionario_data.get('cargo')
+        salario_nominal = funcionario_data.get('salario_nominal')
 
-        # 3. Criação do Funcionário
+        if cargo:
+            if salario_nominal is None:
+                # Se não informado, assume o salário base do cargo
+                if cargo.salario_base:
+                    funcionario_data['salario_nominal'] = cargo.salario_base
+                else:
+                    raise ValidationError(
+                        'Salário nominal é obrigatório quando o cargo não possui salário base definido.'
+                    )
+            else:
+                # Valida que seja >= salário base do cargo
+                if cargo.salario_base and Decimal(str(salario_nominal)) < cargo.salario_base:
+                    raise ValidationError(
+                        f'O salário nominal ({salario_nominal}) não pode ser inferior '
+                        f'ao salário base do cargo ({cargo.salario_base}).'
+                    )
+
+        # 3. Extrai projeto para alocação posterior
+        projeto = funcionario_data.get('projeto')
+        data_admissao = funcionario_data.get('data_admissao', timezone.now().date())
+
+        # 4. Criação do Funcionário (matrícula será gerada no save())
         funcionario = Funcionario(
             pessoa_fisica=pessoa_fisica,
             created_by=created_by,
-            **kwargs
+            **funcionario_data
         )
         funcionario.save()
+
+        # 5. Cria alocação inicial se projeto informado
+        if projeto:
+            Alocacao.objects.create(
+                funcionario=funcionario,
+                projeto=projeto,
+                data_inicio=data_admissao,
+                observacoes='Alocação inicial na admissão',
+                created_by=created_by
+            )
 
         return funcionario
 
     @staticmethod
     @transaction.atomic
     def update(funcionario: Funcionario, updated_by=None, **kwargs) -> Funcionario:
-        """Atualiza um funcionario existente."""
+        """Atualiza um funcionário existente."""
+        # Validação de salário se cargo ou salário alterado
+        novo_cargo = kwargs.get('cargo')
+        novo_salario = kwargs.get('salario_nominal')
+
+        cargo_ref = novo_cargo if novo_cargo else funcionario.cargo
+
+        if novo_salario is not None and cargo_ref and cargo_ref.salario_base:
+            if Decimal(str(novo_salario)) < cargo_ref.salario_base:
+                raise ValidationError(
+                    f'O salário nominal ({novo_salario}) não pode ser inferior '
+                    f'ao salário base do cargo ({cargo_ref.salario_base}).'
+                )
+
         for attr, value in kwargs.items():
             if hasattr(funcionario, attr):
                 setattr(funcionario, attr, value)
@@ -59,27 +146,79 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def delete(funcionario: Funcionario, user=None) -> None:
-        """Soft delete de um funcionario."""
+        """Soft delete de um funcionário."""
         funcionario.delete(user=user)
 
     @staticmethod
     @transaction.atomic
-    def demitir(
+    def demitir_funcionario(
+        *,
         funcionario: Funcionario,
         data_demissao: Optional[timezone.datetime] = None,
+        motivo: Optional[str] = None,
         updated_by=None
     ) -> Funcionario:
-        """Registra demissao do funcionario."""
+        """
+        Registra a demissão do funcionário.
+
+        Regras:
+        - Define data_demissao e status = DEMITIDO
+        - Encerra quaisquer alocações em projeto ativas
+        - Remove de quaisquer equipes ativas
+        - Remove liderança de equipe (se for líder)
+        """
+        data_demissao_final = data_demissao or timezone.now().date()
+
         funcionario.status = Funcionario.Status.DEMITIDO
-        funcionario.data_demissao = data_demissao or timezone.now().date()
+        funcionario.data_demissao = data_demissao_final
+        funcionario.projeto = None  # Remove do projeto
         funcionario.updated_by = updated_by
         funcionario.save()
+
+        # 1. Encerra alocações em projetos ativas
+        Alocacao.objects.filter(
+            funcionario=funcionario,
+            data_fim__isnull=True,
+            deleted_at__isnull=True
+        ).update(
+            data_fim=data_demissao_final,
+            updated_by=updated_by
+        )
+
+        # 2. Encerra participações em equipes ativas
+        EquipeFuncionario.objects.filter(
+            funcionario=funcionario,
+            data_saida__isnull=True,
+            deleted_at__isnull=True
+        ).update(
+            data_saida=data_demissao_final,
+            updated_by=updated_by
+        )
+
+        # 3. Remove liderança de equipes (se for líder)
+        Equipe.objects.filter(
+            lider=funcionario,
+            deleted_at__isnull=True
+        ).update(
+            lider=None,
+            updated_by=updated_by
+        )
+
+        # 4. Remove coordenação de equipes (se for coordenador)
+        Equipe.objects.filter(
+            coordenador=funcionario,
+            deleted_at__isnull=True
+        ).update(
+            coordenador=None,
+            updated_by=updated_by
+        )
+
         return funcionario
 
     @staticmethod
     @transaction.atomic
     def reativar(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Reativa um funcionario demitido."""
+        """Reativa um funcionário demitido."""
         funcionario.status = Funcionario.Status.ATIVO
         funcionario.data_demissao = None
         funcionario.updated_by = updated_by
@@ -93,7 +232,7 @@ class FuncionarioService:
         motivo: str = None,
         updated_by=None
     ) -> Funcionario:
-        """Coloca funcionario como afastado."""
+        """Coloca funcionário como afastado."""
         funcionario.status = Funcionario.Status.AFASTADO
         funcionario.updated_by = updated_by
         funcionario.save()
@@ -102,7 +241,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def registrar_ferias(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Coloca funcionario em ferias."""
+        """Coloca funcionário em férias."""
         funcionario.status = Funcionario.Status.FERIAS
         funcionario.updated_by = updated_by
         funcionario.save()
@@ -111,7 +250,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def retornar_atividade(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Retorna funcionario para atividade normal."""
+        """Retorna funcionário para atividade normal."""
         funcionario.status = Funcionario.Status.ATIVO
         funcionario.updated_by = updated_by
         funcionario.save()
@@ -121,30 +260,27 @@ class FuncionarioService:
     @transaction.atomic
     def alterar_cargo(
         funcionario: Funcionario,
-        novo_cargo: str,
-        novo_salario: Optional[float] = None,
+        novo_cargo,
+        novo_salario: Optional[Decimal] = None,
         updated_by=None
     ) -> Funcionario:
-        """Altera cargo do funcionario (promocao/mudanca)."""
+        """
+        Altera cargo do funcionário (promoção/mudança).
+
+        Se novo_salario não for informado, mantém o salário atual
+        (desde que seja >= salário base do novo cargo).
+        """
+        salario = novo_salario if novo_salario else funcionario.salario_nominal
+
+        if novo_cargo.salario_base and salario < novo_cargo.salario_base:
+            raise ValidationError(
+                f'O salário ({salario}) é inferior ao salário base '
+                f'do novo cargo ({novo_cargo.salario_base}).'
+            )
+
         funcionario.cargo = novo_cargo
         if novo_salario is not None:
-            funcionario.salario = novo_salario
-        funcionario.updated_by = updated_by
-        funcionario.save()
-        return funcionario
-
-    @staticmethod
-    @transaction.atomic
-    def transferir_departamento(
-        funcionario: Funcionario,
-        novo_departamento: str,
-        novo_centro_custo: Optional[str] = None,
-        updated_by=None
-    ) -> Funcionario:
-        """Transfere funcionario para outro departamento."""
-        funcionario.departamento = novo_departamento
-        if novo_centro_custo:
-            funcionario.centro_custo = novo_centro_custo
+            funcionario.salario_nominal = novo_salario
         funcionario.updated_by = updated_by
         funcionario.save()
         return funcionario
@@ -156,36 +292,94 @@ class FuncionarioService:
         novo_gestor: Optional[Funcionario],
         updated_by=None
     ) -> Funcionario:
-        """Altera o gestor do funcionario."""
-        funcionario.gestor = novo_gestor
+        """Altera o gestor imediato do funcionário."""
+        funcionario.gestor_imediato = novo_gestor
         funcionario.updated_by = updated_by
         funcionario.save()
         return funcionario
 
     @staticmethod
+    @transaction.atomic
+    def alocar_em_projeto(
+        *,
+        funcionario: Funcionario,
+        projeto,
+        data_inicio,
+        data_fim=None,
+        observacoes: str = None,
+        created_by=None
+    ) -> Alocacao:
+        """
+        Aloca funcionário em um projeto.
+
+        Regra: Encerra alocação anterior se existir.
+        """
+        # Encerra alocação anterior ativa
+        alocacao_ativa = Alocacao.objects.filter(
+            funcionario=funcionario,
+            data_fim__isnull=True,
+            deleted_at__isnull=True
+        ).first()
+
+        if alocacao_ativa:
+            alocacao_ativa.data_fim = data_inicio
+            alocacao_ativa.updated_by = created_by
+            alocacao_ativa.save()
+
+        # Atualiza projeto no funcionário
+        funcionario.projeto = projeto
+        funcionario.updated_by = created_by
+        funcionario.save()
+
+        # Cria nova alocação
+        return Alocacao.objects.create(
+            funcionario=funcionario,
+            projeto=projeto,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            observacoes=observacoes,
+            created_by=created_by
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def atualizar_flag_dependentes(funcionario: Funcionario) -> None:
+        """Atualiza flag tem_dependente baseado nos dependentes ativos."""
+        from ..models import Dependente
+        tem = Dependente.objects.filter(
+            funcionario=funcionario,
+            ativo=True,
+            deleted_at__isnull=True
+        ).exists()
+
+        if funcionario.tem_dependente != tem:
+            funcionario.tem_dependente = tem
+            funcionario.save(update_fields=['tem_dependente', 'updated_at'])
+
+    @staticmethod
     def get_subordinados(funcionario: Funcionario) -> list:
         """Retorna lista de subordinados diretos."""
         return list(Funcionario.objects.filter(
-            gestor=funcionario,
+            gestor_imediato=funcionario,
             deleted_at__isnull=True
-        ).select_related('pessoa_fisica'))
+        ).select_related('pessoa_fisica', 'cargo'))
 
     @staticmethod
     def get_arvore_hierarquica(funcionario: Funcionario, nivel_max: int = 5) -> dict:
-        """Retorna arvore hierarquica do funcionario."""
+        """Retorna árvore hierárquica do funcionário."""
         def build_tree(func, nivel_atual=0):
             if nivel_atual >= nivel_max:
                 return None
 
             subordinados = Funcionario.objects.filter(
-                gestor=func,
+                gestor_imediato=func,
                 deleted_at__isnull=True
-            ).select_related('pessoa_fisica')
+            ).select_related('pessoa_fisica', 'cargo')
 
             return {
                 'id': str(func.id),
                 'nome': func.nome,
-                'cargo': func.cargo,
+                'cargo': func.cargo_nome,
                 'subordinados': [
                     build_tree(sub, nivel_atual + 1)
                     for sub in subordinados
@@ -193,3 +387,11 @@ class FuncionarioService:
             }
 
         return build_tree(funcionario)
+
+    @staticmethod
+    def get_historico_alocacoes(funcionario: Funcionario) -> list:
+        """Retorna histórico de alocações do funcionário."""
+        return list(Alocacao.objects.filter(
+            funcionario=funcionario,
+            deleted_at__isnull=True
+        ).select_related('projeto').order_by('-data_inicio'))

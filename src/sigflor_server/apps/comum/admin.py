@@ -17,7 +17,6 @@ from .models import (
     Deficiencia,
     Filial,
     Contrato,
-    SubContrato,
 )
 
 
@@ -439,17 +438,6 @@ class DeficienciaAdmin(admin.ModelAdmin):
 
 # ============ Filial ============
 
-class SubContratoFilialInline(admin.TabularInline):
-    """Inline para exibir subcontratos no formulario de filial."""
-    model = SubContrato
-    extra = 0
-    fields = ['numero', 'contrato', 'data_inicio', 'data_fim', 'ativo']
-    readonly_fields = ['numero']
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(deleted_at__isnull=True)
-
-
 @admin.register(Filial)
 class FilialAdmin(admin.ModelAdmin):
     list_display = ['nome', 'codigo_interno', 'status', 'get_empresa_nome', 'is_ativa', 'created_at']
@@ -458,7 +446,6 @@ class FilialAdmin(admin.ModelAdmin):
     readonly_fields = ['id', 'is_ativa', 'created_at', 'updated_at', 'deleted_at']
     raw_id_fields = ['empresa']
     ordering = ['nome']
-    inlines = [SubContratoFilialInline]
 
     fieldsets = (
         ('Dados da Filial', {
@@ -484,17 +471,6 @@ class FilialAdmin(admin.ModelAdmin):
 
 # ============ Contrato ============
 
-class SubContratoContratoInline(admin.TabularInline):
-    """Inline para exibir subcontratos no formulario de contrato."""
-    model = SubContrato
-    extra = 0
-    fields = ['numero', 'filial', 'data_inicio', 'data_fim', 'ativo']
-    readonly_fields = ['numero']
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(deleted_at__isnull=True)
-
-
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
     list_display = [
@@ -517,7 +493,6 @@ class ContratoAdmin(admin.ModelAdmin):
     readonly_fields = ['id', 'is_vigente', 'created_at', 'updated_at', 'deleted_at']
     raw_id_fields = ['contratante', 'empresa']
     ordering = ['-data_inicio', 'numero_interno']
-    inlines = [SubContratoContratoInline]
 
     fieldsets = (
         ('Identificacao', {
@@ -551,64 +526,3 @@ class ContratoAdmin(admin.ModelAdmin):
         return obj.empresa_nome
     get_empresa_nome.short_description = 'Empresa'
     get_empresa_nome.admin_order_field = 'empresa__pessoa_juridica__razao_social'
-
-
-# ============ SubContrato ============
-
-@admin.register(SubContrato)
-class SubContratoAdmin(admin.ModelAdmin):
-    list_display = [
-        'numero',
-        'get_filial_nome',
-        'get_contrato_numero',
-        'get_contratante_nome',
-        'data_inicio',
-        'data_fim',
-        'ativo',
-        'is_vigente',
-    ]
-    list_filter = ['ativo', 'data_inicio', 'filial', 'created_at']
-    search_fields = [
-        'numero',
-        'filial__nome',
-        'contrato__numero_interno',
-        'contrato__contratante__pessoa_juridica__razao_social',
-    ]
-    readonly_fields = ['id', 'numero', 'is_vigente', 'created_at', 'updated_at', 'deleted_at']
-    raw_id_fields = ['filial', 'contrato']
-    ordering = ['-data_inicio', 'numero']
-
-    fieldsets = (
-        ('Identificacao', {
-            'fields': ('numero',)
-        }),
-        ('Vinculos', {
-            'fields': ('filial', 'contrato')
-        }),
-        ('Vigencia', {
-            'fields': ('data_inicio', 'data_fim', 'ativo', 'is_vigente')
-        }),
-        ('Descricao', {
-            'fields': ('descricao', 'observacoes'),
-            'classes': ('collapse',)
-        }),
-        ('Auditoria', {
-            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-    def get_filial_nome(self, obj):
-        return obj.filial_nome
-    get_filial_nome.short_description = 'Filial'
-    get_filial_nome.admin_order_field = 'filial__nome'
-
-    def get_contrato_numero(self, obj):
-        return obj.contrato_numero
-    get_contrato_numero.short_description = 'Contrato'
-    get_contrato_numero.admin_order_field = 'contrato__numero_interno'
-
-    def get_contratante_nome(self, obj):
-        return obj.contratante_nome
-    get_contratante_nome.short_description = 'Contratante'
-    get_contratante_nome.admin_order_field = 'contrato__contratante__pessoa_juridica__razao_social'

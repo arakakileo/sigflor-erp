@@ -1,31 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-Selectors para consultas otimizadas do modulo RH.
+Selectors para consultas otimizadas do módulo RH.
 """
 from django.db.models import QuerySet, Q, Count
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
-from ..models import Cargo, Funcionario, Dependente
-from apps.comum.models.usuarios import Usuario # Importando Usuario para type hinting
+from ..models import Cargo, CargoDocumento, Funcionario, Dependente, Equipe, EquipeFuncionario, Alocacao
+from apps.comum.models.usuarios import Usuario
 
+
+# ============================================================================
+# Funcionário Selectors
+# ============================================================================
 
 def funcionario_list(
     *,
-    user: Usuario, # Adicionado parametro user
-    search: str = None,
+    user: Usuario,
+    busca: str = None,
     status: str = None,
-    departamento: str = None,
     tipo_contrato: str = None,
     empresa_id: str = None,
     gestor_id: str = None,
     cargo_id: str = None,
-    subcontrato_id: str = None,
-    filial_id: str = None,
-    contrato_id: str = None,
+    projeto_id: str = None,
     apenas_ativos: bool = False
 ) -> QuerySet:
-    """Lista funcionarios com filtros opcionais, respeitando permissoes regionais do usuario."""
+    """Lista funcionários com filtros opcionais, respeitando permissões regionais."""
     qs = Funcionario.objects.filter(
         deleted_at__isnull=True
     ).select_related(
@@ -33,16 +34,9 @@ def funcionario_list(
         'cargo',
         'empresa',
         'empresa__pessoa_juridica',
-        'gestor',
-        'gestor__pessoa_fisica',
-        'subcontrato',
-        'subcontrato__filial',
-        'subcontrato__contrato',
-        'subcontrato__contrato__contratante',
-        'subcontrato__contrato__contratante__pessoa_juridica',
+        'gestor_imediato',
+        'gestor_imediato__pessoa_fisica',
         'projeto',
-        'projeto__filial',
-        'projeto__cliente__pessoa_juridica',
     )
 
     if not user.is_superuser:
@@ -54,9 +48,6 @@ def funcionario_list(
     if status:
         qs = qs.filter(status=status)
 
-    if departamento:
-        qs = qs.filter(departamento__icontains=departamento)
-
     if tipo_contrato:
         qs = qs.filter(tipo_contrato=tipo_contrato)
 
@@ -64,98 +55,58 @@ def funcionario_list(
         qs = qs.filter(empresa_id=empresa_id)
 
     if gestor_id:
-        qs = qs.filter(gestor_id=gestor_id)
+        qs = qs.filter(gestor_imediato_id=gestor_id)
 
     if cargo_id:
         qs = qs.filter(cargo_id=cargo_id)
 
-    if subcontrato_id:
-        qs = qs.filter(subcontrato_id=subcontrato_id)
+    if projeto_id:
+        qs = qs.filter(projeto_id=projeto_id)
 
-    if filial_id:
-        qs = qs.filter(projeto__filial_id=filial_id)
-
-    if contrato_id:
-        qs = qs.filter(projeto__cliente__contratos__id=contrato_id) # Via contrato do cliente do projeto
-
-    if search:
+    if busca:
         qs = qs.filter(
-            Q(pessoa_fisica__nome_completo__icontains=search) |
-            Q(pessoa_fisica__cpf__icontains=search) |
-            Q(matricula__icontains=search) |
-            Q(cargo__nome__icontains=search)
+            Q(pessoa_fisica__nome_completo__icontains=busca) |
+            Q(pessoa_fisica__cpf__icontains=busca) |
+            Q(matricula__icontains=busca) |
+            Q(cargo__nome__icontains=busca)
         )
 
     return qs.order_by('pessoa_fisica__nome_completo')
 
 
-def funcionario_detail(
-    *,
-    user: Usuario, # Adicionado parametro user
-    pk
-) -> Funcionario:
-    """Obtem detalhes de um funcionario com relacionamentos, verificando permissao regional."""
+def funcionario_detail(*, user: Usuario, pk) -> Funcionario:
+    """Obtém detalhes de um funcionário com relacionamentos."""
     funcionario = Funcionario.objects.select_related(
         'pessoa_fisica',
         'cargo',
         'empresa',
         'empresa__pessoa_juridica',
-        'gestor',
-        'gestor__pessoa_fisica',
-        'subcontrato',
-        'subcontrato__filial',
-        'subcontrato__contrato',
-        'subcontrato__contrato__contratante',
-        'subcontrato__contrato__contratante__pessoa_juridica',
+        'gestor_imediato',
+        'gestor_imediato__pessoa_fisica',
         'projeto',
-        'projeto__filial',
-        'projeto__cliente__pessoa_juridica',
     ).prefetch_related(
-        'pessoa_fisica__enderecos',
-        'pessoa_fisica__contatos',
-        'pessoa_fisica__documentos',
+        'pessoa_fisica__enderecos__endereco',
+        'pessoa_fisica__contatos__contato',
+        'pessoa_fisica__documentos__documento',
         'subordinados',
-        'subordinados__pessoa_fisica'
+        'subordinados__pessoa_fisica',
+        'dependentes',
+        'dependentes__pessoa_fisica',
+        'alocacoes',
+        'alocacoes_equipe',
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:
-        if not funcionario.projeto or not user.allowed_filiais.filter(id=funcionario.projeto.filial.id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso ao funcionário {funcionario.nome} via filial do projeto.")
+        if funcionario.projeto and not user.allowed_filiais.filter(id=funcionario.projeto.filial_id).exists():
+            raise PermissionDenied("Usuário não tem acesso a este funcionário.")
 
     return funcionario
 
 
-def funcionarios_por_departamento(*, user: Usuario, departamento: str) -> QuerySet:
-    """Lista funcionarios de um departamento especifico, respeitando permissoes regionais do usuario."""
-    qs = Funcionario.objects.filter(
-        departamento__iexact=departamento,
-        status=Funcionario.Status.ATIVO,
-        deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
-
-    if not user.is_superuser:
-        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
-
-    return qs.order_by('pessoa_fisica__nome_completo')
-
-
 def funcionarios_por_empresa(*, user: Usuario, empresa_id: str) -> QuerySet:
-    """Lista funcionarios de uma empresa especifica, respeitando permissoes regionais do usuario."""
+    """Lista funcionários de uma empresa específica."""
     qs = Funcionario.objects.filter(
         empresa_id=empresa_id,
-        deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
-
-    if not user.is_superuser:
-        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
-
-    return qs.order_by('pessoa_fisica__nome_completo')
-
-
-def funcionarios_por_subcontrato(*, user: Usuario, subcontrato_id: str) -> QuerySet:
-    """Lista funcionarios de um subcontrato especifico, respeitando permissoes regionais do usuario."""
-    qs = Funcionario.objects.filter(
-        subcontrato_id=subcontrato_id,
         deleted_at__isnull=True
     ).select_related('pessoa_fisica', 'cargo')
 
@@ -165,40 +116,25 @@ def funcionarios_por_subcontrato(*, user: Usuario, subcontrato_id: str) -> Query
     return qs.order_by('pessoa_fisica__nome_completo')
 
 
-def funcionarios_por_filial(*, user: Usuario, filial_id: str) -> QuerySet:
-    """Lista funcionarios de uma filial especifica (via projeto), respeitando permissoes regionais do usuario."""
+def funcionarios_por_projeto(*, user: Usuario, projeto_id: str) -> QuerySet:
+    """Lista funcionários de um projeto específico."""
     qs = Funcionario.objects.filter(
-        projeto__filial_id=filial_id,
+        projeto_id=projeto_id,
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica', 'cargo', 'subcontrato')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
-        if not user.allowed_filiais.filter(id=filial_id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso à filial {filial_id}.")
-
-    return qs.order_by('pessoa_fisica__nome_completo')
-
-
-def funcionarios_por_contrato(*, user: Usuario, contrato_id: str) -> QuerySet:
-    """Lista funcionarios de um contrato especifico (via projeto), respeitando permissoes regionais do usuario."""
-    qs = Funcionario.objects.filter(
-        projeto__cliente__contratos__id=contrato_id,
-        deleted_at__isnull=True
-    ).select_related('pessoa_fisica', 'cargo', 'subcontrato')
-
-    if not user.is_superuser:
-        # Verifica se o usuário tem acesso às filiais associadas a este contrato através dos projetos.
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
 
     return qs.order_by('pessoa_fisica__nome_completo')
 
 
 def funcionarios_ativos(*, user: Usuario) -> QuerySet:
-    """Lista apenas funcionarios ativos, respeitando permissoes regionais do usuario."""
+    """Lista apenas funcionários ativos."""
     qs = Funcionario.objects.filter(
         status=Funcionario.Status.ATIVO,
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
@@ -207,15 +143,11 @@ def funcionarios_ativos(*, user: Usuario) -> QuerySet:
 
 
 def funcionarios_afastados(*, user: Usuario) -> QuerySet:
-    """Lista funcionarios afastados (afastado, ferias, licenca), respeitando permissoes regionais do usuario."""
+    """Lista funcionários afastados (afastado, férias)."""
     qs = Funcionario.objects.filter(
-        status__in=[
-            Funcionario.Status.AFASTADO,
-            Funcionario.Status.FERIAS,
-            Funcionario.Status.LICENCA
-        ],
+        status__in=[Funcionario.Status.AFASTADO, Funcionario.Status.FERIAS],
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
@@ -224,12 +156,12 @@ def funcionarios_afastados(*, user: Usuario) -> QuerySet:
 
 
 def funcionarios_admitidos_periodo(*, user: Usuario, data_inicio, data_fim) -> QuerySet:
-    """Lista funcionarios admitidos em um periodo, respeitando permissoes regionais do usuario."""
+    """Lista funcionários admitidos em um período."""
     qs = Funcionario.objects.filter(
         data_admissao__gte=data_inicio,
         data_admissao__lte=data_fim,
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
@@ -238,12 +170,12 @@ def funcionarios_admitidos_periodo(*, user: Usuario, data_inicio, data_fim) -> Q
 
 
 def funcionarios_demitidos_periodo(*, user: Usuario, data_inicio, data_fim) -> QuerySet:
-    """Lista funcionarios demitidos em um periodo, respeitando permissoes regionais do usuario."""
+    """Lista funcionários demitidos em um período."""
     qs = Funcionario.objects.filter(
         data_demissao__gte=data_inicio,
         data_demissao__lte=data_fim,
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
@@ -252,7 +184,7 @@ def funcionarios_demitidos_periodo(*, user: Usuario, data_inicio, data_fim) -> Q
 
 
 def aniversariantes_mes(*, user: Usuario, mes: int = None) -> QuerySet:
-    """Lista funcionarios que fazem aniversario no mes, respeitando permissoes regionais do usuario."""
+    """Lista funcionários que fazem aniversário no mês."""
     if mes is None:
         mes = timezone.now().month
 
@@ -269,11 +201,11 @@ def aniversariantes_mes(*, user: Usuario, mes: int = None) -> QuerySet:
 
 
 def subordinados_diretos(*, user: Usuario, gestor_id: str) -> QuerySet:
-    """Lista subordinados diretos de um gestor, respeitando permissoes regionais do usuario."""
+    """Lista subordinados diretos de um gestor."""
     qs = Funcionario.objects.filter(
-        gestor_id=gestor_id,
+        gestor_imediato_id=gestor_id,
         deleted_at__isnull=True
-    ).select_related('pessoa_fisica')
+    ).select_related('pessoa_fisica', 'cargo')
 
     if not user.is_superuser:
         qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
@@ -282,7 +214,7 @@ def subordinados_diretos(*, user: Usuario, gestor_id: str) -> QuerySet:
 
 
 def estatisticas_rh(*, user: Usuario) -> dict:
-    """Retorna estatisticas gerais do RH, respeitando permissoes regionais do usuario."""
+    """Retorna estatísticas gerais do RH."""
     qs = Funcionario.objects.filter(deleted_at__isnull=True)
 
     if not user.is_superuser:
@@ -292,15 +224,8 @@ def estatisticas_rh(*, user: Usuario) -> dict:
     ativos = qs.filter(status=Funcionario.Status.ATIVO).count()
     afastados = qs.filter(status__in=[
         Funcionario.Status.AFASTADO,
-        Funcionario.Status.FERIAS,
-        Funcionario.Status.LICENCA
+        Funcionario.Status.FERIAS
     ]).count()
-
-    por_departamento = qs.filter(
-        status=Funcionario.Status.ATIVO
-    ).values('departamento').annotate(
-        total=Count('id')
-    ).order_by('-total')
 
     por_tipo_contrato = qs.filter(
         status=Funcionario.Status.ATIVO
@@ -308,35 +233,48 @@ def estatisticas_rh(*, user: Usuario) -> dict:
         total=Count('id')
     ).order_by('-total')
 
+    por_cargo = qs.filter(
+        status=Funcionario.Status.ATIVO
+    ).values('cargo__nome').annotate(
+        total=Count('id')
+    ).order_by('-total')[:10]
+
     return {
         'total': total,
         'ativos': ativos,
         'afastados': afastados,
-        'por_departamento': list(por_departamento),
         'por_tipo_contrato': list(por_tipo_contrato),
+        'por_cargo': list(por_cargo),
     }
 
 
-# ============ Dependentes ============
+# ============================================================================
+# Dependente Selectors
+# ============================================================================
 
 def dependente_list(
     *,
-    user: Usuario, # Adicionado parametro user
+    user: Usuario,
     funcionario_id: str = None,
-    search: str = None,
+    busca: str = None,
     parentesco: str = None,
-    incluso_ir: bool = None,
-    incluso_plano_saude: bool = None
+    dependencia_irrf: bool = None,
+    apenas_ativos: bool = True
 ) -> QuerySet:
-    """Lista dependentes com filtros opcionais, respeitando permissoes regionais do usuario."""
+    """Lista dependentes com filtros opcionais."""
     qs = Dependente.objects.filter(
         deleted_at__isnull=True
-    ).select_related('funcionario', 'funcionario__pessoa_fisica')
+    ).select_related(
+        'funcionario',
+        'funcionario__pessoa_fisica',
+        'pessoa_fisica'
+    )
 
     if not user.is_superuser:
-        # Dependentes são vinculados a Funcionários, que por sua vez estão vinculados a Projetos/Filiais.
-        # Filtra os dependentes cujos funcionários estão em filiais permitidas ao usuário.
         qs = qs.filter(funcionario__projeto__filial__in=user.allowed_filiais.all()).distinct()
+
+    if apenas_ativos:
+        qs = qs.filter(ativo=True)
 
     if funcionario_id:
         qs = qs.filter(funcionario_id=funcionario_id)
@@ -344,71 +282,53 @@ def dependente_list(
     if parentesco:
         qs = qs.filter(parentesco=parentesco)
 
-    if incluso_ir is not None:
-        qs = qs.filter(incluso_ir=incluso_ir)
+    if dependencia_irrf is not None:
+        qs = qs.filter(dependencia_irrf=dependencia_irrf)
 
-    if incluso_plano_saude is not None:
-        qs = qs.filter(incluso_plano_saude=incluso_plano_saude)
-
-    if search:
+    if busca:
         qs = qs.filter(
-            Q(nome_completo__icontains=search) |
-            Q(cpf__icontains=search)
+            Q(pessoa_fisica__nome_completo__icontains=busca) |
+            Q(pessoa_fisica__cpf__icontains=busca)
         )
 
-    return qs.order_by('funcionario__pessoa_fisica__nome_completo', 'nome_completo')
+    return qs.order_by('funcionario__pessoa_fisica__nome_completo', 'pessoa_fisica__nome_completo')
 
 
-def dependente_detail(
-    *,
-    user: Usuario, # Adicionado parametro user
-    pk
-) -> Dependente:
-    """Obtem detalhes de um dependente, verificando permissao regional."""
+def dependente_detail(*, user: Usuario, pk) -> Dependente:
+    """Obtém detalhes de um dependente."""
     dependente = Dependente.objects.select_related(
         'funcionario',
         'funcionario__pessoa_fisica',
-        'funcionario__projeto__filial' # Adicionado para verificação de permissão
+        'funcionario__projeto',
+        'pessoa_fisica'
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:
-        if not dependente.funcionario.projeto or not user.allowed_filiais.filter(id=dependente.funcionario.projeto.filial.id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso ao dependente {dependente.nome_completo} via filial do funcionário.")
+        if dependente.funcionario.projeto and not user.allowed_filiais.filter(
+            id=dependente.funcionario.projeto.filial_id
+        ).exists():
+            raise PermissionDenied("Usuário não tem acesso a este dependente.")
 
     return dependente
 
 
 def dependentes_por_funcionario(*, user: Usuario, funcionario_id: str) -> QuerySet:
-    """Lista dependentes de um funcionario especifico, respeitando permissoes regionais do usuario."""
+    """Lista dependentes de um funcionário específico."""
     qs = Dependente.objects.filter(
         funcionario_id=funcionario_id,
-        deleted_at__isnull=True
-    ).select_related('funcionario__pessoa_fisica', 'funcionario__projeto__filial') # Adicionado para verificação de permissão
-
-    if not user.is_superuser:
-        # Verifica se o funcionário (pai do dependente) está em uma filial permitida.
-        qs = qs.filter(funcionario__projeto__filial__in=user.allowed_filiais.all()).distinct()
-
-    return qs.order_by('nome_completo')
-
-
-def funcionarios_com_dependentes(*, user: Usuario) -> QuerySet:
-    """Lista funcionarios que possuem dependentes, respeitando permissoes regionais do usuario."""
-    qs = Funcionario.objects.filter(
-        tem_dependente=True,
         deleted_at__isnull=True
     ).select_related('pessoa_fisica')
 
     if not user.is_superuser:
-        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
+        qs = qs.filter(funcionario__projeto__filial__in=user.allowed_filiais.all()).distinct()
 
     return qs.order_by('pessoa_fisica__nome_completo')
 
 
-def funcionarios_sem_dependentes(*, user: Usuario) -> QuerySet:
-    """Lista funcionarios que nao possuem dependentes, respeitando permissoes regionais do usuario."""
+def funcionarios_com_dependentes(*, user: Usuario) -> QuerySet:
+    """Lista funcionários que possuem dependentes."""
     qs = Funcionario.objects.filter(
-        tem_dependente=False,
+        tem_dependente=True,
         deleted_at__isnull=True
     ).select_related('pessoa_fisica')
 
@@ -419,56 +339,47 @@ def funcionarios_sem_dependentes(*, user: Usuario) -> QuerySet:
 
 
 def estatisticas_dependentes(*, user: Usuario) -> dict:
-    """Retorna estatisticas de dependentes, respeitando permissoes regionais do usuario."""
-    qs = Dependente.objects.filter(deleted_at__isnull=True)
+    """Retorna estatísticas de dependentes."""
+    qs = Dependente.objects.filter(deleted_at__isnull=True, ativo=True)
 
     if not user.is_superuser:
         qs = qs.filter(funcionario__projeto__filial__in=user.allowed_filiais.all()).distinct()
 
     total = qs.count()
-    incluso_ir = qs.filter(incluso_ir=True).count()
-    incluso_plano = qs.filter(incluso_plano_saude=True).count()
+    irrf = qs.filter(dependencia_irrf=True).count()
 
     por_parentesco = qs.values('parentesco').annotate(
         total=Count('id')
     ).order_by('-total')
 
-    funcionarios_com_dep = Funcionario.objects.filter(
-        tem_dependente=True,
-        deleted_at__isnull=True
-    )
+    funcionarios_qs = Funcionario.objects.filter(tem_dependente=True, deleted_at__isnull=True)
     if not user.is_superuser:
-        funcionarios_com_dep = funcionarios_com_dep.filter(projeto__filial__in=user.allowed_filiais.all())
-    funcionarios_com_dep = funcionarios_com_dep.count()
+        funcionarios_qs = funcionarios_qs.filter(projeto__filial__in=user.allowed_filiais.all())
+    funcionarios_com_dep = funcionarios_qs.count()
 
     return {
         'total_dependentes': total,
-        'incluso_ir': incluso_ir,
-        'incluso_plano_saude': incluso_plano,
+        'irrf': irrf,
         'por_parentesco': list(por_parentesco),
         'funcionarios_com_dependentes': funcionarios_com_dep,
     }
 
 
-# ============ Cargos ============
+# ============================================================================
+# Cargo Selectors
+# ============================================================================
 
 def cargo_list(
     *,
-    user: Usuario, # Adicionado parametro user
-    search: str = None,
+    user: Usuario,
+    busca: str = None,
     ativo: bool = None,
-    cbo: str = None
+    cbo: str = None,
+    nivel: str = None,
+    com_risco: bool = None
 ) -> QuerySet:
-    """Lista cargos com filtros opcionais. Nao ha restricao regional direta no cargo, mas a listagem pode ser relevante no contexto regional."""
-    # Cargos nao tem uma filial direta, entao a permissao regional pode ser aplicada indiretamente
-    # por exemplo, listando apenas cargos associados a funcionarios em filiais permitidas.
-    # Para o MVP, vamos deixar a listagem de cargos global, mas se no futuro houver
-    # uma ligacao direta de Cargo a Filial, a logica precisaria ser revista aqui.
+    """Lista cargos com filtros opcionais."""
     qs = Cargo.objects.filter(deleted_at__isnull=True)
-
-    # Apenas como exemplo de como se poderia filtrar, se cargos tivessem filial_id
-    # if not user.is_superuser:
-    #     qs = qs.filter(filial__in=user.allowed_filiais.all())
 
     if ativo is not None:
         qs = qs.filter(ativo=ativo)
@@ -476,52 +387,54 @@ def cargo_list(
     if cbo:
         qs = qs.filter(cbo__icontains=cbo)
 
-    if search:
+    if nivel:
+        qs = qs.filter(nivel=nivel)
+
+    if com_risco is not None:
+        if com_risco:
+            qs = qs.filter(
+                Q(risco_fisico=True) |
+                Q(risco_biologico=True) |
+                Q(risco_quimico=True) |
+                Q(risco_ergonomico=True) |
+                Q(risco_acidente=True)
+            )
+        else:
+            qs = qs.filter(
+                risco_fisico=False,
+                risco_biologico=False,
+                risco_quimico=False,
+                risco_ergonomico=False,
+                risco_acidente=False
+            )
+
+    if busca:
         qs = qs.filter(
-            Q(nome__icontains=search) |
-            Q(cbo__icontains=search) |
-            Q(descricao__icontains=search)
+            Q(nome__icontains=busca) |
+            Q(cbo__icontains=busca) |
+            Q(descricao__icontains=busca)
         )
 
     return qs.order_by('nome')
 
 
-def cargo_detail(
-    *,
-    user: Usuario, # Adicionado parametro user
-    pk
-) -> Cargo:
-    """Obtem detalhes de um cargo. Nao ha restricao regional direta no cargo."""
-    cargo = Cargo.objects.get(pk=pk, deleted_at__isnull=True)
-
-    # Similar a cargo_list, nenhuma verificacao regional direta para o MVP.
-    # if not user.is_superuser:
-    #     # Exemplo: Se o cargo tivesse uma filial associada
-    #     if not user.allowed_filiais.filter(id=cargo.filial.id).exists():
-    #         raise PermissionDenied(f"Usuário não tem acesso ao cargo {cargo.nome} via filial.")
-
-    return cargo
+def cargo_detail(*, user: Usuario, pk) -> Cargo:
+    """Obtém detalhes de um cargo."""
+    return Cargo.objects.prefetch_related(
+        'documentos_obrigatorios'
+    ).get(pk=pk, deleted_at__isnull=True)
 
 
 def cargos_ativos(*, user: Usuario) -> QuerySet:
-    """Lista apenas cargos ativos. Nao ha restricao regional direta no cargo."""
-    qs = Cargo.objects.filter(
+    """Lista apenas cargos ativos."""
+    return Cargo.objects.filter(
         ativo=True,
         deleted_at__isnull=True
     ).order_by('nome')
 
-    # if not user.is_superuser:
-    #     qs = qs.filter(filial__in=user.allowed_filiais.all())
 
-    return qs
-
-
-def funcionarios_por_cargo(
-    *,
-    user: Usuario, # Adicionado parametro user
-    cargo_id: str
-) -> QuerySet:
-    """Lista funcionarios de um cargo especifico, respeitando permissoes regionais do usuario."""
+def funcionarios_por_cargo(*, user: Usuario, cargo_id: str) -> QuerySet:
+    """Lista funcionários de um cargo específico."""
     qs = Funcionario.objects.filter(
         cargo_id=cargo_id,
         deleted_at__isnull=True
@@ -534,25 +447,211 @@ def funcionarios_por_cargo(
 
 
 def estatisticas_cargos(*, user: Usuario) -> dict:
-    """Retorna estatisticas de cargos. A contagem de funcionarios respeita permissoes regionais."""
+    """Retorna estatísticas de cargos."""
     qs = Cargo.objects.filter(deleted_at__isnull=True)
 
     total = qs.count()
     ativos = qs.filter(ativo=True).count()
+    com_risco = qs.filter(
+        Q(risco_fisico=True) |
+        Q(risco_biologico=True) |
+        Q(risco_quimico=True) |
+        Q(risco_ergonomico=True) |
+        Q(risco_acidente=True)
+    ).count()
 
-    funcionarios_qs = Funcionario.objects.filter(
-        status=Funcionario.Status.ATIVO,
-        deleted_at__isnull=True
-    )
-    if not user.is_superuser:
-        funcionarios_qs = funcionarios_qs.filter(projeto__filial__in=user.allowed_filiais.all())
-
-    por_cargo = funcionarios_qs.values('cargo__nome').annotate(
+    por_nivel = qs.filter(ativo=True).values('nivel').annotate(
         total=Count('id')
-    ).order_by('-total')
+    ).order_by('nivel')
 
     return {
         'total_cargos': total,
         'cargos_ativos': ativos,
-        'funcionarios_por_cargo': list(por_cargo),
+        'com_risco': com_risco,
+        'por_nivel': list(por_nivel),
     }
+
+
+# ============================================================================
+# CargoDocumento Selectors
+# ============================================================================
+
+def cargo_documento_list(*, user: Usuario, cargo_id: str = None, apenas_obrigatorios: bool = False) -> QuerySet:
+    """Lista documentos de cargo."""
+    qs = CargoDocumento.objects.filter(deleted_at__isnull=True).select_related('cargo')
+
+    if cargo_id:
+        qs = qs.filter(cargo_id=cargo_id)
+
+    if apenas_obrigatorios:
+        qs = qs.filter(obrigatorio=True)
+
+    return qs.order_by('cargo__nome', 'documento_tipo')
+
+
+# ============================================================================
+# Equipe Selectors
+# ============================================================================
+
+def equipe_list(
+    *,
+    user: Usuario,
+    busca: str = None,
+    projeto_id: str = None,
+    tipo_equipe: str = None,
+    apenas_ativas: bool = True
+) -> QuerySet:
+    """Lista equipes com filtros opcionais."""
+    qs = Equipe.objects.filter(
+        deleted_at__isnull=True
+    ).select_related(
+        'projeto',
+        'lider',
+        'lider__pessoa_fisica',
+        'coordenador',
+        'coordenador__pessoa_fisica'
+    )
+
+    if not user.is_superuser:
+        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
+
+    if apenas_ativas:
+        qs = qs.filter(ativa=True)
+
+    if projeto_id:
+        qs = qs.filter(projeto_id=projeto_id)
+
+    if tipo_equipe:
+        qs = qs.filter(tipo_equipe=tipo_equipe)
+
+    if busca:
+        qs = qs.filter(
+            Q(nome__icontains=busca) |
+            Q(projeto__descricao__icontains=busca)
+        )
+
+    return qs.order_by('nome')
+
+
+def equipe_detail(*, user: Usuario, pk) -> Equipe:
+    """Obtém detalhes de uma equipe."""
+    equipe = Equipe.objects.select_related(
+        'projeto',
+        'lider',
+        'lider__pessoa_fisica',
+        'coordenador',
+        'coordenador__pessoa_fisica'
+    ).prefetch_related(
+        'membros',
+        'membros__funcionario',
+        'membros__funcionario__pessoa_fisica'
+    ).get(pk=pk, deleted_at__isnull=True)
+
+    if not user.is_superuser:
+        if not user.allowed_filiais.filter(id=equipe.projeto.filial_id).exists():
+            raise PermissionDenied("Usuário não tem acesso a esta equipe.")
+
+    return equipe
+
+
+def equipes_por_projeto(*, user: Usuario, projeto_id: str) -> QuerySet:
+    """Lista equipes de um projeto."""
+    qs = Equipe.objects.filter(
+        projeto_id=projeto_id,
+        deleted_at__isnull=True
+    ).select_related('lider__pessoa_fisica', 'coordenador__pessoa_fisica')
+
+    if not user.is_superuser:
+        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
+
+    return qs.order_by('nome')
+
+
+def membros_equipe(*, user: Usuario, equipe_id: str, apenas_ativos: bool = True) -> QuerySet:
+    """Lista membros de uma equipe."""
+    qs = EquipeFuncionario.objects.filter(
+        equipe_id=equipe_id,
+        deleted_at__isnull=True
+    ).select_related('funcionario', 'funcionario__pessoa_fisica', 'funcionario__cargo')
+
+    if apenas_ativos:
+        qs = qs.filter(data_saida__isnull=True)
+
+    return qs.order_by('funcionario__pessoa_fisica__nome_completo')
+
+
+# ============================================================================
+# Alocação Selectors
+# ============================================================================
+
+def alocacao_list(
+    *,
+    user: Usuario,
+    funcionario_id: str = None,
+    projeto_id: str = None,
+    apenas_ativas: bool = False
+) -> QuerySet:
+    """Lista alocações com filtros opcionais."""
+    qs = Alocacao.objects.filter(
+        deleted_at__isnull=True
+    ).select_related(
+        'funcionario',
+        'funcionario__pessoa_fisica',
+        'projeto'
+    )
+
+    if not user.is_superuser:
+        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
+
+    if apenas_ativas:
+        qs = qs.filter(data_fim__isnull=True)
+
+    if funcionario_id:
+        qs = qs.filter(funcionario_id=funcionario_id)
+
+    if projeto_id:
+        qs = qs.filter(projeto_id=projeto_id)
+
+    return qs.order_by('-data_inicio')
+
+
+def alocacao_detail(*, user: Usuario, pk) -> Alocacao:
+    """Obtém detalhes de uma alocação."""
+    alocacao = Alocacao.objects.select_related(
+        'funcionario',
+        'funcionario__pessoa_fisica',
+        'funcionario__cargo',
+        'projeto'
+    ).get(pk=pk, deleted_at__isnull=True)
+
+    if not user.is_superuser:
+        if not user.allowed_filiais.filter(id=alocacao.projeto.filial_id).exists():
+            raise PermissionDenied("Usuário não tem acesso a esta alocação.")
+
+    return alocacao
+
+
+def alocacoes_por_funcionario(*, user: Usuario, funcionario_id: str) -> QuerySet:
+    """Lista histórico de alocações de um funcionário."""
+    qs = Alocacao.objects.filter(
+        funcionario_id=funcionario_id,
+        deleted_at__isnull=True
+    ).select_related('projeto')
+
+    if not user.is_superuser:
+        qs = qs.filter(projeto__filial__in=user.allowed_filiais.all()).distinct()
+
+    return qs.order_by('-data_inicio')
+
+
+def alocacoes_por_projeto(*, user: Usuario, projeto_id: str, apenas_ativas: bool = True) -> QuerySet:
+    """Lista alocações de um projeto."""
+    qs = Alocacao.objects.filter(
+        projeto_id=projeto_id,
+        deleted_at__isnull=True
+    ).select_related('funcionario', 'funcionario__pessoa_fisica', 'funcionario__cargo')
+
+    if apenas_ativas:
+        qs = qs.filter(data_fim__isnull=True)
+
+    return qs.order_by('funcionario__pessoa_fisica__nome_completo')

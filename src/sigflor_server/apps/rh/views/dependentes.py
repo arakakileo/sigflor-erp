@@ -29,28 +29,27 @@ class DependenteViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         funcionario_id = self.request.query_params.get('funcionario_id')
-        search = self.request.query_params.get('search')
+        busca = self.request.query_params.get('busca')
         parentesco = self.request.query_params.get('parentesco')
-        incluso_ir = self.request.query_params.get('incluso_ir')
-        incluso_plano_saude = self.request.query_params.get('incluso_plano_saude')
+        dependencia_irrf = self.request.query_params.get('dependencia_irrf')
+        apenas_ativos = self.request.query_params.get('apenas_ativos', 'true').lower() == 'true'
 
         # Converte strings para boolean
-        if incluso_ir is not None:
-            incluso_ir = incluso_ir.lower() == 'true'
-        if incluso_plano_saude is not None:
-            incluso_plano_saude = incluso_plano_saude.lower() == 'true'
+        if dependencia_irrf is not None:
+            dependencia_irrf = dependencia_irrf.lower() == 'true'
 
         return selectors.dependente_list(
+            user=self.request.user,
             funcionario_id=funcionario_id,
-            search=search,
+            busca=busca,
             parentesco=parentesco,
-            incluso_ir=incluso_ir,
-            incluso_plano_saude=incluso_plano_saude
+            dependencia_irrf=dependencia_irrf,
+            apenas_ativos=apenas_ativos
         )
 
     def retrieve(self, request, pk=None):
         try:
-            dependente = selectors.dependente_detail(pk=pk)
+            dependente = selectors.dependente_detail(user=request.user, pk=pk)
             serializer = self.get_serializer(dependente)
             return Response(serializer.data)
         except Dependente.DoesNotExist:
@@ -144,19 +143,12 @@ class DependenteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         """Retorna estatisticas de dependentes."""
-        stats = selectors.estatisticas_dependentes()
+        stats = selectors.estatisticas_dependentes(user=request.user)
         return Response(stats)
 
     @action(detail=False, methods=['get'])
     def funcionarios_com_dependentes(self, request):
         """Lista funcionarios que possuem dependentes."""
-        funcionarios = selectors.funcionarios_com_dependentes()
-        serializer = FuncionarioListSerializer(funcionarios, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'])
-    def funcionarios_sem_dependentes(self, request):
-        """Lista funcionarios que nao possuem dependentes."""
-        funcionarios = selectors.funcionarios_sem_dependentes()
+        funcionarios = selectors.funcionarios_com_dependentes(user=request.user)
         serializer = FuncionarioListSerializer(funcionarios, many=True)
         return Response(serializer.data)

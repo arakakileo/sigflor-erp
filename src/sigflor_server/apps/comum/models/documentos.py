@@ -1,52 +1,73 @@
 import uuid
 from django.db import models
 from django.db.models import Q
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
 from .base import SoftDeleteModel
 
 
 def documento_upload_path(instance, filename):
-    """Define o caminho de upload para documentos."""
-    return f'documentos/{instance.content_type.model}/{instance.object_id}/{filename}'
+    """Define o caminho de upload para documentos organizados por ano/mês."""
+    from django.utils import timezone
+    now = timezone.now()
+    return f'documentos/{now.year}/{now.month:02d}/{filename}'
 
 
 class Documento(SoftDeleteModel):
     """
-    Entidade genérica de documentos utilizando GenericForeignKey.
-    Para arquivos formais, certificados e juridicamente relevantes.
+    Entidade centralizada de documentos formais.
+    Documentos são vinculados a outras entidades através de tabelas de junção
+    (ex: PessoaFisicaDocumento, PessoaJuridicaDocumento).
     """
 
-    class TipoDocumento(models.TextChoices):
-        IDENTIDADE = 'identidade', 'Identidade (RG)'
-        CPF = 'cpf', 'CPF'
-        CNH = 'cnh', 'CNH'
-        CONTRATO_SOCIAL = 'contrato_social', 'Contrato Social'
-        COMPROVANTE_ENDERECO = 'comprovante_endereco', 'Comprovante de Endereço'
-        NOTA_FISCAL = 'nota_fiscal', 'Nota Fiscal'
-        ASO = 'aso', 'ASO (Atestado de Saúde Ocupacional)'
-        LAUDO = 'laudo', 'Laudo'
-        MANUAL = 'manual', 'Manual'
-        CONTRATO = 'contrato', 'Contrato'
-        ADITIVO = 'aditivo', 'Aditivo'
-        CRLV = 'crlv', 'CRLV'
-        CERTIDAO = 'certidao', 'Certidão'
-        OUTRO = 'outro', 'Outro'
+    class Tipo(models.TextChoices):
+        RG = 'RG', 'RG'
+        CNH = 'CNH', 'Carteira Nacional de Habilitação'
+        CPF = 'CPF', 'Cadastro de Pessoas Físicas'
+        TITULO_ELEITOR = 'TITULO_ELEITOR', 'Título de Eleitor'
+        CERTIDAO_NASCIMENTO_CASAMENTO = 'CERTIDAO_NASCIMENTO_CASAMENTO', 'Certidão de Nascimento/Casamento'
+        COMPROVANTE_ENDERECO = 'COMPROVANTE_ENDERECO', 'Comprovante de Endereço'
+        CARTAO_SUS = 'CARTAO_SUS', 'Cartão do SUS'
+        CARTEIRA_VACINA = 'CARTEIRA_VACINA', 'Carteira de Vacinação (Geral)'
+        COMPROVANTE_PIS_NIS = 'COMPROVANTE_PIS_NIS', 'Comprovante PIS/NIS'
+        CTPS = 'CTPS', 'Carteira de Trabalho Digital'
+        CERTIDAO_NASCIMENTO_DEPENDENTE = 'CERTIDAO_NASCIMENTO_DEPENDENTE', 'Certidão de Nascimento de Dependente'
+        CARTEIRA_VACINA_DEPENDENTE = 'CARTEIRA_VACINA_DEPENDENTE', 'Carteira de Vacinação de Dependente'
+        DECLARACAO_ESCOLAR_DEPENDENTE = 'DECLARACAO_ESCOLAR_DEPENDENTE', 'Declaração de Matrícula Escolar de Dependente'
+        CARTAO_CONTA_BANCO = 'CARTAO_CONTA_BANCO', 'Cartão/Comprovante de Conta Bancária'
+        FOTO_3X4 = 'FOTO_3X4', 'Foto 3x4'
+        NADA_CONSTA_DETRAN = 'NADA_CONSTA_DETRAN', 'Nada Consta DETRAN'
+        CURSO_MOOP = 'CURSO_MOOP', 'Certificado Curso MOOP'
+        CURSO_PASSAGEIROS = 'CURSO_PASSAGEIROS', 'Certificado Curso Transporte de Passageiros'
+        CURSO_MAQUINAS_AGRICOLAS = 'CURSO_MAQUINAS_AGRICOLAS', 'Certificado Curso Operação de Máquinas Agrícolas'
+        ASO = 'ASO', 'Atestado de Saúde Ocupacional (Documento PDF)'
+        CONTRATO_SOCIAL = 'CONTRATO_SOCIAL', 'Contrato Social'
+        NOTA_FISCAL = 'NOTA_FISCAL', 'Nota Fiscal'
+        CONTRATO = 'CONTRATO', 'Contrato'
+        ADITIVO = 'ADITIVO', 'Aditivo Contratual'
+        CRLV = 'CRLV', 'CRLV'
+        LAUDO = 'LAUDO', 'Laudo'
+        OUTROS = 'OUTROS', 'Outros Documentos'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tipo = models.CharField(max_length=50, choices=TipoDocumento.choices)
+    tipo = models.CharField(max_length=50, choices=Tipo.choices)
     descricao = models.TextField(blank=True, null=True)
     arquivo = models.FileField(upload_to=documento_upload_path)
 
-    # GenericForeignKey
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=36)  # UUID como string
-    entidade = GenericForeignKey('content_type', 'object_id')
+    # Metadados do arquivo
+    nome_original = models.CharField(
+        max_length=255,
+        help_text='Nome do arquivo no momento do upload'
+    )
+    mimetype = models.CharField(
+        max_length=100,
+        help_text='Tipo MIME do arquivo (ex: application/pdf)'
+    )
+    tamanho = models.PositiveIntegerField(
+        help_text='Tamanho do arquivo em bytes'
+    )
 
     data_emissao = models.DateField(blank=True, null=True)
     data_validade = models.DateField(blank=True, null=True)
-    principal = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'documentos'
@@ -54,16 +75,8 @@ class Documento(SoftDeleteModel):
         verbose_name_plural = 'Documentos'
         indexes = [
             models.Index(fields=['tipo']),
-            models.Index(fields=['content_type', 'object_id']),
-            models.Index(fields=['content_type', 'object_id', 'tipo']),
             models.Index(fields=['data_validade']),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=['content_type', 'object_id', 'tipo'],
-                condition=Q(principal=True, deleted_at__isnull=True),
-                name='uniq_documento_principal_por_tipo_entidade',
-            ),
+            models.Index(fields=['tipo', 'data_emissao']),
         ]
 
     def save(self, *args, **kwargs):
@@ -71,7 +84,7 @@ class Documento(SoftDeleteModel):
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.entidade}"
+        return f"{self.get_tipo_display()} - {self.nome_original}"
 
     @property
     def vencido(self) -> bool:
@@ -81,9 +94,78 @@ class Documento(SoftDeleteModel):
             return self.data_validade < timezone.now().date()
         return False
 
-    @property
-    def nome_arquivo(self) -> str:
-        """Retorna apenas o nome do arquivo."""
-        if self.arquivo:
-            return self.arquivo.name.split('/')[-1]
-        return ''
+
+class PessoaFisicaDocumento(SoftDeleteModel):
+    """Tabela de vínculo entre PessoaFisica e Documento."""
+    pessoa_fisica = models.ForeignKey(
+        'comum.PessoaFisica',
+        on_delete=models.CASCADE,
+        related_name='documentos_vinculados'
+    )
+    documento = models.ForeignKey(
+        Documento,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_fisica'
+    )
+    principal = models.BooleanField(
+        default=False,
+        help_text='Indica se é o documento principal deste tipo para esta pessoa'
+    )
+
+    class Meta:
+        db_table = 'pessoas_fisicas_documentos'
+        verbose_name = 'Documento de Pessoa Física'
+        verbose_name_plural = 'Documentos de Pessoas Físicas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_fisica', 'documento'],
+                name='uniq_pf_documento'
+            ),
+            # Apenas um documento principal por tipo por pessoa física
+            models.UniqueConstraint(
+                fields=['pessoa_fisica'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pf_documento_principal_por_tipo',
+                # Nota: a constraint de unicidade por tipo será verificada no service
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.pessoa_fisica} - {self.documento}"
+
+
+class PessoaJuridicaDocumento(SoftDeleteModel):
+    """Tabela de vínculo entre PessoaJuridica e Documento."""
+    pessoa_juridica = models.ForeignKey(
+        'comum.PessoaJuridica',
+        on_delete=models.CASCADE,
+        related_name='documentos_vinculados'
+    )
+    documento = models.ForeignKey(
+        Documento,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_juridica'
+    )
+    principal = models.BooleanField(
+        default=False,
+        help_text='Indica se é o documento principal deste tipo para esta pessoa jurídica'
+    )
+
+    class Meta:
+        db_table = 'pessoas_juridicas_documentos'
+        verbose_name = 'Documento de Pessoa Jurídica'
+        verbose_name_plural = 'Documentos de Pessoas Jurídicas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_juridica', 'documento'],
+                name='uniq_pj_documento'
+            ),
+            models.UniqueConstraint(
+                fields=['pessoa_juridica'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pj_documento_principal_por_tipo',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.pessoa_juridica} - {self.documento}"

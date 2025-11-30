@@ -1,8 +1,6 @@
 import uuid
 from django.db import models
 from django.db.models import Q
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 
 from .base import SoftDeleteModel
 from ..validators import EnderecoValidator
@@ -10,55 +8,49 @@ from ..validators import EnderecoValidator
 
 class Endereco(SoftDeleteModel):
     """
-    Entidade genérica de endereços utilizando GenericForeignKey.
-    Pode ser vinculada a qualquer entidade do sistema.
+    Entidade centralizada de endereços.
+    Endereços são vinculados a outras entidades através de tabelas de junção
+    (ex: PessoaFisicaEndereco, PessoaJuridicaEndereco, FilialEndereco).
     """
 
     class UF(models.TextChoices):
-        AC = 'AC', 'AC'
-        AL = 'AL', 'AL'
-        AP = 'AP', 'AP'
-        AM = 'AM', 'AM'
-        BA = 'BA', 'BA'
-        CE = 'CE', 'CE'
-        DF = 'DF', 'DF'
-        ES = 'ES', 'ES'
-        GO = 'GO', 'GO'
-        MA = 'MA', 'MA'
-        MT = 'MT', 'MT'
-        MS = 'MS', 'MS'
-        MG = 'MG', 'MG'
-        PA = 'PA', 'PA'
-        PB = 'PB', 'PB'
-        PR = 'PR', 'PR'
-        PE = 'PE', 'PE'
-        PI = 'PI', 'PI'
-        RJ = 'RJ', 'RJ'
-        RN = 'RN', 'RN'
-        RS = 'RS', 'RS'
-        RO = 'RO', 'RO'
-        RR = 'RR', 'RR'
-        SC = 'SC', 'SC'
-        SP = 'SP', 'SP'
-        SE = 'SE', 'SE'
-        TO = 'TO', 'TO'
+        AC = 'AC', 'Acre'
+        AL = 'AL', 'Alagoas'
+        AP = 'AP', 'Amapá'
+        AM = 'AM', 'Amazonas'
+        BA = 'BA', 'Bahia'
+        CE = 'CE', 'Ceará'
+        DF = 'DF', 'Distrito Federal'
+        ES = 'ES', 'Espírito Santo'
+        GO = 'GO', 'Goiás'
+        MA = 'MA', 'Maranhão'
+        MT = 'MT', 'Mato Grosso'
+        MS = 'MS', 'Mato Grosso do Sul'
+        MG = 'MG', 'Minas Gerais'
+        PA = 'PA', 'Pará'
+        PB = 'PB', 'Paraíba'
+        PR = 'PR', 'Paraná'
+        PE = 'PE', 'Pernambuco'
+        PI = 'PI', 'Piauí'
+        RJ = 'RJ', 'Rio de Janeiro'
+        RN = 'RN', 'Rio Grande do Norte'
+        RS = 'RS', 'Rio Grande do Sul'
+        RO = 'RO', 'Rondônia'
+        RR = 'RR', 'Roraima'
+        SC = 'SC', 'Santa Catarina'
+        SP = 'SP', 'São Paulo'
+        SE = 'SE', 'Sergipe'
+        TO = 'TO', 'Tocantins'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    logradouro = models.CharField(max_length=200)
+    logradouro = models.CharField(max_length=255)
     numero = models.CharField(max_length=20, blank=True, null=True)
     complemento = models.CharField(max_length=100, blank=True, null=True)
     bairro = models.CharField(max_length=100, blank=True, null=True)
     cidade = models.CharField(max_length=100)
     estado = models.CharField(max_length=2, choices=UF.choices)
-    cep = models.CharField(max_length=8)
+    cep = models.CharField(max_length=8, help_text='Armazenado sem máscara, apenas dígitos')
     pais = models.CharField(max_length=50, default='Brasil')
-
-    # GenericForeignKey
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=36)  # UUID como string
-    entidade = GenericForeignKey('content_type', 'object_id')
-
-    principal = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'enderecos'
@@ -67,26 +59,7 @@ class Endereco(SoftDeleteModel):
         indexes = [
             models.Index(fields=['cep']),
             models.Index(fields=['cidade', 'estado']),
-            models.Index(fields=['content_type', 'object_id']),
-            models.Index(fields=['content_type', 'object_id', 'principal']),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=['content_type', 'object_id', 'logradouro', 'numero', 'complemento',
-                        'bairro', 'cidade', 'estado', 'cep', 'pais'],
-                condition=Q(deleted_at__isnull=True),
-                name='uniq_endereco_completo_por_entidade_vivo',
-            ),
-            models.UniqueConstraint(
-                fields=['content_type', 'object_id'],
-                condition=Q(principal=True, deleted_at__isnull=True),
-                name='uniq_endereco_principal_por_entidade_vivo',
-            ),
-        ]
-
-    def delete(self, user=None):
-        self.principal = False
-        return super().delete(user=user)
 
     def clean(self):
         super().clean()
@@ -105,3 +78,155 @@ class Endereco(SoftDeleteModel):
         if self.cep and len(self.cep) == 8:
             return f"{self.cep[:5]}-{self.cep[5:]}"
         return self.cep
+
+    @property
+    def endereco_completo(self) -> str:
+        """Retorna o endereço formatado em uma linha."""
+        partes = [self.logradouro]
+        if self.numero:
+            partes.append(f"nº {self.numero}")
+        if self.complemento:
+            partes.append(self.complemento)
+        if self.bairro:
+            partes.append(self.bairro)
+        partes.append(f"{self.cidade}/{self.estado}")
+        partes.append(f"CEP {self.cep_formatado}")
+        return ', '.join(partes)
+
+
+class TipoEndereco(models.TextChoices):
+    """Tipos de endereço para uso nas tabelas de vínculo."""
+    RESIDENCIAL = 'RESIDENCIAL', 'Residencial'
+    COMERCIAL = 'COMERCIAL', 'Comercial'
+    CORRESPONDENCIA = 'CORRESPONDENCIA', 'Correspondência'
+    OUTRO = 'OUTRO', 'Outro'
+
+
+class PessoaFisicaEndereco(SoftDeleteModel):
+    """Tabela de vínculo entre PessoaFisica e Endereco."""
+    pessoa_fisica = models.ForeignKey(
+        'comum.PessoaFisica',
+        on_delete=models.CASCADE,
+        related_name='enderecos_vinculados'
+    )
+    endereco = models.ForeignKey(
+        Endereco,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_fisica'
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoEndereco.choices,
+        default=TipoEndereco.RESIDENCIAL,
+        help_text='Tipo de endereço (residencial, comercial, etc.)'
+    )
+    principal = models.BooleanField(
+        default=False,
+        help_text='Indica se é o endereço principal deste tipo para esta pessoa'
+    )
+
+    class Meta:
+        db_table = 'pessoas_fisicas_enderecos'
+        verbose_name = 'Endereço de Pessoa Física'
+        verbose_name_plural = 'Endereços de Pessoas Físicas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_fisica', 'endereco'],
+                name='uniq_pf_endereco'
+            ),
+            # Apenas um endereço principal por tipo por pessoa física
+            models.UniqueConstraint(
+                fields=['pessoa_fisica', 'tipo'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pf_endereco_principal_por_tipo'
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.pessoa_fisica} - {self.get_tipo_display()} - {self.endereco}"
+
+
+class PessoaJuridicaEndereco(SoftDeleteModel):
+    """Tabela de vínculo entre PessoaJuridica e Endereco."""
+    pessoa_juridica = models.ForeignKey(
+        'comum.PessoaJuridica',
+        on_delete=models.CASCADE,
+        related_name='enderecos_vinculados'
+    )
+    endereco = models.ForeignKey(
+        Endereco,
+        on_delete=models.CASCADE,
+        related_name='vinculos_pessoa_juridica'
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoEndereco.choices,
+        default=TipoEndereco.COMERCIAL,
+        help_text='Tipo de endereço (comercial, correspondência, etc.)'
+    )
+    principal = models.BooleanField(
+        default=False,
+        help_text='Indica se é o endereço principal deste tipo para esta pessoa jurídica'
+    )
+
+    class Meta:
+        db_table = 'pessoas_juridicas_enderecos'
+        verbose_name = 'Endereço de Pessoa Jurídica'
+        verbose_name_plural = 'Endereços de Pessoas Jurídicas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pessoa_juridica', 'endereco'],
+                name='uniq_pj_endereco'
+            ),
+            models.UniqueConstraint(
+                fields=['pessoa_juridica', 'tipo'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_pj_endereco_principal_por_tipo'
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.pessoa_juridica} - {self.get_tipo_display()} - {self.endereco}"
+
+
+class FilialEndereco(SoftDeleteModel):
+    """Tabela de vínculo entre Filial e Endereco."""
+    filial = models.ForeignKey(
+        'comum.Filial',
+        on_delete=models.CASCADE,
+        related_name='enderecos_vinculados'
+    )
+    endereco = models.ForeignKey(
+        Endereco,
+        on_delete=models.CASCADE,
+        related_name='vinculos_filial'
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoEndereco.choices,
+        default=TipoEndereco.COMERCIAL,
+        help_text='Tipo de endereço (sede, correspondência, etc.)'
+    )
+    principal = models.BooleanField(
+        default=False,
+        help_text='Indica se é o endereço principal deste tipo para esta filial'
+    )
+
+    class Meta:
+        db_table = 'filiais_enderecos'
+        verbose_name = 'Endereço de Filial'
+        verbose_name_plural = 'Endereços de Filiais'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['filial', 'endereco'],
+                name='uniq_filial_endereco'
+            ),
+            models.UniqueConstraint(
+                fields=['filial', 'tipo'],
+                condition=Q(principal=True, deleted_at__isnull=True),
+                name='uniq_filial_endereco_principal_por_tipo'
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.filial} - {self.get_tipo_display()} - {self.endereco}"
