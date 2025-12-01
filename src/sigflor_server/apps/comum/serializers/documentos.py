@@ -77,6 +77,16 @@ class PessoaFisicaDocumentoListSerializer(serializers.ModelSerializer):
         ]
 
 
+class PessoaFisicaDocumentoNestedSerializer(PessoaFisicaDocumentoSerializer):
+    id = serializers.UUIDField(required=False)
+    # Campos do documento
+    tipo = serializers.ChoiceField(choices=Documento.Tipo.choices, required=False)
+    descricao = serializers.CharField(required=False)
+
+    class Meta(PessoaFisicaDocumentoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']
+
+
 class PessoaJuridicaDocumentoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo PessoaJuridica-Documento."""
 
@@ -109,3 +119,12 @@ class PessoaJuridicaDocumentoListSerializer(serializers.ModelSerializer):
             'documento',
             'principal',
         ]
+
+
+class PessoaJuridicaDocumentoNestedSerializer(PessoaJuridicaDocumentoSerializer):
+    id = serializers.UUIDField(required=False)
+    tipo = serializers.ChoiceField(choices=Documento.Tipo.choices, required=False)
+    descricao = serializers.CharField(required=False)
+
+    class Meta(PessoaJuridicaDocumentoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']

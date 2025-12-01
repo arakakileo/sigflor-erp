@@ -7,9 +7,9 @@ from ..models import (
 )
 from ..validators import validar_cnpj
 
-from .enderecos import PessoaJuridicaEnderecoSerializer, PessoaJuridicaEnderecoListSerializer
-from .contatos import PessoaJuridicaContatoSerializer, PessoaJuridicaContatoListSerializer
-from .documentos import PessoaJuridicaDocumentoSerializer, PessoaJuridicaDocumentoListSerializer
+from .enderecos import PessoaJuridicaEnderecoNestedSerializer, PessoaJuridicaEnderecoListSerializer
+from .contatos import PessoaJuridicaContatoNestedSerializer, PessoaJuridicaContatoListSerializer
+from .documentos import PessoaJuridicaDocumentoNestedSerializer, PessoaJuridicaDocumentoListSerializer
 from .anexos import AnexoSerializer, AnexoNestedSerializer
 
 
@@ -178,10 +178,18 @@ class PessoaJuridicaUpdateSerializer(serializers.Serializer):
     )
     observacoes = serializers.CharField(required=False, allow_blank=True)
 
-    enderecos = PessoaJuridicaEnderecoSerializer(many=True, required=False, allow_empty=True, source='enderecos_vinculados')
-    contatos = PessoaJuridicaContatoSerializer(many=True, required=False, allow_empty=True, source='contatos_vinculados')
-    documentos = PessoaJuridicaDocumentoSerializer(many=True, required=False, allow_empty=True, source='documentos_vinculados')
-    anexos = AnexoNestedSerializer(many=True, required=False, allow_empty=True)
+    enderecos = PessoaJuridicaEnderecoNestedSerializer(
+        many=True, required=False, allow_empty=True, source='enderecos_vinculados'
+    )
+    contatos = PessoaJuridicaContatoNestedSerializer(
+        many=True, required=False, allow_empty=True, source='contatos_vinculados'
+    )
+    documentos = PessoaJuridicaDocumentoNestedSerializer(
+        many=True, required=False, allow_empty=True, source='documentos_vinculados'
+    )
+    anexos = AnexoNestedSerializer(
+        many=True, required=False, allow_empty=True
+    )
 
     def update(self, instance, validated_data):
         enderecos_data = validated_data.pop('enderecos_vinculados', [])

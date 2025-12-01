@@ -36,5 +36,12 @@ class AnexoSerializer(serializers.ModelSerializer):
         return obj.content_type.model if obj.content_type else None
 
 class AnexoNestedSerializer(AnexoSerializer):
+    """Permite envio de ID para atualização de metadados de anexos."""
+    id = serializers.UUIDField(required=False)
+
     class Meta(AnexoSerializer.Meta):
-        read_only_fields = AnexoSerializer.Meta.read_only_fields + ['content_type', 'object_id']
+        # Remove 'id' dos read_only herdados
+        read_only_fields = [
+            'tamanho_formatado', 'extensao', 'content_type_name',
+            'created_at', 'updated_at'
+        ]

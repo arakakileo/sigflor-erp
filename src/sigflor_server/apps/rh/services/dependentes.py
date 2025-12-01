@@ -90,14 +90,30 @@ class DependenteService:
 
     @staticmethod
     @transaction.atomic
-    def update(dependente: Dependente, updated_by=None, **kwargs) -> Dependente:
-        """Atualiza um dependente existente."""
+    def update(
+        dependente: Dependente,
+        updated_by=None,
+        pessoa_fisica_data: Optional[dict] = None,
+        **kwargs
+    ) -> Dependente:
+        """Atualiza um dependente existente e seus dados pessoais."""
+
+        # 1. Atualiza dados do próprio dependente (vínculo)
         for attr, value in kwargs.items():
             if hasattr(dependente, attr):
                 setattr(dependente, attr, value)
 
         dependente.updated_by = updated_by
-        dependente.save()  # save() já atualiza tem_dependente se ativo mudou
+        dependente.save()
+
+        # 2. Atualiza dados da Pessoa Física vinculada (se fornecidos)
+        if pessoa_fisica_data:
+            PessoaFisicaService.update(
+                pessoa=dependente.pessoa_fisica,
+                updated_by=updated_by,
+                **pessoa_fisica_data
+            )
+
         return dependente
 
     @staticmethod

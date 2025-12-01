@@ -58,6 +58,16 @@ class PessoaFisicaContatoListSerializer(serializers.ModelSerializer):
         ]
 
 
+class PessoaFisicaContatoNestedSerializer(PessoaFisicaContatoSerializer):
+    id = serializers.UUIDField(required=False)
+    # Campos do contato para permitir escrita aninhada
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
+    valor = serializers.CharField(required=False)
+
+    class Meta(PessoaFisicaContatoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']
+
+
 class PessoaJuridicaContatoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo PessoaJuridica-Contato."""
 
@@ -92,6 +102,15 @@ class PessoaJuridicaContatoListSerializer(serializers.ModelSerializer):
         ]
 
 
+class PessoaJuridicaContatoNestedSerializer(PessoaJuridicaContatoSerializer):
+    id = serializers.UUIDField(required=False)
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
+    valor = serializers.CharField(required=False)
+
+    class Meta(PessoaJuridicaContatoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']
+
+
 class FilialContatoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo Filial-Contato."""
 
@@ -124,3 +143,12 @@ class FilialContatoListSerializer(serializers.ModelSerializer):
             'contato',
             'principal',
         ]
+
+
+class FilialContatoNestedSerializer(FilialContatoSerializer):
+    id = serializers.UUIDField(required=False)
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
+    valor = serializers.CharField(required=False)
+
+    class Meta(FilialContatoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']

@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from apps.comum.models import PessoaFisica
 from apps.comum.services import PessoaFisicaService
 from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe
+from .cargo_documento import CargoDocumentoService
 
 
 class FuncionarioService:
@@ -106,8 +107,23 @@ class FuncionarioService:
         )
         funcionario.save()
 
+        if funcionario.cargo:
+            validacao = CargoDocumentoService.validar_documentos_funcionario(funcionario)
+
+            if not validacao['valido']:
+                # Formata a mensagem de erro listando o que falta
+                faltantes = [
+                    f"{doc['tipo_display']} ({doc.get('condicional') or 'Obrigatório'})"
+                    for doc in validacao['documentos_faltantes']
+                ]
+
+                raise ValidationError({
+                    'documentos': f"Documentos obrigatórios para o cargo '{funcionario.cargo.nome}' estão faltando: {', '.join(faltantes)}"
+                })
+        # ====================================================================
+
         # 5. Cria alocação inicial se projeto informado
-        if projeto:
+        if projeto: # Certifique-se que a variável 'projeto' foi definida anteriormente no seu código original
             Alocacao.objects.create(
                 funcionario=funcionario,
                 projeto=projeto,

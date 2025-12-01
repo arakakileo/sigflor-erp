@@ -106,6 +106,21 @@ class PessoaFisicaEnderecoListSerializer(serializers.ModelSerializer):
             'principal',
         ]
 
+class PessoaFisicaEnderecoNestedSerializer(PessoaFisicaEnderecoSerializer):
+    """Permite escrita do ID para atualização aninhada."""
+    id = serializers.UUIDField(required=False)
+
+    # Se você envia os dados do endereço no mesmo nível (flattened),
+    # precisa declarar os campos aqui para que o DRF não os ignore na validação.
+    # Baseado no seu Service, você espera receber logradouro, etc.
+    logradouro = serializers.CharField(required=False)
+    cidade = serializers.CharField(required=False)
+    estado = serializers.CharField(required=False)
+    cep = serializers.CharField(required=False)
+
+    class Meta(PessoaFisicaEnderecoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at'] # Remove 'id' e 'endereco' dos read_only
+
 
 class PessoaJuridicaEnderecoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo PessoaJuridica-Endereco."""
@@ -144,6 +159,17 @@ class PessoaJuridicaEnderecoListSerializer(serializers.ModelSerializer):
             'principal',
         ]
 
+class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
+    id = serializers.UUIDField(required=False)
+    # Campos para validação se enviados flatten
+    logradouro = serializers.CharField(required=False)
+    cidade = serializers.CharField(required=False)
+    estado = serializers.CharField(required=False)
+    cep = serializers.CharField(required=False)
+
+    class Meta(PessoaJuridicaEnderecoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']
+
 
 class FilialEnderecoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo Filial-Endereco."""
@@ -181,3 +207,14 @@ class FilialEnderecoListSerializer(serializers.ModelSerializer):
             'tipo_display',
             'principal',
         ]
+
+class FilialEnderecoNestedSerializer(FilialEnderecoSerializer):
+    id = serializers.UUIDField(required=False)
+    # Campos para validação se enviados flatten
+    logradouro = serializers.CharField(required=False)
+    cidade = serializers.CharField(required=False)
+    estado = serializers.CharField(required=False)
+    cep = serializers.CharField(required=False)
+
+    class Meta(FilialEnderecoSerializer.Meta):
+        read_only_fields = ['created_at', 'updated_at']

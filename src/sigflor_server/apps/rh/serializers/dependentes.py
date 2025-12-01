@@ -103,20 +103,28 @@ class DependenteCreateSerializer(serializers.ModelSerializer):
 class DependenteUpdateSerializer(serializers.ModelSerializer):
     """Serializer para atualização de dependente."""
 
+    # Adicionamos o campo aninhado para permitir edição dos dados pessoais
+    pessoa_fisica = PessoaFisicaCreateSerializer(required=False)
+
     class Meta:
         model = Dependente
         fields = [
             'parentesco',
             'dependencia_irrf',
             'ativo',
+            'pessoa_fisica', # Incluído aqui
         ]
 
     def update(self, instance, validated_data):
         """Atualiza dependente usando o service."""
         from ..services import DependenteService
 
+        # Extrai os dados da pessoa física, se houver
+        pessoa_fisica_data = validated_data.pop('pessoa_fisica', None)
+
         return DependenteService.update(
             dependente=instance,
             updated_by=self.context.get('request').user if self.context.get('request') else None,
+            pessoa_fisica_data=pessoa_fisica_data, # Passamos os dados para o service
             **validated_data
         )
