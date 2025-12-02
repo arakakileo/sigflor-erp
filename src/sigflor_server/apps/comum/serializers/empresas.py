@@ -4,52 +4,40 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from ..models import Empresa
 from .pessoa_juridica import (
     PessoaJuridicaSerializer, 
-    PessoaJuridicaCreateSerializer, 
-    PessoaJuridicaListSerializer
+    PessoaJuridicaCreateSerializer,
 )
 
 
 class EmpresaListSerializer(serializers.ModelSerializer):
-
-    pessoa_juridica = PessoaJuridicaListSerializer(read_only=True)
     
     razao_social = serializers.ReadOnlyField()
-    cnpj_formatado = serializers.ReadOnlyField()
+    cnpj = serializers.ReadOnlyField()
 
     class Meta:
         model = Empresa
         fields = [
             'id',
-            'pessoa_juridica',
             'razao_social',
-            'cnpj_formatado',
+            'cnpj',
             'descricao',
             'ativa',
-            'matriz',
         ]
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
     pessoa_juridica = PessoaJuridicaSerializer(read_only=True)
-    razao_social = serializers.ReadOnlyField()
-    cnpj = serializers.ReadOnlyField()
-    cnpj_formatado = serializers.ReadOnlyField()
 
     class Meta:
         model = Empresa
         fields = [
             'id',
             'pessoa_juridica',
-            'razao_social',
-            'cnpj',
-            'cnpj_formatado',
             'descricao',
             'ativa',
-            'matriz',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'razao_social', 'cnpj', 'cnpj_formatado', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'razao_social', 'cnpj', 'created_at', 'updated_at']
 
 
 class EmpresaCreateSerializer(serializers.ModelSerializer):
@@ -62,15 +50,12 @@ class EmpresaCreateSerializer(serializers.ModelSerializer):
             'pessoa_juridica',
             'descricao',
             'ativa',
-            'matriz',
         ]
         read_only_fields = ['id']
 
     def create(self, validated_data):
         from ..services import EmpresaService
-
         pessoa_juridica_data = validated_data.pop('pessoa_juridica')
-        
         try:
             return EmpresaService.create(
                 pessoa_juridica_data=pessoa_juridica_data,

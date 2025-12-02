@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from apps.comum.models import Projeto # Importar Projeto do app comum
 from .models import (
     Cargo, Funcionario, Dependente, Alocacao, CargoDocumento, Equipe, EquipeFuncionario
 )
@@ -198,10 +197,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         }),
         ('Hierarquia', {
             'fields': ('gestor_imediato',),
-            'classes': ('collapse',)
-        }),
-        ('Observacoes', {
-            'fields': ('observacoes',),
             'classes': ('collapse',)
         }),
         ('Auditoria', {

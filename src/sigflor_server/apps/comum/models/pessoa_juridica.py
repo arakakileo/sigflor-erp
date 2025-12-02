@@ -8,11 +8,11 @@ from ..validators import validar_cnpj
 
 class SituacaoCadastral(models.TextChoices):
     """Situação cadastral na Receita Federal."""
-    ATIVA = 'ATIVA', 'Ativa'
-    SUSPENSA = 'SUSPENSA', 'Suspensa'
-    INAPTA = 'INAPTA', 'Inapta'
-    BAIXADA = 'BAIXADA', 'Baixada'
-    NULA = 'NULA', 'Nula'
+    ATIVA = 'ativa', 'Ativa'
+    SUSPENSA = 'suspensa', 'Suspensa'
+    INAPTA = 'inapta', 'Inapta'
+    BAIXADA = 'baixada', 'Baixada'
+    NULA = 'nula', 'Nula'
 
 
 class PessoaJuridica(SoftDeleteModel):

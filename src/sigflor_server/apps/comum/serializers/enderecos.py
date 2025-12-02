@@ -119,6 +119,10 @@ class PessoaFisicaEnderecoNestedSerializer(PessoaFisicaEnderecoSerializer):
     cep = serializers.CharField(required=False)
 
     class Meta(PessoaFisicaEnderecoSerializer.Meta):
+        # Adicionamos os campos declarados explicitamente à lista de fields
+        fields = PessoaFisicaEnderecoSerializer.Meta.fields + [
+            'logradouro', 'cidade', 'estado', 'cep'
+        ]
         read_only_fields = ['created_at', 'updated_at'] # Remove 'id' e 'endereco' dos read_only
 
 
@@ -152,7 +156,7 @@ class PessoaJuridicaEnderecoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PessoaJuridicaEndereco
         fields = [
-            'id',
+            # 'id',
             'endereco',
             'tipo',
             'tipo_display',
@@ -168,6 +172,16 @@ class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
     cep = serializers.CharField(required=False)
 
     class Meta(PessoaJuridicaEnderecoSerializer.Meta):
+        # Adicionamos os campos declarados explicitamente à lista de fields
+        fields = [
+            'id',
+            'endereco',
+            'tipo',
+            'tipo_display',
+            'principal',
+            'created_at',
+            'updated_at',
+        ] + ['logradouro', 'cidade', 'estado', 'cep']
         read_only_fields = ['created_at', 'updated_at']
 
 
@@ -217,4 +231,8 @@ class FilialEnderecoNestedSerializer(FilialEnderecoSerializer):
     cep = serializers.CharField(required=False)
 
     class Meta(FilialEnderecoSerializer.Meta):
+        # Adicionamos os campos declarados explicitamente à lista de fields
+        fields = FilialEnderecoSerializer.Meta.fields + [
+            'logradouro', 'cidade', 'estado', 'cep'
+        ]
         read_only_fields = ['created_at', 'updated_at']

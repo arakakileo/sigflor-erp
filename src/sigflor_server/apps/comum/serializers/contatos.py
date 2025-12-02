@@ -32,11 +32,12 @@ class PessoaFisicaContatoSerializer(serializers.ModelSerializer):
         model = PessoaFisicaContato
         fields = [
             'id',
-            'pessoa_fisica',
+            # 'pessoa_fisica',
             'contato',
             'contato_id',
             'principal',
             'contato_emergencia',
+            'tem_whatsapp',
             'created_at',
             'updated_at',
         ]
@@ -61,11 +62,27 @@ class PessoaFisicaContatoListSerializer(serializers.ModelSerializer):
 class PessoaFisicaContatoNestedSerializer(PessoaFisicaContatoSerializer):
     id = serializers.UUIDField(required=False)
     # Campos do contato para permitir escrita aninhada
-    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
-    valor = serializers.CharField(required=False)
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=True)
+    valor = serializers.CharField(required=True)
+    tem_whatsapp = serializers.BooleanField(required=False) # Não obrigatório por padrão
 
     class Meta(PessoaFisicaContatoSerializer.Meta):
+        # Adicionamos tem_whatsapp aos campos
+        fields = PessoaFisicaContatoSerializer.Meta.fields + ['tipo', 'valor', 'tem_whatsapp']
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, data):
+        """Validação condicional para WhatsApp."""
+        tipo = data.get('tipo')
+        
+        # Se for CELULAR, exige que o campo tem_whatsapp esteja presente
+        if tipo == Contato.Tipo.CELULAR:
+            if 'tem_whatsapp' not in data:
+                raise serializers.ValidationError({
+                    "tem_whatsapp": "Este campo é obrigatório quando o tipo de contato é Celular."
+                })
+        
+        return data
 
 
 class PessoaJuridicaContatoSerializer(serializers.ModelSerializer):
@@ -78,10 +95,11 @@ class PessoaJuridicaContatoSerializer(serializers.ModelSerializer):
         model = PessoaJuridicaContato
         fields = [
             'id',
-            'pessoa_juridica',
+            # 'pessoa_juridica',
             'contato',
             'contato_id',
             'principal',
+            'tem_whatsapp',
             'created_at',
             'updated_at',
         ]
@@ -96,7 +114,7 @@ class PessoaJuridicaContatoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PessoaJuridicaContato
         fields = [
-            'id',
+            # 'id',
             'contato',
             'principal',
         ]
@@ -104,11 +122,25 @@ class PessoaJuridicaContatoListSerializer(serializers.ModelSerializer):
 
 class PessoaJuridicaContatoNestedSerializer(PessoaJuridicaContatoSerializer):
     id = serializers.UUIDField(required=False)
-    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
-    valor = serializers.CharField(required=False)
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=True)
+    valor = serializers.CharField(required=True)
+    tem_whatsapp = serializers.BooleanField(required=False)
 
     class Meta(PessoaJuridicaContatoSerializer.Meta):
+        fields = PessoaJuridicaContatoSerializer.Meta.fields + ['tipo', 'valor', 'tem_whatsapp']
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, data):
+        """Validação condicional para WhatsApp."""
+        tipo = data.get('tipo')
+        
+        if tipo == Contato.Tipo.CELULAR:
+            if 'tem_whatsapp' not in data:
+                raise serializers.ValidationError({
+                    "tem_whatsapp": "Este campo é obrigatório quando o tipo de contato é Celular."
+                })
+        
+        return data
 
 
 class FilialContatoSerializer(serializers.ModelSerializer):
@@ -147,8 +179,22 @@ class FilialContatoListSerializer(serializers.ModelSerializer):
 
 class FilialContatoNestedSerializer(FilialContatoSerializer):
     id = serializers.UUIDField(required=False)
-    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=False)
-    valor = serializers.CharField(required=False)
+    tipo = serializers.ChoiceField(choices=Contato.Tipo.choices, required=True)
+    valor = serializers.CharField(required=True)
+    tem_whatsapp = serializers.BooleanField(required=False)
 
     class Meta(FilialContatoSerializer.Meta):
+        fields = FilialContatoSerializer.Meta.fields + ['tipo', 'valor', 'tem_whatsapp']
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, data):
+        """Validação condicional para WhatsApp."""
+        tipo = data.get('tipo')
+        
+        if tipo == Contato.Tipo.CELULAR:
+            if 'tem_whatsapp' not in data:
+                raise serializers.ValidationError({
+                    "tem_whatsapp": "Este campo é obrigatório quando o tipo de contato é Celular."
+                })
+        
+        return data

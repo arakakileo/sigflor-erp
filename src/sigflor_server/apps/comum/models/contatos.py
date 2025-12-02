@@ -13,10 +13,10 @@ class Contato(SoftDeleteModel):
     """
 
     class Tipo(models.TextChoices):
-        CELULAR = 'CELULAR', 'Telefone Celular'
-        FIXO = 'FIXO', 'Telefone Fixo'
-        EMAIL = 'EMAIL', 'E-mail'
-        OUTRO = 'OUTRO', 'Outro'
+        CELULAR = 'telefone_celular', 'Telefone Celular'
+        FIXO = 'telefone_fixo', 'Telefone Fixo'
+        EMAIL = 'email', 'E-mail'
+        OUTRO = 'outro', 'Outro'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=20, choices=Tipo.choices)

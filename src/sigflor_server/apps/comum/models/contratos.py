@@ -100,8 +100,9 @@ class Contrato(SoftDeleteModel):
 
     @property
     def is_vigente(self):
-        """Verifica se o contrato esta vigente."""
         from django.utils import timezone
+        if not self.data_inicio:
+            return False
         hoje = timezone.now().date()
         if not self.ativo:
             return False

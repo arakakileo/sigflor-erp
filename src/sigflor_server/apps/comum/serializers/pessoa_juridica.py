@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError as DjangoValidationError
 
+from apps.comum.services.enderecos import EnderecoService
+
 from ..models import (
     PessoaJuridica, SituacaoCadastral, Endereco, Contato, Documento, Anexo,
     PessoaJuridicaEndereco, PessoaJuridicaContato, PessoaJuridicaDocumento
@@ -91,9 +93,9 @@ class PessoaJuridicaCreateSerializer(serializers.Serializer):
     )
     observacoes = serializers.CharField(required=False, allow_blank=True)
 
-    enderecos = PessoaJuridicaEnderecoNestedSerializer(many=True, required=False, allow_empty=True, source='enderecos_vinculados')
-    contatos = PessoaJuridicaContatoNestedSerializer(many=True, required=False, allow_empty=True, source='contatos_vinculados')
-    documentos = PessoaJuridicaDocumentoNestedSerializer(many=True, required=False, allow_empty=True, source='documentos_vinculados')
+    enderecos = PessoaJuridicaEnderecoNestedSerializer(many=True, required=False, allow_empty=True)
+    contatos = PessoaJuridicaContatoNestedSerializer(many=True, required=False, allow_empty=True)
+    documentos = PessoaJuridicaDocumentoNestedSerializer(many=True, required=False, allow_empty=True)
     anexos = AnexoNestedSerializer(many=True, required=False, allow_empty=True)
 
     def validate_cnpj(self, value):
@@ -106,10 +108,10 @@ class PessoaJuridicaCreateSerializer(serializers.Serializer):
         return cleaned_value
 
     def create(self, validated_data):
-        enderecos_data = validated_data.pop('enderecos_vinculados', [])
-        contatos_data = validated_data.pop('contatos_vinculados', [])
-        documentos_data = validated_data.pop('documentos_vinculados', [])
-        anexos_data = validated_data.pop('anexos_vinculados', [])
+        enderecos_data = validated_data.pop('enderecos', [])
+        contatos_data = validated_data.pop('contatos', [])
+        documentos_data = validated_data.pop('documentos', [])
+        anexos_data = validated_data.pop('anexos', [])
 
         pessoa_juridica = PessoaJuridica.objects.create(**validated_data)
 

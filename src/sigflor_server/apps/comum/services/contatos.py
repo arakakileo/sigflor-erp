@@ -1,8 +1,10 @@
-from typing import Optional
 from django.db import transaction
-from django.contrib.contenttypes.models import ContentType
 
-from ..models import Contato
+from ..models import (
+    Contato, 
+    PessoaFisica, PessoaJuridica, Filial,
+    PessoaFisicaContato, PessoaJuridicaContato, FilialContato
+)
 
 
 class ContatoService:
@@ -11,50 +13,182 @@ class ContatoService:
     @staticmethod
     @transaction.atomic
     def create(
-        entidade,
+        *,
         tipo: str,
         valor: str,
-        principal: bool = False,
+        tem_whatsapp: bool = False,
         created_by=None,
     ) -> Contato:
-        """Cria um novo Contato para uma entidade."""
-        content_type = ContentType.objects.get_for_model(entidade)
+        """
+        Cria ou recupera um Contato (sem vínculo).
+        Utiliza get_or_create para respeitar a constraint unique (tipo, valor).
+        """
+        contato, created = Contato.objects.get_or_create(
+            tipo=tipo,
+            valor=valor,
+            deleted_at__isnull=True,
+            defaults={
+                'tem_whatsapp': tem_whatsapp,
+                'created_by': created_by,
+            }
+        )
+        return contato
 
-        # Se é principal, remove o principal anterior do mesmo tipo
+    @staticmethod
+    @transaction.atomic
+    def criar_contato_para_pessoa_juridica(
+        *,
+        pessoa_juridica: PessoaJuridica,
+        tipo: str,
+        valor: str,
+        tem_whatsapp: bool = False,
+        principal: bool = False,
+        created_by=None,
+    ) -> PessoaJuridicaContato:
+        """
+        Cria um contato e vincula a uma PessoaJuridica.
+        Se principal=True, desmarca outros contatos como principal.
+        """
+        # 1. Cria ou recupera o contato base
+        contato = ContatoService.create(
+            tipo=tipo,
+            valor=valor,
+            tem_whatsapp=tem_whatsapp,
+            created_by=created_by,
+        )
+
+        # 2. Gerencia flag principal
         if principal:
-            Contato.objects.filter(
-                content_type=content_type,
-                object_id=str(entidade.pk),
-                tipo=tipo,
+            PessoaJuridicaContato.objects.filter(
+                pessoa_juridica=pessoa_juridica,
                 principal=True,
                 deleted_at__isnull=True
             ).update(principal=False)
 
-        contato = Contato(
-            content_type=content_type,
-            object_id=str(entidade.pk),
+        # 3. Cria o vínculo
+        # Verifica se já existe o vínculo para evitar erro de constraint
+        vinculo, created = PessoaJuridicaContato.objects.get_or_create(
+            pessoa_juridica=pessoa_juridica,
+            contato=contato,
+            deleted_at__isnull=True,
+            defaults={
+                'principal': principal,
+                'created_by': created_by
+            }
+        )
+
+        # Se já existia e agora deve ser principal, atualiza
+        if not created and principal and not vinculo.principal:
+            vinculo.principal = True
+            vinculo.updated_by = created_by
+            vinculo.save()
+
+        return vinculo
+
+    @staticmethod
+    @transaction.atomic
+    def add_contato_to_pessoa_fisica(
+        *,
+        pessoa_fisica: PessoaFisica,
+        tipo: str,
+        valor: str,
+        tem_whatsapp: bool = False,
+        principal: bool = False,
+        contato_emergencia: bool = False,
+        created_by=None,
+    ) -> PessoaFisicaContato:
+        """
+        Cria um contato e vincula a uma PessoaFisica.
+        """
+        contato = ContatoService.create(
             tipo=tipo,
             valor=valor,
-            principal=principal,
+            tem_whatsapp=tem_whatsapp,
             created_by=created_by,
         )
-        contato.save()
-        return contato
+
+        if principal:
+            PessoaFisicaContato.objects.filter(
+                pessoa_fisica=pessoa_fisica,
+                principal=True,
+                deleted_at__isnull=True
+            ).update(principal=False)
+
+        vinculo, created = PessoaFisicaContato.objects.get_or_create(
+            pessoa_fisica=pessoa_fisica,
+            contato=contato,
+            deleted_at__isnull=True,
+            defaults={
+                'principal': principal,
+                'contato_emergencia': contato_emergencia,
+                'created_by': created_by
+            }
+        )
+
+        if not created:
+            updated = False
+            if principal and not vinculo.principal:
+                vinculo.principal = True
+                updated = True
+            if contato_emergencia != vinculo.contato_emergencia:
+                vinculo.contato_emergencia = contato_emergencia
+                updated = True
+            
+            if updated:
+                vinculo.updated_by = created_by
+                vinculo.save()
+
+        return vinculo
+
+    @staticmethod
+    @transaction.atomic
+    def add_contato_to_filial(
+        *,
+        filial: Filial,
+        tipo: str,
+        valor: str,
+        tem_whatsapp: bool = False,
+        principal: bool = False,
+        created_by=None,
+    ) -> FilialContato:
+        """
+        Cria um contato e vincula a uma Filial.
+        """
+        contato = ContatoService.create(
+            tipo=tipo,
+            valor=valor,
+            tem_whatsapp=tem_whatsapp,
+            created_by=created_by,
+        )
+
+        if principal:
+            FilialContato.objects.filter(
+                filial=filial,
+                principal=True,
+                deleted_at__isnull=True
+            ).update(principal=False)
+
+        vinculo, created = FilialContato.objects.get_or_create(
+            filial=filial,
+            contato=contato,
+            deleted_at__isnull=True,
+            defaults={
+                'principal': principal,
+                'created_by': created_by
+            }
+        )
+
+        if not created and principal and not vinculo.principal:
+            vinculo.principal = True
+            vinculo.updated_by = created_by
+            vinculo.save()
+
+        return vinculo
 
     @staticmethod
     @transaction.atomic
     def update(contato: Contato, updated_by=None, **kwargs) -> Contato:
         """Atualiza um Contato existente."""
-        # Se está tornando principal, remove o principal anterior do mesmo tipo
-        if kwargs.get('principal') and not contato.principal:
-            Contato.objects.filter(
-                content_type=contato.content_type,
-                object_id=contato.object_id,
-                tipo=contato.tipo,
-                principal=True,
-                deleted_at__isnull=True
-            ).exclude(pk=contato.pk).update(principal=False)
-
         for attr, value in kwargs.items():
             if hasattr(contato, attr):
                 setattr(contato, attr, value)
@@ -66,26 +200,25 @@ class ContatoService:
     @transaction.atomic
     def delete(contato: Contato, user=None) -> None:
         """Soft delete de um Contato."""
+        # A exclusão em cascata dos vínculos é feita via sinal ou manualmente se necessário
+        # Como usamos tabelas de vínculo, podemos deletar apenas o vínculo ou o contato todo
+        # Aqui deletamos o contato, o que logicamente invalida os vínculos
         contato.delete(user=user)
 
     @staticmethod
-    def get_contatos_por_entidade(entidade) -> list:
-        """Retorna todos os contatos de uma entidade."""
-        content_type = ContentType.objects.get_for_model(entidade)
-        return list(Contato.objects.filter(
-            content_type=content_type,
-            object_id=str(entidade.pk),
-            deleted_at__isnull=True
-        ).order_by('tipo', '-principal', '-created_at'))
+    @transaction.atomic
+    def definir_principal(contato: Contato, updated_by=None) -> None:
+        """
+        Define um contato como principal. 
+        Nota: Isso requer saber qual entidade está vinculada. 
+        Idealmente deve ser feito através do vínculo (ex: set_principal_pessoa_juridica)
+        ou passar o vínculo como argumento em vez do contato.
+        """
+        pass # Implementar nos métodos específicos de vínculo se necessário
 
     @staticmethod
-    def get_contato_principal_por_tipo(entidade, tipo: str) -> Optional[Contato]:
-        """Retorna o contato principal de um tipo específico."""
-        content_type = ContentType.objects.get_for_model(entidade)
-        return Contato.objects.filter(
-            content_type=content_type,
-            object_id=str(entidade.pk),
-            tipo=tipo,
-            principal=True,
+    def get_contatos_pessoa_juridica(pessoa_juridica: PessoaJuridica) -> list:
+        return list(PessoaJuridicaContato.objects.filter(
+            pessoa_juridica=pessoa_juridica,
             deleted_at__isnull=True
-        ).first()
+        ).select_related('contato').order_by('-principal', 'contato__tipo'))

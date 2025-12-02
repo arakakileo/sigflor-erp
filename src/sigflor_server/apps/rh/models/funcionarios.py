@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 import uuid
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 
-from apps.comum.models.base import SoftDeleteModel
-from apps.comum.models.enderecos import Endereco
+from apps.comum.models import SoftDeleteModel, Endereco, PessoaFisica
 
 
 class Funcionario(SoftDeleteModel):
@@ -61,6 +59,7 @@ class Funcionario(SoftDeleteModel):
         unique=True,
         help_text='Matrícula única do funcionário'
     )
+    
     cargo = models.ForeignKey(
         'rh.Cargo',
         on_delete=models.PROTECT,
@@ -70,25 +69,30 @@ class Funcionario(SoftDeleteModel):
 
     # Dados contratuais
     data_admissao = models.DateField(help_text='Data de admissão')
+    
     data_demissao = models.DateField(
         blank=True,
         null=True,
         help_text='Data de demissão (se aplicável)'
     )
+    
     status = models.CharField(
         max_length=30,
         choices=Status.choices,
         default=Status.ATIVO
     )
+    
     tipo_contrato = models.CharField(
         max_length=30,
         choices=TipoContrato.choices
     )
+    
     salario_nominal = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         help_text='Salário contratual'
     )
+    
     turno = models.CharField(
         max_length=20,
         choices=Turno.choices,
@@ -114,6 +118,7 @@ class Funcionario(SoftDeleteModel):
         null=True,
         help_text='Peso do funcionário em kg'
     )
+    
     altura = models.DecimalField(
         max_digits=3,
         decimal_places=2,

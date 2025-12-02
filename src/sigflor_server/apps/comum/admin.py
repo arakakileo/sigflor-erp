@@ -62,7 +62,7 @@ class PessoaFisicaContatoInline(admin.TabularInline):
 class PessoaFisicaDocumentoInline(admin.TabularInline):
     model = PessoaFisicaDocumento
     extra = 0
-    fields = ('documento', 'principal')
+    fields = ('documento',)
     raw_id_fields = ('documento',)
 
 
@@ -83,7 +83,7 @@ class PessoaJuridicaContatoInline(admin.TabularInline):
 class PessoaJuridicaDocumentoInline(admin.TabularInline):
     model = PessoaJuridicaDocumento
     extra = 0
-    fields = ('documento', 'principal')
+    fields = ('documento',)
     raw_id_fields = ('documento',)
 
 
@@ -135,14 +135,10 @@ class PessoaJuridicaAdmin(admin.ModelAdmin):
             'fields': ('razao_social', 'nome_fantasia', 'cnpj')
         }),
         ('Inscricoes', {
-            'fields': ('inscricao_estadual', 'inscricao_municipal')
+            'fields': ('inscricao_estadual',)
         }),
         ('Classificacao', {
-            'fields': ('porte', 'natureza_juridica', 'situacao_cadastral', 'data_abertura')
-        }),
-        ('Atividades', {
-            'fields': ('atividade_principal', 'atividades_secundarias'),
-            'classes': ('collapse',)
+            'fields': ('situacao_cadastral', 'data_abertura')
         }),
         ('Observacoes', {
             'fields': ('observacoes',),
@@ -426,7 +422,7 @@ class DeficienciaAdmin(admin.ModelAdmin):
             'fields': ('nome', 'tipo', 'cid', 'grau')
         }),
         ('Informacoes Adicionais', {
-            'fields': ('data_diagnostico', 'congenita')
+            'fields': ('congenita',)
         }),
         ('Observacoes', {
             'fields': ('observacoes',),

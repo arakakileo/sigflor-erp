@@ -34,8 +34,11 @@ def pessoa_fisica_list(*, filters: dict = None, search: str = None) -> QuerySet:
 
 def pessoa_fisica_detail(*, pk) -> PessoaFisica:
     """Obtem detalhes de uma pessoa fisica com relacionamentos."""
+    # Ajustado para usar os nomes dos vínculos (enderecos_vinculados) que o serializer espera
     return PessoaFisica.objects.prefetch_related(
-        'enderecos', 'contatos', 'documentos', 'anexos'
+        'enderecos_vinculados__endereco',
+        'contatos_vinculados__contato',
+        'documentos_vinculados__documento'
     ).get(pk=pk, deleted_at__isnull=True)
 
 
@@ -60,8 +63,12 @@ def pessoa_juridica_list(*, filters: dict = None, search: str = None) -> QuerySe
 
 def pessoa_juridica_detail(*, pk) -> PessoaJuridica:
     """Obtem detalhes de uma pessoa juridica com relacionamentos."""
+    # CORREÇÃO: Usar os related_names definidos nos models intermediários
     return PessoaJuridica.objects.prefetch_related(
-        'enderecos', 'contatos', 'documentos', 'anexos'
+        'enderecos_vinculados__endereco',
+        'contatos_vinculados__contato',
+        'documentos_vinculados__documento'
+        # 'anexos' removido pois não há GenericRelation na PJ
     ).get(pk=pk, deleted_at__isnull=True)
 
 
@@ -150,11 +157,13 @@ def empresa_list(*, filters: dict = None, search: str = None, ativa: bool = None
 
 def empresa_detail(*, pk) -> Empresa:
     """Obtem detalhes de uma empresa com relacionamentos."""
+    # CORREÇÃO: Ajustado para usar os related_names corretos da PJ
     return Empresa.objects.select_related(
         'pessoa_juridica'
     ).prefetch_related(
-        'pessoa_juridica__enderecos',
-        'pessoa_juridica__contatos',
+        'pessoa_juridica__enderecos_vinculados__endereco',
+        'pessoa_juridica__contatos_vinculados__contato',
+        'pessoa_juridica__documentos_vinculados__documento'
     ).get(pk=pk, deleted_at__isnull=True)
 
 
@@ -165,7 +174,7 @@ def cliente_list(
     filters: dict = None,
     search: str = None,
     ativo: bool = None,
-    empresa_id: str = None # Adicionado para filtrar clientes por empresa gestora
+    empresa_id: str = None
 ) -> QuerySet:
     """Lista clientes com filtros opcionais."""
     qs = Cliente.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica', 'empresa_gestora')
@@ -191,11 +200,13 @@ def cliente_list(
 
 def cliente_detail(*, pk) -> Cliente:
     """Obtem detalhes de um cliente com relacionamentos."""
+    # CORREÇÃO: Ajustado para usar os related_names corretos da PJ
     return Cliente.objects.select_related(
         'pessoa_juridica', 'empresa_gestora'
     ).prefetch_related(
-        'pessoa_juridica__enderecos',
-        'pessoa_juridica__contatos',
+        'pessoa_juridica__enderecos_vinculados__endereco',
+        'pessoa_juridica__contatos_vinculados__contato',
+        'pessoa_juridica__documentos_vinculados__documento'
     ).get(pk=pk, deleted_at__isnull=True)
 
 
@@ -401,7 +412,8 @@ def filial_detail(*, user: Usuario, pk) -> Filial:
     filial = Filial.objects.select_related(
         'empresa', 'empresa__pessoa_juridica'
     ).prefetch_related(
-        'enderecos', 'contatos'
+        'enderecos_vinculados__endereco', # Ajustado para nome do vínculo
+        'contatos_vinculados__contato'    # Ajustado para nome do vínculo
     ).get(pk=pk, deleted_at__isnull=True)
 
     if not user.is_superuser:

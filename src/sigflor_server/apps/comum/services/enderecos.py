@@ -97,7 +97,7 @@ class EnderecoService:
 
     @staticmethod
     @transaction.atomic
-    def add_endereco_to_pessoa_juridica(
+    def criar_endereco_pessoa_juridica(
         *,
         pessoa_juridica: PessoaJuridica,
         logradouro: str,
