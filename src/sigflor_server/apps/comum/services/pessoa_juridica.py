@@ -24,7 +24,6 @@ class PessoaJuridicaService:
         situacao_cadastral: str = SituacaoCadastral.ATIVA,
         observacoes: Optional[str] = None,
         created_by=None,
-        # Adicionamos os argumentos para dados aninhados
         enderecos: List[Dict[str, Any]] = None,
         contatos: List[Dict[str, Any]] = None,
         documentos: List[Dict[str, Any]] = None,
@@ -137,7 +136,7 @@ class PessoaJuridicaService:
                 else:
                     # CRIAR NOVO
                     item.pop('id', None)
-                    EnderecoService.add_endereco_to_pessoa_juridica(
+                    EnderecoService.criar_endereco_pessoa_juridica(
                         pessoa_juridica=pessoa,
                         created_by=updated_by,
                         **item
@@ -175,7 +174,7 @@ class PessoaJuridicaService:
 
                 else:
                     item.pop('id', None)
-                    ContatoService.add_contato_to_pessoa_juridica(
+                    ContatoService.criar_contato_para_pessoa_juridica(
                         pessoa_juridica=pessoa,
                         created_by=updated_by,
                         **item
@@ -283,9 +282,10 @@ class PessoaJuridicaService:
         cnpj_limpo = ''.join(filter(str.isdigit, cnpj))
         pessoa = PessoaJuridicaService.get_by_cnpj(cnpj_limpo)
         if pessoa:
-            raise ValidationError({
-                'cnpj': "Esta Pessoa Jurídica já está cadastrada no sistema."
-            })
+            return pessoa, False
+            # raise ValidationError({
+            #     'cnpj': "Esta Pessoa Jurídica já está cadastrada no sistema."
+            # })
 
         defaults['cnpj'] = cnpj_limpo
         defaults['created_by'] = created_by

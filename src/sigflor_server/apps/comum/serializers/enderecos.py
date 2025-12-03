@@ -165,11 +165,14 @@ class PessoaJuridicaEnderecoListSerializer(serializers.ModelSerializer):
 
 class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
     id = serializers.UUIDField(required=False)
-    # Campos para validação se enviados flatten
-    logradouro = serializers.CharField(required=False)
+    logradouro = serializers.CharField(required=True)
     cidade = serializers.CharField(required=False)
     estado = serializers.CharField(required=False)
     cep = serializers.CharField(required=False)
+    bairro = serializers.CharField(required=False)
+    numero = serializers.CharField(required=False)
+    complemento = serializers.CharField(required=False)
+    pais = serializers.CharField(required=False)
 
     class Meta(PessoaJuridicaEnderecoSerializer.Meta):
         # Adicionamos os campos declarados explicitamente à lista de fields
@@ -181,7 +184,7 @@ class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
             'principal',
             'created_at',
             'updated_at',
-        ] + ['logradouro', 'cidade', 'estado', 'cep']
+        ] + ['logradouro', 'cidade', 'estado', 'cep', 'bairro', 'numero', 'complemento', 'pais']
         read_only_fields = ['created_at', 'updated_at']
 
 

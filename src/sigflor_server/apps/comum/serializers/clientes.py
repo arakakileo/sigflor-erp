@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.core.exceptions import ValidationError as DjangoValidationError
 
-from ..models import Cliente
+from ..models import Cliente, Empresa
 from .pessoa_juridica import (
     PessoaJuridicaSerializer, 
     PessoaJuridicaCreateSerializer, 
@@ -12,36 +12,29 @@ from .pessoa_juridica import (
 class ClienteListSerializer(serializers.ModelSerializer):
     """Serializer leve para listagem."""
     # Usa a versão leve da PJ
-    pessoa_juridica = PessoaJuridicaListSerializer(read_only=True)
+    razao_social = serializers.ReadOnlyField()
+    cnpj = serializers.ReadOnlyField()
     
     class Meta:
         model = Cliente
         fields = [
             'id',
-            'pessoa_juridica',
+            'razao_social',
+            'cnpj',
             'descricao',
             'ativo',
         ]
-
 
 class ClienteSerializer(serializers.ModelSerializer):
     """Serializer para leitura de Cliente."""
 
     pessoa_juridica = PessoaJuridicaSerializer(read_only=True)
-    razao_social = serializers.ReadOnlyField()
-    nome_fantasia = serializers.ReadOnlyField()
-    cnpj = serializers.ReadOnlyField()
-    cnpj_formatado = serializers.ReadOnlyField()
 
     class Meta:
         model = Cliente
         fields = [
             'id',
             'pessoa_juridica',
-            'razao_social',
-            'nome_fantasia',
-            'cnpj',
-            'cnpj_formatado',
             'descricao',
             'ativo',
             'created_at',
@@ -52,18 +45,18 @@ class ClienteSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
 
-
 class ClienteCreateSerializer(serializers.ModelSerializer):
     """Serializer para criação de Cliente."""
 
     pessoa_juridica = PessoaJuridicaCreateSerializer(required=True)
-
+    empresa_gestora = serializers.PrimaryKeyRelatedField(required=True, queryset=Empresa.objects.all())
     class Meta:
         model = Cliente
         fields = [
             'id',
             'pessoa_juridica',
             'descricao',
+            'empresa_gestora',
             'ativo',
         ]
         read_only_fields = ['id']

@@ -28,6 +28,7 @@ class FilialViewSet(viewsets.ModelViewSet):
         empresa_id = self.request.query_params.get('empresa_id')
 
         return selectors.filial_list(
+            user=self.request.user,
             search=search,
             status=status_param,
             empresa_id=empresa_id
