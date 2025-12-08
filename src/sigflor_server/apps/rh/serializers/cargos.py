@@ -59,7 +59,6 @@ class CargoSerializer(serializers.ModelSerializer):
         ]
 
 class CargoCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criação de Cargo."""
 
     class Meta:
         model = Cargo

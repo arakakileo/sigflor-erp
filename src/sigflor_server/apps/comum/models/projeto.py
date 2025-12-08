@@ -2,6 +2,7 @@
 import uuid
 from django.db import models
 from django.utils import timezone
+import random
 
 from .base import SoftDeleteModel
 from .enums import StatusProjeto
@@ -26,6 +27,7 @@ class Projeto(SoftDeleteModel):
         editable=False,
         help_text="Código único gerado automaticamente"
     )
+    
     descricao = models.TextField(
         help_text="Nome ou objeto do projeto (ex: Manutenção da Fazenda X - Bloco Y)"
     )
@@ -53,16 +55,6 @@ class Projeto(SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="projetos",
         help_text="Base operacional responsável pela execução"
-    )
-
-    # FK para o Contrato (opcional)
-    contrato = models.ForeignKey(
-        'comum.Contrato',
-        on_delete=models.PROTECT,
-        related_name="projetos",
-        blank=True,
-        null=True,
-        help_text="Contrato comercial que ampara este projeto"
     )
 
     data_inicio = models.DateField(
@@ -125,7 +117,7 @@ class Projeto(SoftDeleteModel):
         prefix = f"PRJ-{now.year}{now.month:02d}-"
 
         # Busca o último número do mês atual
-        last_projeto = Projeto.all_objects.filter(
+        last_projeto = Projeto.objects.filter(
             numero__startswith=prefix
         ).order_by('-numero').first()
 
@@ -145,29 +137,20 @@ class Projeto(SoftDeleteModel):
 
     @property
     def is_ativo(self) -> bool:
-        """Verifica se o projeto está em execução."""
         return self.status == StatusProjeto.EM_EXECUCAO
 
     @property
     def cliente_nome(self) -> str:
-        """Retorna o nome do cliente."""
         if self.cliente and self.cliente.pessoa_juridica:
             return self.cliente.pessoa_juridica.nome_fantasia or self.cliente.pessoa_juridica.razao_social
         return ""
 
     @property
     def empresa_nome(self) -> str:
-        """Retorna o nome da empresa."""
         if self.empresa and self.empresa.pessoa_juridica:
             return self.empresa.pessoa_juridica.nome_fantasia or self.empresa.pessoa_juridica.razao_social
         return ""
 
     @property
     def filial_nome(self) -> str:
-        """Retorna o nome da filial."""
         return self.filial.nome if self.filial else ""
-
-    @property
-    def contrato_numero(self) -> str:
-        """Retorna o número do contrato, se houver."""
-        return self.contrato.numero_interno if self.contrato else ""

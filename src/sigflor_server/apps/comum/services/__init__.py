@@ -8,7 +8,6 @@ from .documentos import DocumentoService
 from .anexos import AnexoService
 from .deficiencias import DeficienciaService
 from .filiais import FilialService
-from .contratos import ContratoService
 from .projeto import ProjetoService
 from .exame import ExameService
 
@@ -23,7 +22,6 @@ __all__ = [
     'AnexoService',
     'DeficienciaService',
     'FilialService',
-    'ContratoService',
     'ProjetoService',
     'ExameService',
 ]

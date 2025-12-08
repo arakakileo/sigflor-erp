@@ -1,11 +1,10 @@
 from rest_framework import serializers
 
-from ..models import Projeto, Cliente, Filial, Contrato
+from ..models import Projeto, Cliente, Filial
 from ..models.enums import StatusProjeto
 
 
 class ProjetoListSerializer(serializers.ModelSerializer):
-    """Serializer leve para listagem de Projetos."""
 
     cliente_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
@@ -31,12 +30,10 @@ class ProjetoListSerializer(serializers.ModelSerializer):
         ]
 
 class ProjetoSerializer(serializers.ModelSerializer):
-    """Serializer completo para leitura de Projeto."""
 
     cliente_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
     filial_nome = serializers.ReadOnlyField()
-    contrato_numero = serializers.ReadOnlyField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     is_ativo = serializers.ReadOnlyField()
 
@@ -52,8 +49,6 @@ class ProjetoSerializer(serializers.ModelSerializer):
             'empresa_nome',
             'filial',
             'filial_nome',
-            'contrato',
-            'contrato_numero',
             'data_inicio',
             'data_fim',
             'status',
@@ -64,17 +59,15 @@ class ProjetoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'numero', 'empresa', 'cliente_nome', 'empresa_nome',
-            'filial_nome', 'contrato_numero', 'status_display', 'is_ativo',
+            'filial_nome', 'status_display', 'is_ativo',
             'created_at', 'updated_at'
         ]
 
 class ProjetoCreateSerializer(serializers.Serializer):
-    """Serializer para criação de Projeto."""
 
     descricao = serializers.CharField()
     cliente_id = serializers.UUIDField()
     filial_id = serializers.UUIDField()
-    contrato_id = serializers.UUIDField(required=False, allow_null=True)
     data_inicio = serializers.DateField()
     data_fim = serializers.DateField(required=False, allow_null=True)
     status = serializers.ChoiceField(
@@ -94,12 +87,6 @@ class ProjetoCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Filial não encontrada ou inativa.")
         return value
 
-    def validate_contrato_id(self, value):
-        """Valida se o contrato existe e está ativo."""
-        if value and not Contrato.objects.filter(id=value, deleted_at__isnull=True).exists():
-            raise serializers.ValidationError("Contrato não encontrado ou inativo.")
-        return value
-
     def validate(self, data):
         """Valida datas."""
         data_inicio = data.get('data_inicio')
@@ -113,11 +100,9 @@ class ProjetoCreateSerializer(serializers.Serializer):
         return data
 
 class ProjetoUpdateSerializer(serializers.Serializer):
-    """Serializer para atualização de Projeto."""
 
     descricao = serializers.CharField(required=False)
     filial_id = serializers.UUIDField(required=False)
-    contrato_id = serializers.UUIDField(required=False, allow_null=True)
     data_inicio = serializers.DateField(required=False)
     data_fim = serializers.DateField(required=False, allow_null=True)
     status = serializers.ChoiceField(choices=StatusProjeto.choices, required=False)
@@ -126,12 +111,6 @@ class ProjetoUpdateSerializer(serializers.Serializer):
         """Valida se a filial existe e está ativa."""
         if value and not Filial.objects.filter(id=value, deleted_at__isnull=True).exists():
             raise serializers.ValidationError("Filial não encontrada ou inativa.")
-        return value
-
-    def validate_contrato_id(self, value):
-        """Valida se o contrato existe e está ativo."""
-        if value and not Contrato.objects.filter(id=value, deleted_at__isnull=True).exists():
-            raise serializers.ValidationError("Contrato não encontrado ou inativo.")
         return value
 
     def validate(self, data):

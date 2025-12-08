@@ -6,7 +6,6 @@ from .documentos import DocumentoViewSet
 from .anexos import AnexoViewSet
 from .deficiencias import DeficienciaViewSet
 from .filiais import FilialViewSet
-from .contratos import ContratoViewSet
 from .projeto import ProjetoViewSet
 from .exame import ExameViewSet
 
@@ -19,7 +18,6 @@ __all__ = [
     'AnexoViewSet',
     'DeficienciaViewSet',
     'FilialViewSet',
-    'ContratoViewSet',
     'ProjetoViewSet',
     'ExameViewSet',
 ]

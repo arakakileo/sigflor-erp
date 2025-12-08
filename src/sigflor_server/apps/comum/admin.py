@@ -13,7 +13,6 @@ from .models import (
     Anexo,
     Deficiencia,
     Filial,
-    Contrato,
     PessoaFisicaEndereco, PessoaFisicaContato, PessoaFisicaDocumento,
     PessoaJuridicaEndereco, PessoaJuridicaContato, PessoaJuridicaDocumento
 )
@@ -376,65 +375,6 @@ class FilialAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
-    def get_empresa_nome(self, obj):
-        return obj.empresa_nome
-    get_empresa_nome.short_description = 'Empresa'
-    get_empresa_nome.admin_order_field = 'empresa__pessoa_juridica__razao_social'
-
-
-# ============ Contrato ============ #
-
-@admin.register(Contrato)
-class ContratoAdmin(admin.ModelAdmin):
-    list_display = [
-        'numero_interno',
-        'numero_externo',
-        'get_cliente_nome',
-        'get_empresa_nome',
-        'data_inicio',
-        'data_fim',
-        'ativo',
-        'is_vigente',
-    ]
-    list_filter = ['ativo', 'data_inicio', 'created_at']
-    search_fields = [
-        'numero_interno',
-        'numero_externo',
-        'cliente__pessoa_juridica__razao_social',
-        'empresa__pessoa_juridica__razao_social',
-    ]
-    readonly_fields = ['id', 'is_vigente', 'created_at', 'updated_at', 'deleted_at']
-    raw_id_fields = ['cliente', 'empresa']
-    ordering = ['-data_inicio', 'numero_interno']
-
-    fieldsets = (
-        ('Identificacao', {
-            'fields': ('numero_interno', 'numero_externo')
-        }),
-        ('Partes', {
-            'fields': ('cliente', 'empresa')
-        }),
-        ('Vigencia', {
-            'fields': ('data_inicio', 'data_fim', 'ativo', 'is_vigente')
-        }),
-        ('Valores', {
-            'fields': ('valor',)
-        }),
-        ('Descricao', {
-            'fields': ('descricao', 'observacoes'),
-            'classes': ('collapse',)
-        }),
-        ('Auditoria', {
-            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-    def get_cliente_nome(self, obj):
-        return obj.cliente_nome
-    get_cliente_nome.short_description = 'cliente'
-    get_cliente_nome.admin_order_field = 'cliente__pessoa_juridica__razao_social'
 
     def get_empresa_nome(self, obj):
         return obj.empresa_nome

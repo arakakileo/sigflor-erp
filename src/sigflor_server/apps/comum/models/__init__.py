@@ -4,7 +4,6 @@ from .pessoa_juridica import PessoaJuridica, SituacaoCadastral
 from .empresas import Empresa
 from .clientes import Cliente
 from .filiais import Filial
-from .contratos import Contrato
 from .enderecos import (
     Endereco, TipoEndereco,
     PessoaFisicaEndereco, PessoaJuridicaEndereco, FilialEndereco
@@ -29,7 +28,6 @@ __all__ = [
     'Empresa',
     'Cliente',
     'Filial',
-    'Contrato',
     'Projeto',
     'StatusProjeto',
     'Exame',

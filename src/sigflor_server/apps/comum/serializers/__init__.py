@@ -21,11 +21,6 @@ from .filiais import (
     FilialCreateSerializer,
     FilialListSerializer
 )
-from .contratos import (
-    ContratoSerializer,
-    ContratoCreateSerializer,
-    ContratoListSerializer
-)
 from .projeto import (
     ProjetoSerializer,
     ProjetoListSerializer,
@@ -57,10 +52,6 @@ __all__ = [
     'FilialSerializer',
     'FilialCreateSerializer',
     'FilialListSerializer',
-    # Contratos
-    'ContratoSerializer',
-    'ContratoCreateSerializer',
-    'ContratoListSerializer',
     # Projeto
     'ProjetoSerializer',
     'ProjetoListSerializer',

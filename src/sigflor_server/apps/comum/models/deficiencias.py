@@ -3,7 +3,7 @@ import uuid
 from django.db import models
 
 from .base import SoftDeleteModel
-from .enums import TipoDeficiencia
+from .enums import TipoDeficiencia, GrauDeficiencia
 
 
 class Deficiencia(SoftDeleteModel):
@@ -14,7 +14,6 @@ class Deficiencia(SoftDeleteModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Vinculo com PessoaFisica
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -22,25 +21,28 @@ class Deficiencia(SoftDeleteModel):
         help_text='Pessoa fisica portadora da deficiencia'
     )
 
-    # Dados da deficiencia
     nome = models.CharField(
         max_length=200,
         help_text='Nome/descricao da deficiencia'
     )
+
     tipo = models.CharField(
         max_length=20,
         choices=TipoDeficiencia.choices,
         default=TipoDeficiencia.OUTRA,
         help_text='Tipo de deficiencia'
     )
+
     cid = models.CharField(
         max_length=10,
         blank=True,
         null=True,
         help_text='Codigo CID (Classificacao Internacional de Doencas)'
     )
+
     grau = models.CharField(
         max_length=50,
+        choices=GrauDeficiencia.choices,
         blank=True,
         null=True,
         help_text='Grau da deficiencia (leve, moderado, grave, etc.)'
@@ -50,6 +52,7 @@ class Deficiencia(SoftDeleteModel):
         default=False,
         help_text='Indica se a deficiencia e congenita (de nascenca)'
     )
+
     observacoes = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -70,18 +73,15 @@ class Deficiencia(SoftDeleteModel):
     def save(self, *args, **kwargs):
         self.full_clean()
         result = super().save(*args, **kwargs)
-        # Atualiza flag possui_deficiencia da pessoa fisica
         self._atualizar_flag_pessoa()
         return result
 
     def delete(self, user=None):
         result = super().delete(user=user)
-        # Atualiza flag possui_deficiencia da pessoa fisica
         self._atualizar_flag_pessoa()
         return result
 
     def _atualizar_flag_pessoa(self):
-        """Atualiza o campo possui_deficiencia da pessoa fisica."""
         from .pessoa_fisica import PessoaFisica
         tem_deficiencia = Deficiencia.objects.filter(
             pessoa_fisica=self.pessoa_fisica,

@@ -15,6 +15,5 @@ from .documento import * # Contém documento_list_por_entidade
 from .anexo import *     # Contém anexo_list_por_entidade
 from .deficiencia import *
 from .filial import *
-from .contrato import *
 from .projeto import *
 from .exame import *

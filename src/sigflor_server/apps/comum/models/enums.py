@@ -16,6 +16,12 @@ class TipoDeficiencia(models.TextChoices):
     REABILITADO = 'reabilitado', 'Reabilitado'
     OUTRA = 'outra', 'Outra'
 
+class GrauDeficiencia(models.TextChoices):
+    LEVE = 'leve', 'Leve'
+    MODERADA = 'moderada', 'Moderada'
+    GRAVE = 'grave', 'Grave'
+    TOTAL = 'total', 'Total'
+
 class TipoDocumento(models.TextChoices):
     RG = 'RG', 'RG'
     CNH = 'CNH', 'Carteira Nacional de Habilitação'

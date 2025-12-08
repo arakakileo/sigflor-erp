@@ -19,12 +19,14 @@ class Cargo(SoftDeleteModel):
         unique=True,
         help_text='Nome do cargo'
     )
+    
     cbo = models.CharField(
         max_length=10,
         blank=True,
         null=True,
         help_text='Código CBO (Classificação Brasileira de Ocupações)'
     )
+
     salario_base = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -32,11 +34,13 @@ class Cargo(SoftDeleteModel):
         null=True,
         help_text='Salário base do cargo'
     )
+
     descricao = models.TextField(
         blank=True,
         null=True,
         help_text='Descrição das atribuições do cargo'
     )
+
     nivel = models.CharField(
         max_length=20,
         choices=NivelCargo.choices,
@@ -48,18 +52,22 @@ class Cargo(SoftDeleteModel):
         default=False,
         help_text='Indica exposição a riscos físicos'
     )
+
     risco_biologico = models.BooleanField(
         default=False,
         help_text='Indica exposição a riscos biológicos'
     )
+
     risco_quimico = models.BooleanField(
         default=False,
         help_text='Indica exposição a riscos químicos'
     )
+
     risco_ergonomico = models.BooleanField(
         default=False,
         help_text='Indica exposição a riscos ergonômicos'
     )
+
     risco_acidente = models.BooleanField(
         default=False,
         help_text='Indica exposição a riscos de acidente'

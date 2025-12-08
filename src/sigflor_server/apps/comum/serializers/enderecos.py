@@ -66,7 +66,6 @@ class EnderecoCreateSerializer(serializers.Serializer):
         return limpo
 
 class PessoaFisicaEnderecoSerializer(serializers.ModelSerializer):
-    """Serializer para vínculo PessoaFisica-Endereco."""
 
     endereco = EnderecoSerializer(read_only=True)
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
@@ -214,7 +213,6 @@ class FilialEnderecoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = FilialEndereco
         fields = [
-            'id',
             'endereco',
             'tipo',
             'tipo_display',
@@ -234,6 +232,7 @@ class FilialEnderecoNestedSerializer(FilialEnderecoSerializer):
 
     class Meta(FilialEnderecoSerializer.Meta):
         fields = [
+            'id',
             'endereco',
             'tipo',
             'tipo_display',

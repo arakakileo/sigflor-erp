@@ -134,18 +134,3 @@ class FilialViewSet(viewsets.ModelViewSet):
         """Retorna estatisticas de filiais."""
         stats = selectors.estatisticas_filiais()
         return Response(stats)
-
-    @action(detail=True, methods=['get'])
-    def subcontratos(self, request, pk=None):
-        """Lista subcontratos da filial."""
-        try:
-            Filial.objects.get(pk=pk, deleted_at__isnull=True)
-            subcontratos = selectors.subcontratos_por_filial(filial_id=pk)
-            from ..serializers import SubContratoListSerializer
-            serializer = SubContratoListSerializer(subcontratos, many=True)
-            return Response(serializer.data)
-        except Filial.DoesNotExist:
-            return Response(
-                {'detail': 'Filial nao encontrada.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
