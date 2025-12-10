@@ -199,7 +199,6 @@ class Funcionario(SoftDeleteModel):
     def save(self, *args, **kwargs):
         if not self.matricula:
             self.matricula = self._gerar_matricula()
-        # Se salário não informado, assume o salário base do cargo
         if self.salario_nominal is None and self.cargo and self.cargo.salario_base:
             self.salario_nominal = self.cargo.salario_base
         self.full_clean()
@@ -207,7 +206,7 @@ class Funcionario(SoftDeleteModel):
 
     def _gerar_matricula(self):
         ano = timezone.now().year
-        ultimo = Funcionario.all_objects.filter(
+        ultimo = Funcionario.objects.filter(
             matricula__startswith=str(ano)
         ).order_by('-matricula').first()
 

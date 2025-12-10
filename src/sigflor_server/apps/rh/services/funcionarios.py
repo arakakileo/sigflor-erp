@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
-from apps.comum.models import PessoaFisica
+from apps.autenticacao.models import Usuario
 from apps.comum.services import PessoaFisicaService
 from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe
 from .cargo_documento import CargoDocumentoService
@@ -15,11 +15,10 @@ class FuncionarioService:
 
     @staticmethod
     @transaction.atomic
-    def admitir_funcionario(
+    def create(
         *,
-        pessoa_fisica_data: dict,
-        funcionario_data: dict,
-        created_by=None,
+        user:Usuario=None,
+        validated_data:dict,
     ) -> Funcionario:
         """
         Realiza a admissão de um novo funcionário.
@@ -43,45 +42,23 @@ class FuncionarioService:
             ValidationError: Se dados inválidos ou funcionário já existe
         """
         # 1. Gerenciamento de PessoaFisica
-        cpf = pessoa_fisica_data.get('cpf')
-        if cpf:
-            # Tenta buscar pessoa física existente pelo CPF
-            pessoa_fisica = PessoaFisica.objects.filter(
-                cpf=cpf.replace('.', '').replace('-', ''),
-                deleted_at__isnull=True
-            ).first()
-
-            if pessoa_fisica:
-                # Verifica se já existe funcionário para esta pessoa
-                if Funcionario.objects.filter(
-                    pessoa_fisica=pessoa_fisica,
-                    deleted_at__isnull=True
-                ).exists():
-                    raise ValidationError(
-                        'Já existe um funcionário cadastrado para esta pessoa física.'
-                    )
-            else:
-                # Cria nova pessoa física
-                pessoa_fisica = PessoaFisicaService.create(
-                    created_by=created_by,
-                    **pessoa_fisica_data
-                )
-        else:
-            # Cria nova pessoa física sem CPF prévio
-            pessoa_fisica = PessoaFisicaService.create(
-                created_by=created_by,
-                **pessoa_fisica_data
-            )
+        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
+        cpf = pessoa_fisica_data.pop('cpf')
+        pessoa_fisica, _ = PessoaFisicaService.get_or_create_by_cpf(
+            cpf=cpf,
+            created_by=user,
+            **pessoa_fisica_data
+        )
 
         # 2. Validação e Definição do Salário
-        cargo = funcionario_data.get('cargo')
-        salario_nominal = funcionario_data.get('salario_nominal')
+        cargo = validated_data.get('cargo')
+        salario_nominal = validated_data.get('salario_nominal')
 
         if cargo:
             if salario_nominal is None:
                 # Se não informado, assume o salário base do cargo
                 if cargo.salario_base:
-                    funcionario_data['salario_nominal'] = cargo.salario_base
+                    validated_data['salario_nominal'] = cargo.salario_base
                 else:
                     raise ValidationError(
                         'Salário nominal é obrigatório quando o cargo não possui salário base definido.'
@@ -95,14 +72,14 @@ class FuncionarioService:
                     )
 
         # 3. Extrai projeto para alocação posterior
-        projeto = funcionario_data.get('projeto')
-        data_admissao = funcionario_data.get('data_admissao', timezone.now().date())
+        projeto = validated_data.get('projeto')
+        data_admissao = validated_data.get('data_admissao', timezone.now().date())
 
         # 4. Criação do Funcionário (matrícula será gerada no save())
         funcionario = Funcionario(
             pessoa_fisica=pessoa_fisica,
-            created_by=created_by,
-            **funcionario_data
+            created_by=user,
+            **validated_data
         )
         funcionario.save()
 
@@ -128,7 +105,7 @@ class FuncionarioService:
                 projeto=projeto,
                 data_inicio=data_admissao,
                 observacoes='Alocação inicial na admissão',
-                created_by=created_by
+                created_by=user
             )
 
         return funcionario

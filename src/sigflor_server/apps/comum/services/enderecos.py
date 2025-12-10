@@ -10,7 +10,6 @@ from ..models import (
 
 
 class EnderecoService:
-    """Service layer para operações com Endereço."""
 
     @staticmethod
     @transaction.atomic
@@ -43,7 +42,7 @@ class EnderecoService:
 
     @staticmethod
     @transaction.atomic
-    def add_endereco_to_pessoa_fisica(
+    def criar_endereco_pessoa_fisica(
         *,
         pessoa_fisica: PessoaFisica,
         logradouro: str,

@@ -27,10 +27,10 @@ class PessoaFisicaService:
         naturalidade: Optional[str] = None,
         observacoes: Optional[str] = None,
         created_by=None,
-        enderecos: List[dict] = [],
-        contatos: List[dict] = [],
-        documentos: List[dict] = [],
-        anexos: List[dict] = [],
+        enderecos_vinculados: List[dict] = [],
+        contatos_vinculados: List[dict] = [],
+        documentos_vinculados: List[dict] = [],
+        anexos_vinculados: List[dict] = [],
     ) -> PessoaFisica:
         """Cria uma nova Pessoa Física e suas entidades relacionadas."""
         pessoa = PessoaFisica(
@@ -48,20 +48,20 @@ class PessoaFisicaService:
         )
         pessoa.save()
 
-        if enderecos:
-            for end_data in enderecos:
-                EnderecoService.create(entidade=pessoa, created_by=created_by, **end_data)
+        if enderecos_vinculados:
+            for end_data in enderecos_vinculados:
+                EnderecoService.criar_endereco_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **end_data)
         
-        if contatos:
-            for ctt_data in contatos:
-                ContatoService.create(entidade=pessoa, created_by=created_by, **ctt_data)
+        if contatos_vinculados:
+            for ctt_data in contatos_vinculados:
+                ContatoService.add_contato_to_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **ctt_data)
 
-        if documentos:
-            for doc_data in documentos:
-                DocumentoService.create(entidade=pessoa, created_by=created_by, **doc_data)
+        if documentos_vinculados:
+            for doc_data in documentos_vinculados:
+                DocumentoService.add_documento_to_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **doc_data)
 
-        if anexos:
-            for anx_data in anexos:
+        if anexos_vinculados:
+            for anx_data in anexos_vinculados:
                 AnexoService.create(entidade=pessoa, created_by=created_by, **anx_data)
 
         return pessoa
@@ -148,10 +148,9 @@ class PessoaFisicaService:
 
     @staticmethod
     def get_or_create_by_cpf(cpf: str, **defaults) -> tuple[PessoaFisica, bool]:
-        """Busca ou cria Pessoa Física por CPF."""
         cpf_limpo = ''.join(filter(str.isdigit, cpf))
         pessoa = PessoaFisicaService.get_by_cpf(cpf_limpo)
         if pessoa:
-            # return pessoa, False
-            raise ValidationError({'cpf': "Esta Pessoa Física já está cadastrada no sistema."})
+            return pessoa, False
+            # raise ValidationError({'cpf': "Esta Pessoa Física já está cadastrada no sistema."})
         return PessoaFisicaService.create(cpf=cpf_limpo, **defaults), True

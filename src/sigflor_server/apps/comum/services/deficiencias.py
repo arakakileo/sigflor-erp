@@ -6,7 +6,6 @@ from ..models import Deficiencia, PessoaFisica
 
 
 class DeficienciaService:
-    """Service layer para operacoes com Deficiencia."""
 
     @staticmethod
     @transaction.atomic
@@ -39,8 +38,6 @@ class DeficienciaService:
     @staticmethod
     @transaction.atomic
     def update(deficiencia: Deficiencia, updated_by=None, **kwargs) -> Deficiencia:
-        """Atualiza uma Deficiencia existente."""
-        # Nao permite alterar pessoa_fisica
         kwargs.pop('pessoa_fisica', None)
         kwargs.pop('pessoa_fisica_id', None)
 
@@ -54,12 +51,10 @@ class DeficienciaService:
     @staticmethod
     @transaction.atomic
     def delete(deficiencia: Deficiencia, user=None) -> None:
-        """Soft delete de uma Deficiencia."""
         deficiencia.delete(user=user)
 
     @staticmethod
     def get_deficiencias_por_pessoa(pessoa_fisica: PessoaFisica) -> list:
-        """Retorna todas as deficiencias de uma pessoa fisica."""
         return list(Deficiencia.objects.filter(
             pessoa_fisica=pessoa_fisica,
             deleted_at__isnull=True
@@ -67,7 +62,6 @@ class DeficienciaService:
 
     @staticmethod
     def get_deficiencias_por_tipo(tipo: str) -> list:
-        """Retorna deficiencias de um tipo especifico."""
         return list(Deficiencia.objects.filter(
             tipo=tipo,
             deleted_at__isnull=True
@@ -75,7 +69,6 @@ class DeficienciaService:
 
     @staticmethod
     def get_deficiencias_por_cid(cid: str) -> list:
-        """Retorna deficiencias por codigo CID."""
         return list(Deficiencia.objects.filter(
             cid__icontains=cid,
             deleted_at__isnull=True

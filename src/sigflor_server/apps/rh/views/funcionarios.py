@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.exceptions import ValidationError as DjangoValidationError
+
 
 from ..models import Funcionario
 from ..serializers import (
@@ -72,15 +73,13 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            print(serializer.validated_data)
-            # funcionario = FuncionarioService.create(
-            #     validated_data=serializer.validated_data,
-            #     created_by=request.user if request.user.is_authenticated else None
-            # )
-            # output_serializer = FuncionarioSerializer(funcionario)
+            funcionario = FuncionarioService.create(
+                user=request.user,
+                validated_data=serializer.validated_data,
+            )
+            output_serializer = FuncionarioSerializer(funcionario)
         except DjangoValidationError as e:
             raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
-        output_serializer = CargoSerializer(cargo)
         return Response('output_serializer.data', status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
