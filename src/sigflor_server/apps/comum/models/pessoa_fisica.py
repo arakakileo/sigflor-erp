@@ -2,11 +2,10 @@
 import uuid
 from django.db import models
 from django.db.models import Q
-from django.contrib.contenttypes.fields import GenericRelation
 
 from .base import SoftDeleteModel
 from ..validators import validar_cpf
-from .enums import Sexo, EstadoCivil
+from .enums import Sexo, EstadoCivil, UF
 
 
 class PessoaFisica(SoftDeleteModel):
@@ -39,9 +38,13 @@ class PessoaFisica(SoftDeleteModel):
         null=True
     )
     nacionalidade = models.CharField(max_length=100, blank=True, null=True, default='Brasileira')
-    naturalidade = models.CharField(max_length=100, blank=True, null=True)
+    naturalidade = models.CharField(
+        max_length=100,
+        choices=UF.choices,
+        blank=True, 
+        null=True
+        )
 
-    # Deficiencia
     possui_deficiencia = models.BooleanField(
         default=False,
         help_text='Indica se a pessoa possui alguma deficiencia'
@@ -49,28 +52,27 @@ class PessoaFisica(SoftDeleteModel):
 
     observacoes = models.TextField(blank=True, null=True)
 
-    # Relações com Enderecos e Documentos via tabelas de vínculo explícitas
+
     enderecos = models.ManyToManyField(
         'comum.Endereco',
         through='comum.PessoaFisicaEndereco',
         related_name='pessoas_fisicas',
         help_text='Endereços da pessoa física'
     )
-    # Relação com Contatos via tabela de vínculo explícita
+
     contatos = models.ManyToManyField(
         'comum.Contato',
         through='comum.PessoaFisicaContato',
         related_name='pessoas_fisicas',
         help_text='Contatos da pessoa física'
     )
-    # Relação com Documentos via tabela de vínculo explícita
+
     documentos = models.ManyToManyField(
         'comum.Documento',
         through='comum.PessoaFisicaDocumento',
         related_name='pessoas_fisicas',
         help_text='Documentos da pessoa física'
     )
-    # anexos = GenericRelation(
 
     class Meta:
         db_table = 'pessoa_fisica'

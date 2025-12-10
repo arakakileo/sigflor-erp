@@ -2,8 +2,8 @@ from rest_framework import serializers
 from django.core.exceptions import ValidationError as DjangoValidationError
 from apps.comum.validators import validar_cpf
 
-from ..models import PessoaFisica, PessoaFisicaEndereco, PessoaFisicaContato, PessoaFisicaDocumento
-from ..models.enums import Sexo, EstadoCivil
+from ..models import PessoaFisica
+from ..models.enums import Sexo, EstadoCivil, UF
 from .enderecos import PessoaFisicaEnderecoNestedSerializer, PessoaFisicaEnderecoListSerializer
 from .contatos import PessoaFisicaContatoNestedSerializer, PessoaFisicaContatoListSerializer
 from .documentos import PessoaFisicaDocumentoNestedSerializer, PessoaFisicaDocumentoListSerializer
@@ -26,9 +26,6 @@ class PessoaFisicaSerializer(serializers.ModelSerializer):
             fields = '__all__' # (Resumido para brevidade, mantenha seus campos)
 
 class PessoaFisicaCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer para criação de Pessoa Física com dados aninhados (POST/PUT).
-    """
 
     enderecos = PessoaFisicaEnderecoNestedSerializer(
         many=True, required=False, allow_empty=True, source='enderecos_vinculados'
@@ -53,8 +50,20 @@ class PessoaFisicaCreateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'cpf': {
                 'max_length': 14,
-                'validators': [] # Desativa validação automática na entrada bruta
-            }
+                'validators': []
+            },
+            'sexo': {
+                'required': False,
+                'choices': Sexo.choices,
+            },
+            'estado_civil': {
+                'required': False,
+                'choices': EstadoCivil.choices,
+            },
+            'naturalidade': {
+                'required': False,
+                'choices': UF.choices,
+            },
         }
 
     def validate_cpf(self, value):
@@ -67,85 +76,3 @@ class PessoaFisicaCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(e.messages)
 
         return cleaned_value
-
-    def create(self, validated_data):
-        enderecos_data = validated_data.pop('enderecos_vinculados', [])
-        contatos_data = validated_data.pop('contatos_vinculados', [])
-        documentos_data = validated_data.pop('documentos_vinculados', [])
-        anexos_data = validated_data.pop('anexos_vinculados', []) # Manter para GFK se necessário
-
-        pessoa_fisica = PessoaFisica.objects.create(**validated_data)
-
-        # Criar endereços vinculados
-        from ..models import Endereco # Importação local para evitar circular
-        for endereco_data in enderecos_data:
-            endereco_id = endereco_data.pop('endereco_id', None)
-            if endereco_id:
-                # Vínculo a um endereço existente
-                endereco = Endereco.objects.get(id=endereco_id)
-            else:
-                # Criação de um novo endereço
-                endereco = Endereco.objects.create(
-                    logradouro=endereco_data.pop('logradouro'),
-                    numero=endereco_data.pop('numero', None),
-                    complemento=endereco_data.pop('complemento', None),
-                    bairro=endereco_data.pop('bairro', None),
-                    cidade=endereco_data.pop('cidade'),
-                    estado=endereco_data.pop('estado'),
-                    cep=endereco_data.pop('cep'),
-                    pais=endereco_data.pop('pais', 'Brasil')
-                )
-            PessoaFisicaEndereco.objects.create(pessoa_fisica=pessoa_fisica, endereco=endereco, **endereco_data)
-
-        # Criar contatos vinculados
-        from ..models import Contato # Importação local
-        for contato_data in contatos_data:
-            contato_id = contato_data.pop('contato_id', None)
-            if contato_id:
-                # Vínculo a um contato existente
-                contato = Contato.objects.get(id=contato_id)
-            else:
-                # Criação de um novo contato
-                contato = Contato.objects.create(
-                    tipo=contato_data.pop('tipo'),
-                    valor=contato_data.pop('valor'),
-                    tem_whatsapp=contato_data.pop('tem_whatsapp', False)
-                )
-            PessoaFisicaContato.objects.create(pessoa_fisica=pessoa_fisica, contato=contato, **contato_data)
-
-        # Criar documentos vinculados
-        from ..models import Documento # Importação local
-        for documento_data in documentos_data:
-            documento_id = documento_data.pop('documento_id', None)
-            if documento_id:
-                # Vínculo a um documento existente
-                documento = Documento.objects.get(id=documento_id)
-            else:
-                # Criação de um novo documento
-                documento = Documento.objects.create(
-                    tipo=documento_data.pop('tipo'),
-                    descricao=documento_data.pop('descricao', None),
-                    data_emissao=documento_data.pop('data_emissao', None),
-                    data_validade=documento_data.pop('data_validade', None),
-                )
-            PessoaFisicaDocumento.objects.create(pessoa_fisica=pessoa_fisica, documento=documento, **documento_data)
-
-        # Para anexos, a lógica de GFK deve ser mantida, se houver.
-        # Este é um exemplo simplificado, a implementação real pode exigir FileField ou ImageField.
-        from ..models import Anexo
-        for anexo_data in anexos_data:
-            Anexo.objects.create(object_id=pessoa_fisica.id, content_type_name='pessoafisica', **anexo_data)
-
-        return pessoa_fisica
-
-    def update(self, instance, validated_data):
-        # Implementar a lógica de atualização para os campos aninhados
-        # Esta parte é mais complexa e envolveria identificar quais itens foram adicionados/removidos/modificados
-        # Para o escopo atual, focaremos principalmente na criação.
-
-        # Exemplo básico para campos diretos da PessoaFisica
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        return instance

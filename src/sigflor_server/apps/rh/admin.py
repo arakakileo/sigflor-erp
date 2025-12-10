@@ -129,7 +129,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'cargo',
         'tem_dependente',
         'tipo_contrato',
-        'turno',
         'empresa',
         'projeto',
         'created_at',
@@ -156,7 +155,7 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'updated_at',
         'deleted_at',
     ]
-    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'gestor_imediato', 'projeto']
+    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'projeto']
     ordering = ['pessoa_fisica__nome_completo']
     inlines = [DependenteInline, AlocacaoInline] # Adicionado inlines
 
@@ -173,7 +172,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
                 'data_admissao',
                 'data_demissao',
                 'salario_nominal',
-                'turno',
             )
         }),
         ('Dados Físicos e Adicionais', {
@@ -193,10 +191,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         }),
         ('Documentos Trabalhistas', {
             'fields': ('ctps_numero', 'ctps_serie', 'ctps_uf', 'pis_pasep'),
-            'classes': ('collapse',)
-        }),
-        ('Hierarquia', {
-            'fields': ('gestor_imediato',),
             'classes': ('collapse',)
         }),
         ('Auditoria', {

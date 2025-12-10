@@ -61,7 +61,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, pk=None):
         try:
-            empresa = Empresa.objects.get(pk=pk, deleted_at__isnull=True)
+            empresa = selectors.empresa_detail(pk=pk)
             EmpresaService.delete(empresa, user=request.user if request.user.is_authenticated else None)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Empresa.DoesNotExist:

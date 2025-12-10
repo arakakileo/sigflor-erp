@@ -3,22 +3,25 @@ from rest_framework import serializers
 
 from apps.comum.serializers.pessoa_fisica import PessoaFisicaCreateSerializer, PessoaFisicaSerializer
 from ..models import Funcionario
-from ..models.enums import TipoContrato, StatusFuncionario, Turno, TipoConta
+from ..models.enums import (
+    TipoContrato, 
+    StatusFuncionario, 
+    TipoConta,
+    TamanhoCalca,
+    TamanhoCamisa,
+    TamanhoCalcado,
+
+)
 from apps.comum.models.enums import UF
 
 
 class FuncionarioListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listagem de funcionários."""
 
     nome = serializers.ReadOnlyField()
     cpf_formatado = serializers.ReadOnlyField()
     cargo_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
     projeto_nome = serializers.ReadOnlyField()
-    gestor_nome = serializers.CharField(
-        source='gestor_imediato.pessoa_fisica.nome_completo',
-        read_only=True
-    )
 
     class Meta:
         model = Funcionario
@@ -35,16 +38,11 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
             'projeto_nome',
             'status',
             'tipo_contrato',
-            'turno',
             'data_admissao',
-            'gestor_imediato',
-            'gestor_nome',
             'is_ativo',
         ]
 
-
 class FuncionarioSerializer(serializers.ModelSerializer):
-    """Serializer completo para detalhes do funcionário."""
 
     pessoa_fisica = PessoaFisicaSerializer(read_only=True)
     nome = serializers.ReadOnlyField()
@@ -54,11 +52,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     cargo_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
     projeto_nome = serializers.ReadOnlyField()
-    gestor_nome = serializers.CharField(
-        source='gestor_imediato.pessoa_fisica.nome_completo',
-        read_only=True
-    )
-    subordinados_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Funcionario
@@ -81,7 +74,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             'data_admissao',
             'data_demissao',
             'salario_nominal',
-            'turno',
             # Status
             'status',
             'is_ativo',
@@ -91,10 +83,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             # Dados adicionais
             'indicacao',
             'cidade_atual',
-            # Hierarquia
-            'gestor_imediato',
-            'gestor_nome',
-            'subordinados_count',
             # Dependentes
             'tem_dependente',
             # Documentação trabalhista
@@ -121,12 +109,7 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
 
-    def get_subordinados_count(self, obj):
-        return obj.subordinados.filter(deleted_at__isnull=True).count()
-
-
 class FuncionarioCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criação de funcionário usando estrutura aninhada."""
 
     pessoa_fisica = PessoaFisicaCreateSerializer(required=True)
 
@@ -140,15 +123,12 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
             'tipo_contrato',
             'data_admissao',
             'salario_nominal',
-            'turno',
             # Dados físicos
             'peso_corporal',
             'altura',
             # Dados adicionais
             'indicacao',
             'cidade_atual',
-            # Hierarquia
-            'gestor_imediato',
             # Documentação trabalhista
             'ctps_numero',
             'ctps_serie',
@@ -168,25 +148,14 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'salario_nominal': {'required': False},
             'tipo_contrato': {'choices': TipoContrato.choices},
-            'turno': {'choices': Turno.choices},
             'ctps_uf': {'choices': UF.choices},
             'tipo_conta': {'choices': TipoConta.choices},
+            'tamanho_camisa': {'choices': TamanhoCamisa.choices},
+            'tamanho_calca': {'choices': TamanhoCalca.choices},
+            'tamanho_calcado': {'choices': TamanhoCalcado.choices},
         }
 
-    def create(self, validated_data):
-        from apps.rh.services import FuncionarioService
-
-        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
-
-        return FuncionarioService.admitir_funcionario(
-            pessoa_fisica_data=pessoa_fisica_data,
-            funcionario_data=validated_data,
-            created_by=self.context.get('request').user if self.context.get('request') else None,
-        )
-
-
 class FuncionarioUpdateSerializer(serializers.ModelSerializer):
-    """Serializer para atualização de funcionário."""
 
     class Meta:
         model = Funcionario
@@ -194,15 +163,12 @@ class FuncionarioUpdateSerializer(serializers.ModelSerializer):
             'cargo',
             'projeto',
             'salario_nominal',
-            'turno',
             # Dados físicos
             'peso_corporal',
             'altura',
             # Dados adicionais
             'indicacao',
             'cidade_atual',
-            # Hierarquia
-            'gestor_imediato',
             # Documentação trabalhista
             'ctps_numero',
             'ctps_serie',
@@ -222,16 +188,9 @@ class FuncionarioUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'tipo_contrato': {'choices': TipoContrato.choices, 'required': False},
             'status': {'choices': StatusFuncionario.choices, 'required': False},
-            'turno': {'choices': Turno.choices, 'required': False},
             'ctps_uf': {'choices': UF.choices, 'required': False},
             'tipo_conta': {'choices': TipoConta.choices, 'required': False},
+            'tamanho_camisa': {'choices': TamanhoCamisa.choices, 'required': False},
+            'tamanho_calca': {'choices': TamanhoCalca.choices, 'required': False},
+            'tamanho_calcado': {'choices': TamanhoCalcado.choices, 'required': False},
         }
-
-    def update(self, instance, validated_data):
-        from apps.rh.services import FuncionarioService
-
-        return FuncionarioService.update(
-            funcionario=instance,
-            updated_by=self.context.get('request').user if self.context.get('request') else None,
-            **validated_data
-        )

@@ -3,7 +3,7 @@ import uuid
 from django.db import models
 
 from apps.comum.models.base import SoftDeleteModel
-from .enums import NivelCargo
+from .enums import NivelCargo, RiscoPadrao
 
 
 class Cargo(SoftDeleteModel):
@@ -47,30 +47,34 @@ class Cargo(SoftDeleteModel):
         help_text='Nível hierárquico do cargo'
     )
 
-    # Indicadores de risco ocupacional
-    risco_fisico = models.BooleanField(
-        default=False,
-        help_text='Indica exposição a riscos físicos'
+    risco_fisico = models.CharField(
+        max_length=255,
+        default=RiscoPadrao.FISICO,
+        help_text='Descrição do risco físico ou indicação de ausência.'
     )
 
-    risco_biologico = models.BooleanField(
-        default=False,
-        help_text='Indica exposição a riscos biológicos'
+    risco_biologico = models.CharField(
+        max_length=255,
+        default=RiscoPadrao.BIOLOGICO,
+        help_text='Descrição do risco biológico ou indicação de ausência.'
     )
 
-    risco_quimico = models.BooleanField(
-        default=False,
-        help_text='Indica exposição a riscos químicos'
+    risco_quimico = models.CharField(
+        max_length=255,
+        default=RiscoPadrao.QUIMICO,
+        help_text='Descrição do risco químico ou indicação de ausência.'
     )
 
-    risco_ergonomico = models.BooleanField(
-        default=False,
-        help_text='Indica exposição a riscos ergonômicos'
+    risco_ergonomico = models.CharField(
+        max_length=255,
+        default=RiscoPadrao.ERGONOMICO,
+        help_text='Descrição do risco ergonômico ou indicação de ausência.'
     )
 
-    risco_acidente = models.BooleanField(
-        default=False,
-        help_text='Indica exposição a riscos de acidente'
+    risco_acidente = models.CharField(
+        max_length=255,
+        default=RiscoPadrao.ACIDENTE,
+        help_text='Descrição do risco de acidente ou indicação de ausência.'
     )
 
     ativo = models.BooleanField(
@@ -103,11 +107,10 @@ class Cargo(SoftDeleteModel):
 
     @property
     def tem_risco(self):
-        """Indica se o cargo possui algum tipo de risco."""
         return any([
-            self.risco_fisico,
-            self.risco_biologico,
-            self.risco_quimico,
-            self.risco_ergonomico,
-            self.risco_acidente
+            self.risco_fisico != RiscoPadrao.FISICO,
+            self.risco_biologico != RiscoPadrao.BIOLOGICO,
+            self.risco_quimico != RiscoPadrao.QUIMICO,
+            self.risco_ergonomico != RiscoPadrao.ERGONOMICO,
+            self.risco_acidente != RiscoPadrao.ACIDENTE
         ])

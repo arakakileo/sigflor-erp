@@ -10,10 +10,7 @@ from apps.comum import selectors as projeto_selectors # Importa o seletor
 
 
 class ProjetoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerenciar Projetos (Centros de Custo).
-    Permite operações CRUD e inclui filtros, busca e ordenação.
-    """
+
     queryset = Projeto.objects.filter(deleted_at__isnull=True)
     # permission_classes = [] # Será definido pelo get_permissions
     # filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

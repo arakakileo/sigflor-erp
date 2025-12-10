@@ -73,7 +73,6 @@ class CargoDocumentoService:
     @staticmethod
     @transaction.atomic
     def delete(cargo_documento: CargoDocumento, user=None) -> None:
-        """Soft delete de uma configuração de documento."""
         cargo_documento.delete(user=user)
 
     @staticmethod

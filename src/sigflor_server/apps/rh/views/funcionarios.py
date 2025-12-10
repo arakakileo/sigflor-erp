@@ -2,6 +2,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from ..models import Funcionario
 from ..serializers import (
@@ -14,10 +15,6 @@ from .. import selectors
 
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
-    """ViewSet para Funcionario."""
-
-    queryset = Funcionario.objects.filter(deleted_at__isnull=True)
-    serializer_class = FuncionarioSerializer
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -31,7 +28,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         status_filter = self.request.query_params.get('status')
         tipo_contrato = self.request.query_params.get('tipo_contrato')
         empresa_id = self.request.query_params.get('empresa_id')
-        gestor_id = self.request.query_params.get('gestor_id')
         cargo_id = self.request.query_params.get('cargo_id')
         projeto_id = self.request.query_params.get('projeto_id')
         apenas_ativos = self.request.query_params.get('apenas_ativos', '').lower() == 'true'
@@ -42,7 +38,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
             status=status_filter,
             tipo_contrato=tipo_contrato,
             empresa_id=empresa_id,
-            gestor_id=gestor_id,
             cargo_id=cargo_id,
             projeto_id=projeto_id,
             apenas_ativos=apenas_ativos
@@ -73,9 +68,23 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            print(serializer.validated_data)
+            # funcionario = FuncionarioService.create(
+            #     validated_data=serializer.validated_data,
+            #     created_by=request.user if request.user.is_authenticated else None
+            # )
+            # output_serializer = FuncionarioSerializer(funcionario)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
+        output_serializer = CargoSerializer(cargo)
+        return Response('output_serializer.data', status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'])
     def demitir(self, request, pk=None):
-        """Registra demissao do funcionario."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             data_demissao = request.data.get('data_demissao')
@@ -94,7 +103,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reativar(self, request, pk=None):
-        """Reativa um funcionario demitido."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             FuncionarioService.reativar(
@@ -111,7 +119,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def afastar(self, request, pk=None):
-        """Coloca funcionario como afastado."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             motivo = request.data.get('motivo')
@@ -130,7 +137,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def ferias(self, request, pk=None):
-        """Coloca funcionario em ferias."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             FuncionarioService.registrar_ferias(
@@ -147,7 +153,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def retornar(self, request, pk=None):
-        """Retorna funcionario para atividade."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             FuncionarioService.retornar_atividade(
@@ -164,7 +169,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def alterar_cargo(self, request, pk=None):
-        """Altera cargo do funcionario."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             novo_cargo = request.data.get('cargo')
@@ -192,7 +196,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def transferir(self, request, pk=None):
-        """Transfere funcionario para outro departamento."""
         try:
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             novo_departamento = request.data.get('departamento')
@@ -218,42 +221,13 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-    @action(detail=True, methods=['get'])
-    def subordinados(self, request, pk=None):
-        """Lista subordinados diretos do funcionario."""
-        try:
-            funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
-            subordinados = FuncionarioService.get_subordinados(funcionario)
-            serializer = FuncionarioListSerializer(subordinados, many=True)
-            return Response(serializer.data)
-        except Funcionario.DoesNotExist:
-            return Response(
-                {'detail': 'Funcionario nao encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-    @action(detail=True, methods=['get'])
-    def hierarquia(self, request, pk=None):
-        """Retorna arvore hierarquica do funcionario."""
-        try:
-            funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
-            arvore = FuncionarioService.get_arvore_hierarquica(funcionario)
-            return Response(arvore)
-        except Funcionario.DoesNotExist:
-            return Response(
-                {'detail': 'Funcionario nao encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
-        """Retorna estatisticas gerais do RH."""
         stats = selectors.estatisticas_rh(user=request.user)
         return Response(stats)
 
     @action(detail=False, methods=['get'])
     def aniversariantes(self, request):
-        """Lista aniversariantes do mes."""
         mes = request.query_params.get('mes')
         if mes:
             mes = int(mes)
@@ -270,7 +244,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def afastados(self, request):
-        """Lista funcionarios afastados."""
         funcionarios = selectors.funcionarios_afastados(user=request.user)
         serializer = FuncionarioListSerializer(funcionarios, many=True)
         return Response(serializer.data)

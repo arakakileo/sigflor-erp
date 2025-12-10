@@ -85,7 +85,6 @@ class PessoaFisicaEnderecoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'endereco', 'tipo_display', 'created_at', 'updated_at']
 
 class PessoaFisicaEnderecoListSerializer(serializers.ModelSerializer):
-    """Serializer para listagem de endereços de PessoaFisica."""
 
     endereco = EnderecoSerializer(read_only=True)
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
@@ -101,23 +100,35 @@ class PessoaFisicaEnderecoListSerializer(serializers.ModelSerializer):
         ]
 
 class PessoaFisicaEnderecoNestedSerializer(PessoaFisicaEnderecoSerializer):
-    """Permite escrita do ID para atualização aninhada."""
     id = serializers.UUIDField(required=False)
-
-    # Se você envia os dados do endereço no mesmo nível (flattened),
-    # precisa declarar os campos aqui para que o DRF não os ignore na validação.
-    # Baseado no seu Service, você espera receber logradouro, etc.
-    logradouro = serializers.CharField(required=False)
+    logradouro = serializers.CharField(required=True)
     cidade = serializers.CharField(required=False)
     estado = serializers.CharField(required=False)
     cep = serializers.CharField(required=False)
+    bairro = serializers.CharField(required=False)
+    numero = serializers.CharField(required=False)
+    complemento = serializers.CharField(required=False)
+    pais = serializers.CharField(required=False)
 
     class Meta(PessoaFisicaEnderecoSerializer.Meta):
-        # Adicionamos os campos declarados explicitamente à lista de fields
-        fields = PessoaFisicaEnderecoSerializer.Meta.fields + [
-            'logradouro', 'cidade', 'estado', 'cep'
+        fields = [
+            'id',
+            'endereco',
+            'tipo',
+            'tipo_display',
+            'principal',
+            'created_at',
+            'updated_at',
+            'logradouro',
+            'cidade',
+            'estado',
+            'cep',
+            'bairro',
+            'numero',
+            'complemento',
+            'pais',
         ]
-        read_only_fields = ['created_at', 'updated_at'] # Remove 'id' e 'endereco' dos read_only
+        read_only_fields = ['created_at', 'updated_at']
 
 class PessoaJuridicaEnderecoSerializer(serializers.ModelSerializer):
     """Serializer para vínculo PessoaJuridica-Endereco."""

@@ -12,7 +12,6 @@ from .cargo_documento import CargoDocumentoService
 
 
 class FuncionarioService:
-    """Service layer para operações com Funcionario."""
 
     @staticmethod
     @transaction.atomic
@@ -303,19 +302,6 @@ class FuncionarioService:
 
     @staticmethod
     @transaction.atomic
-    def alterar_gestor(
-        funcionario: Funcionario,
-        novo_gestor: Optional[Funcionario],
-        updated_by=None
-    ) -> Funcionario:
-        """Altera o gestor imediato do funcionário."""
-        funcionario.gestor_imediato = novo_gestor
-        funcionario.updated_by = updated_by
-        funcionario.save()
-        return funcionario
-
-    @staticmethod
-    @transaction.atomic
     def alocar_em_projeto(
         *,
         funcionario: Funcionario,
@@ -360,7 +346,6 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def atualizar_flag_dependentes(funcionario: Funcionario) -> None:
-        """Atualiza flag tem_dependente baseado nos dependentes ativos."""
         from ..models import Dependente
         tem = Dependente.objects.filter(
             funcionario=funcionario,
@@ -373,40 +358,7 @@ class FuncionarioService:
             funcionario.save(update_fields=['tem_dependente', 'updated_at'])
 
     @staticmethod
-    def get_subordinados(funcionario: Funcionario) -> list:
-        """Retorna lista de subordinados diretos."""
-        return list(Funcionario.objects.filter(
-            gestor_imediato=funcionario,
-            deleted_at__isnull=True
-        ).select_related('pessoa_fisica', 'cargo'))
-
-    @staticmethod
-    def get_arvore_hierarquica(funcionario: Funcionario, nivel_max: int = 5) -> dict:
-        """Retorna árvore hierárquica do funcionário."""
-        def build_tree(func, nivel_atual=0):
-            if nivel_atual >= nivel_max:
-                return None
-
-            subordinados = Funcionario.objects.filter(
-                gestor_imediato=func,
-                deleted_at__isnull=True
-            ).select_related('pessoa_fisica', 'cargo')
-
-            return {
-                'id': str(func.id),
-                'nome': func.nome,
-                'cargo': func.cargo_nome,
-                'subordinados': [
-                    build_tree(sub, nivel_atual + 1)
-                    for sub in subordinados
-                ]
-            }
-
-        return build_tree(funcionario)
-
-    @staticmethod
     def get_historico_alocacoes(funcionario: Funcionario) -> list:
-        """Retorna histórico de alocações do funcionário."""
         return list(Alocacao.objects.filter(
             funcionario=funcionario,
             deleted_at__isnull=True

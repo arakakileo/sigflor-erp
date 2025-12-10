@@ -2,7 +2,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.core.exceptions import ValidationError
 
 from ..models import CargoDocumento, Cargo
 from ..serializers import (
@@ -16,10 +15,21 @@ from .. import selectors
 
 
 class CargoDocumentoViewSet(viewsets.ModelViewSet):
-    """ViewSet para CargoDocumento (documentos exigidos por cargo)."""
+    # permission_classes = [] # Será definido pelo get_permissions
+    # filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # filterset_fields = []
+    # search_fields = []
+    # ordering_fields = []
 
-    queryset = CargoDocumento.objects.filter(deleted_at__isnull=True)
-    serializer_class = CargoDocumentoSerializer
+    # def get_permissions(self):
+    #     """
+    #     Instancia e retorna a lista de permissões que esta view exige.
+    #     """
+    #     if self.action in ['list', 'retrieve']:
+    #         permission_classes = [HasPermission('rh_cargo_documento_visualizar')]
+    #     else:
+    #         permission_classes = [HasPermission('rh_cargo_documento_editar')]
+    #     return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -34,20 +44,15 @@ class CargoDocumentoViewSet(viewsets.ModelViewSet):
         cargo_id = self.request.query_params.get('cargo')
         obrigatorio = self.request.query_params.get('obrigatorio')
 
-        qs = CargoDocumento.objects.filter(deleted_at__isnull=True)
-
-        if cargo_id:
-            qs = qs.filter(cargo_id=cargo_id)
-        if obrigatorio is not None:
-            qs = qs.filter(obrigatorio=obrigatorio.lower() == 'true')
-
-        return qs.select_related('cargo').order_by('cargo__nome', '-obrigatorio', 'tipo_documento')
+        return selectors.cargo_documento_list(
+            user=self.request.user,
+            cargo_id=cargo_id,
+            apenas_obrigatorios=(obrigatorio.lower() == 'true') if obrigatorio else False
+        )
 
     def retrieve(self, request, pk=None):
         try:
-            cargo_doc = CargoDocumento.objects.select_related('cargo').get(
-                pk=pk, deleted_at__isnull=True
-            )
+            cargo_doc = selectors.cargo_documento_detail(user=request.user, pk=pk)
             serializer = self.get_serializer(cargo_doc)
             return Response(serializer.data)
         except CargoDocumento.DoesNotExist:
@@ -58,10 +63,10 @@ class CargoDocumentoViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, pk=None):
         try:
-            cargo_doc = CargoDocumento.objects.get(pk=pk, deleted_at__isnull=True)
+            cargo_doc = selectors.cargo_documento_detail(user=request.user, pk=pk)
             CargoDocumentoService.delete(
-                cargo_doc,
-                user=request.user if request.user.is_authenticated else None
+                cargo_documento = cargo_doc, 
+                user=request.user
             )
             return Response(status=status.HTTP_204_NO_CONTENT)
         except CargoDocumento.DoesNotExist:

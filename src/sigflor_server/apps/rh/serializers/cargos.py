@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import Cargo
 from ..models.enums import NivelCargo
+from .cargo_documento import CargoDocumentoNestedSerializer
 
 
 class CargoListSerializer(serializers.ModelSerializer):
@@ -60,38 +61,50 @@ class CargoSerializer(serializers.ModelSerializer):
 
 class CargoCreateSerializer(serializers.ModelSerializer):
 
+    documentos_exigidos = CargoDocumentoNestedSerializer(many=True)
+
     class Meta:
         model = Cargo
         fields = [
             'nome',
-            'salario_base',
-            'cbo',
-            'descricao',
+            'salario_base', 
+            'cbo', 
+            'descricao', 
             'nivel',
-            # Riscos ocupacionais
-            'risco_fisico',
-            'risco_biologico',
-            'risco_quimico',
-            'risco_ergonomico',
+            'documentos_exigidos',
+            'risco_fisico', 
+            'risco_biologico', 
+            'risco_quimico', 
+            'risco_ergonomico', 
             'risco_acidente',
-            # Status
             'ativo',
         ]
+        
         extra_kwargs = {
             'nivel': {'required': True, 'choices': NivelCargo.choices},
+            'risco_fisico': {'required': False},
+            'risco_biologico': {'required': False},
+            'risco_quimico': {'required': False},
+            'risco_ergonomico': {'required': False},
+            'risco_acidente': {'required': False},
         }
+    
+    def validate_documentos_exigidos(self, value):
 
-    def create(self, validated_data):
-        """Cria cargo usando o service."""
-        from ..services import CargoService
+        tipos_vistos = set()
+        for item in value:
+            tipo = item['documento_tipo']
+            
+            if tipo in tipos_vistos:
+                raise serializers.ValidationError(
+                    f"O documento '{tipo}' foi informado mais de uma vez para este cargo."
+                )
+            
+            tipos_vistos.add(tipo)
 
-        return CargoService.create(
-            created_by=self.context.get('request').user if self.context.get('request') else None,
-            **validated_data
-        )
+        return value
 
 class CargoUpdateSerializer(serializers.ModelSerializer):
-    """Serializer para atualização de Cargo."""
 
     class Meta:
         model = Cargo
@@ -101,25 +114,13 @@ class CargoUpdateSerializer(serializers.ModelSerializer):
             'cbo',
             'descricao',
             'nivel',
-            # Riscos ocupacionais
             'risco_fisico',
             'risco_biologico',
             'risco_quimico',
             'risco_ergonomico',
             'risco_acidente',
-            # Status
             'ativo',
         ]
         extra_kwargs = {
             'nivel': {'required': False, 'choices': NivelCargo.choices},
         }
-
-    def update(self, instance, validated_data):
-        """Atualiza cargo usando o service."""
-        from ..services import CargoService
-
-        return CargoService.update(
-            cargo=instance,
-            updated_by=self.context.get('request').user if self.context.get('request') else None,
-            **validated_data
-        )

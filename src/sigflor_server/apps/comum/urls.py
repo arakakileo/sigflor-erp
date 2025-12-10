@@ -12,6 +12,7 @@ from .views import (
     FilialViewSet,
     ProjetoViewSet,
     ExameViewSet,
+    EnumsView
 )
 
 router = DefaultRouter()
@@ -24,6 +25,7 @@ router.register(r'clientes', ClienteViewSet, basename='cliente')
 router.register(r'filiais', FilialViewSet, basename='filial')
 router.register(r'projetos', ProjetoViewSet, basename='projeto')
 
+
 # Entidades genericas (polimorficas)
 # router.register(r'enderecos', EnderecoViewSet, basename='endereco')
 # router.register(r'contatos', ContatoViewSet, basename='contato')
@@ -34,4 +36,5 @@ router.register(r'projetos', ProjetoViewSet, basename='projeto')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path("enums/", EnumsView.as_view(), name="enums")
 ]

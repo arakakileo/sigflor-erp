@@ -8,6 +8,7 @@ from .deficiencias import DeficienciaViewSet
 from .filiais import FilialViewSet
 from .projeto import ProjetoViewSet
 from .exame import ExameViewSet
+from .enums import EnumsView
 
 __all__ = [
     'EmpresaViewSet',
@@ -20,4 +21,5 @@ __all__ = [
     'FilialViewSet',
     'ProjetoViewSet',
     'ExameViewSet',
+    'EnumsView',
 ]

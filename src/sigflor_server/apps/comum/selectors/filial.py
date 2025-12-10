@@ -39,7 +39,6 @@ def filial_list(
 
 
 def filial_detail(*, user: Usuario, pk) -> Filial:
-    """Obtem detalhes de uma filial com relacionamentos, verificando permissao regional."""
     filial = Filial.objects.select_related(
         'empresa', 'empresa__pessoa_juridica'
     ).prefetch_related(

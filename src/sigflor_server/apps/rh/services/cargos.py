@@ -4,11 +4,10 @@ from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-from ..models import Cargo
+from ..models import Cargo, RiscoPadrao
 
 
 class CargoService:
-    """Service layer para operações com Cargo."""
 
     @staticmethod
     @transaction.atomic
@@ -18,16 +17,17 @@ class CargoService:
         salario_base: Optional[Decimal] = None,
         cbo: Optional[str] = None,
         descricao: Optional[str] = None,
-        risco_fisico: bool = False,
-        risco_biologico: bool = False,
-        risco_quimico: bool = False,
-        risco_ergonomico: bool = False,
-        risco_acidente: bool = False,
+        risco_fisico: str = RiscoPadrao.FISICO,
+        risco_biologico: str = RiscoPadrao.BIOLOGICO,
+        risco_quimico: str = RiscoPadrao.QUIMICO,
+        risco_ergonomico: str = RiscoPadrao.ERGONOMICO,
+        risco_acidente: str = RiscoPadrao.ACIDENTE,
         ativo: bool = True,
         created_by=None,
+        documentos_exigidos: list = None, 
         **kwargs
     ) -> Cargo:
-        """Cria um novo Cargo."""
+        print({"documentos_exigidos": documentos_exigidos})
         cargo = Cargo(
             nome=nome,
             nivel=nivel,
@@ -43,12 +43,24 @@ class CargoService:
             created_by=created_by,
         )
         cargo.save()
+
+        if documentos_exigidos:
+            from .cargo_documento import CargoDocumentoService
+            
+            for doc_data in documentos_exigidos:
+                CargoDocumentoService.configurar_documento_para_cargo(
+                    cargo=cargo,
+                    documento_tipo=doc_data['documento_tipo'],
+                    obrigatorio=doc_data.get('obrigatorio', True),
+                    condicional=doc_data.get('condicional'),
+                    created_by=created_by
+                )
+
         return cargo
 
     @staticmethod
     @transaction.atomic
     def update(cargo: Cargo, updated_by=None, **kwargs) -> Cargo:
-        """Atualiza um Cargo existente."""
         for attr, value in kwargs.items():
             if hasattr(cargo, attr):
                 setattr(cargo, attr, value)
@@ -59,8 +71,6 @@ class CargoService:
     @staticmethod
     @transaction.atomic
     def delete(cargo: Cargo, user=None) -> None:
-        """Soft delete de um Cargo."""
-        # Verifica se existem funcionários vinculados
         if cargo.funcionarios.filter(deleted_at__isnull=True).exists():
             raise ValidationError(
                 'Não é possível excluir um cargo com funcionários vinculados.'
@@ -70,7 +80,6 @@ class CargoService:
     @staticmethod
     @transaction.atomic
     def ativar(cargo: Cargo, updated_by=None) -> Cargo:
-        """Ativa um cargo."""
         cargo.ativo = True
         cargo.updated_by = updated_by
         cargo.save()
@@ -79,7 +88,6 @@ class CargoService:
     @staticmethod
     @transaction.atomic
     def desativar(cargo: Cargo, updated_by=None) -> Cargo:
-        """Desativa um cargo."""
         cargo.ativo = False
         cargo.updated_by = updated_by
         cargo.save()
@@ -96,7 +104,7 @@ class CargoService:
         risco_acidente: Optional[bool] = None,
         updated_by=None
     ) -> Cargo:
-        """Atualiza os indicadores de risco do cargo."""
+
         if risco_fisico is not None:
             cargo.risco_fisico = risco_fisico
         if risco_biologico is not None:
@@ -114,7 +122,6 @@ class CargoService:
 
     @staticmethod
     def get_cargos_ativos() -> list:
-        """Retorna lista de cargos ativos."""
         return list(Cargo.objects.filter(
             ativo=True,
             deleted_at__isnull=True
@@ -122,16 +129,15 @@ class CargoService:
 
     @staticmethod
     def get_cargos_com_risco() -> list:
-        """Retorna lista de cargos com algum tipo de risco."""
-        from django.db.models import Q
         return list(Cargo.objects.filter(
-            Q(risco_fisico=True) |
-            Q(risco_biologico=True) |
-            Q(risco_quimico=True) |
-            Q(risco_ergonomico=True) |
-            Q(risco_acidente=True),
             ativo=True,
             deleted_at__isnull=True
+        ).exclude(
+            risco_fisico=RiscoPadrao.FISICO,
+            risco_biologico=RiscoPadrao.BIOLOGICO,
+            risco_quimico=RiscoPadrao.QUIMICO,
+            risco_ergonomico=RiscoPadrao.ERGONOMICO,
+            risco_acidente=RiscoPadrao.ACIDENTE
         ).order_by('nome'))
 
     @staticmethod
