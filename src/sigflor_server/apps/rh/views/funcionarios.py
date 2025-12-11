@@ -3,8 +3,10 @@ from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.parsers import JSONParser, FormParser
 
 
+from .utils import NestedMultipartParser
 from ..models import Funcionario
 from ..serializers import (
     FuncionarioSerializer,
@@ -16,6 +18,8 @@ from .. import selectors
 
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
+
+    parser_classes = (JSONParser, NestedMultipartParser, FormParser)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -44,6 +48,19 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
             apenas_ativos=apenas_ativos
         )
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            funcionario = FuncionarioService.create(
+                user=request.user,
+                validated_data=serializer.validated_data,
+            )
+            output_serializer = FuncionarioSerializer(funcionario)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+    
     def retrieve(self, request, pk=None):
         try:
             funcionario = selectors.funcionario_detail(user=request.user, pk=pk)
@@ -68,19 +85,6 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
                 {'detail': 'Funcionario nao encontrado.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            funcionario = FuncionarioService.create(
-                user=request.user,
-                validated_data=serializer.validated_data,
-            )
-            output_serializer = FuncionarioSerializer(funcionario)
-        except DjangoValidationError as e:
-            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
-        return Response('output_serializer.data', status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
     def demitir(self, request, pk=None):

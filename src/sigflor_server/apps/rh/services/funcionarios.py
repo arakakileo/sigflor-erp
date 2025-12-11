@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 
 from apps.autenticacao.models import Usuario
 from apps.comum.services import PessoaFisicaService
-from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe
+from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe, StatusFuncionario
 from .cargo_documento import CargoDocumentoService
 
 
@@ -41,7 +41,6 @@ class FuncionarioService:
         Raises:
             ValidationError: Se dados inválidos ou funcionário já existe
         """
-        # 1. Gerenciamento de PessoaFisica
         pessoa_fisica_data = validated_data.pop('pessoa_fisica')
         cpf = pessoa_fisica_data.pop('cpf')
         pessoa_fisica, _ = PessoaFisicaService.get_or_create_by_cpf(
@@ -50,13 +49,11 @@ class FuncionarioService:
             **pessoa_fisica_data
         )
 
-        # 2. Validação e Definição do Salário
         cargo = validated_data.get('cargo')
         salario_nominal = validated_data.get('salario_nominal')
 
         if cargo:
             if salario_nominal is None:
-                # Se não informado, assume o salário base do cargo
                 if cargo.salario_base:
                     validated_data['salario_nominal'] = cargo.salario_base
                 else:
@@ -64,18 +61,15 @@ class FuncionarioService:
                         'Salário nominal é obrigatório quando o cargo não possui salário base definido.'
                     )
             else:
-                # Valida que seja >= salário base do cargo
                 if cargo.salario_base and Decimal(str(salario_nominal)) < cargo.salario_base:
                     raise ValidationError(
                         f'O salário nominal ({salario_nominal}) não pode ser inferior '
                         f'ao salário base do cargo ({cargo.salario_base}).'
                     )
 
-        # 3. Extrai projeto para alocação posterior
         projeto = validated_data.get('projeto')
         data_admissao = validated_data.get('data_admissao', timezone.now().date())
 
-        # 4. Criação do Funcionário (matrícula será gerada no save())
         funcionario = Funcionario(
             pessoa_fisica=pessoa_fisica,
             created_by=user,
@@ -87,7 +81,6 @@ class FuncionarioService:
             validacao = CargoDocumentoService.validar_documentos_funcionario(funcionario)
 
             if not validacao['valido']:
-                # Formata a mensagem de erro listando o que falta
                 faltantes = [
                     f"{doc['tipo_display']} ({doc.get('condicional') or 'Obrigatório'})"
                     for doc in validacao['documentos_faltantes']
@@ -96,10 +89,8 @@ class FuncionarioService:
                 raise ValidationError({
                     'documentos': f"Documentos obrigatórios para o cargo '{funcionario.cargo.nome}' estão faltando: {', '.join(faltantes)}"
                 })
-        # ====================================================================
 
-        # 5. Cria alocação inicial se projeto informado
-        if projeto: # Certifique-se que a variável 'projeto' foi definida anteriormente no seu código original
+        if projeto:
             Alocacao.objects.create(
                 funcionario=funcionario,
                 projeto=projeto,
@@ -113,8 +104,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def update(funcionario: Funcionario, updated_by=None, **kwargs) -> Funcionario:
-        """Atualiza um funcionário existente."""
-        # Validação de salário se cargo ou salário alterado
+        
         novo_cargo = kwargs.get('cargo')
         novo_salario = kwargs.get('salario_nominal')
 
@@ -138,7 +128,6 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def delete(funcionario: Funcionario, user=None) -> None:
-        """Soft delete de um funcionário."""
         funcionario.delete(user=user)
 
     @staticmethod
@@ -161,7 +150,7 @@ class FuncionarioService:
         """
         data_demissao_final = data_demissao or timezone.now().date()
 
-        funcionario.status = Funcionario.Status.DEMITIDO
+        funcionario.status = StatusFuncionario.DEMITIDO
         funcionario.data_demissao = data_demissao_final
         funcionario.projeto = None  # Remove do projeto
         funcionario.updated_by = updated_by
@@ -210,8 +199,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def reativar(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Reativa um funcionário demitido."""
-        funcionario.status = Funcionario.Status.ATIVO
+        funcionario.status = StatusFuncionario.ATIVO
         funcionario.data_demissao = None
         funcionario.updated_by = updated_by
         funcionario.save()
@@ -224,8 +212,7 @@ class FuncionarioService:
         motivo: str = None,
         updated_by=None
     ) -> Funcionario:
-        """Coloca funcionário como afastado."""
-        funcionario.status = Funcionario.Status.AFASTADO
+        funcionario.status = StatusFuncionario.AFASTADO
         funcionario.updated_by = updated_by
         funcionario.save()
         return funcionario
@@ -233,8 +220,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def registrar_ferias(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Coloca funcionário em férias."""
-        funcionario.status = Funcionario.Status.FERIAS
+        funcionario.status = StatusFuncionario.FERIAS
         funcionario.updated_by = updated_by
         funcionario.save()
         return funcionario
@@ -242,8 +228,7 @@ class FuncionarioService:
     @staticmethod
     @transaction.atomic
     def retornar_atividade(funcionario: Funcionario, updated_by=None) -> Funcionario:
-        """Retorna funcionário para atividade normal."""
-        funcionario.status = Funcionario.Status.ATIVO
+        funcionario.status = StatusFuncionario.ATIVO
         funcionario.updated_by = updated_by
         funcionario.save()
         return funcionario
@@ -293,7 +278,6 @@ class FuncionarioService:
 
         Regra: Encerra alocação anterior se existir.
         """
-        # Encerra alocação anterior ativa
         alocacao_ativa = Alocacao.objects.filter(
             funcionario=funcionario,
             data_fim__isnull=True,
@@ -305,12 +289,10 @@ class FuncionarioService:
             alocacao_ativa.updated_by = created_by
             alocacao_ativa.save()
 
-        # Atualiza projeto no funcionário
         funcionario.projeto = projeto
         funcionario.updated_by = created_by
         funcionario.save()
 
-        # Cria nova alocação
         return Alocacao.objects.create(
             funcionario=funcionario,
             projeto=projeto,

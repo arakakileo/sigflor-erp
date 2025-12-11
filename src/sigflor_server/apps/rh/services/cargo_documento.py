@@ -7,7 +7,6 @@ from ..models import Cargo, CargoDocumento
 
 
 class CargoDocumentoService:
-    """Service layer para operações com CargoDocumento."""
 
     @staticmethod
     @transaction.atomic
@@ -61,7 +60,6 @@ class CargoDocumentoService:
         updated_by=None,
         **kwargs
     ) -> CargoDocumento:
-        """Atualiza uma configuração de documento existente."""
         for attr, value in kwargs.items():
             if hasattr(cargo_documento, attr):
                 setattr(cargo_documento, attr, value)

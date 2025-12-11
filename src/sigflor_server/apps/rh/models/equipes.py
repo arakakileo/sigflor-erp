@@ -26,7 +26,6 @@ class Equipe(SoftDeleteModel):
         help_text='Tipo de equipe (Manual ou Mecanizada)'
     )
 
-    # Uma equipe está alocada a um Projeto (Centro de Custo)
     projeto = models.ForeignKey(
         'comum.Projeto',
         on_delete=models.PROTECT,
@@ -34,7 +33,6 @@ class Equipe(SoftDeleteModel):
         help_text='Projeto ao qual a equipe está alocada'
     )
 
-    # Líder da equipe - Um funcionário só pode ser líder de uma equipe por vez
     lider = models.OneToOneField(
         'rh.Funcionario',
         on_delete=models.PROTECT,
@@ -44,7 +42,6 @@ class Equipe(SoftDeleteModel):
         help_text='Líder da equipe'
     )
 
-    # Coordenador da equipe
     coordenador = models.ForeignKey(
         'rh.Funcionario',
         on_delete=models.SET_NULL,
@@ -84,7 +81,6 @@ class Equipe(SoftDeleteModel):
 
     @property
     def membros_count(self):
-        """Retorna a quantidade de membros ativos na equipe."""
         return self.membros.filter(
             data_saida__isnull=True,
             deleted_at__isnull=True
@@ -92,17 +88,14 @@ class Equipe(SoftDeleteModel):
 
     @property
     def projeto_nome(self):
-        """Retorna o nome/descrição do projeto."""
         return self.projeto.descricao if self.projeto else None
 
     @property
     def lider_nome(self):
-        """Retorna o nome do líder."""
         return self.lider.nome if self.lider else None
 
     @property
     def coordenador_nome(self):
-        """Retorna o nome do coordenador."""
         return self.coordenador.nome if self.coordenador else None
 
 
@@ -160,5 +153,4 @@ class EquipeFuncionario(SoftDeleteModel):
 
     @property
     def is_ativo(self):
-        """Indica se o funcionário ainda está na equipe."""
         return self.data_saida is None and self.deleted_at is None

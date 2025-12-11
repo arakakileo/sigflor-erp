@@ -1,6 +1,5 @@
 from typing import Optional, List
 from django.db import transaction
-from django.core.exceptions import ValidationError
 
 from ..models import PessoaFisica, Endereco, Contato, Documento, Anexo
 from .enderecos import EnderecoService
@@ -11,7 +10,6 @@ from .utils import ServiceUtils
 
 
 class PessoaFisicaService:
-    """Service layer para operações com Pessoa Física."""
 
     @staticmethod
     @transaction.atomic
@@ -32,7 +30,6 @@ class PessoaFisicaService:
         documentos_vinculados: List[dict] = [],
         anexos_vinculados: List[dict] = [],
     ) -> PessoaFisica:
-        """Cria uma nova Pessoa Física e suas entidades relacionadas."""
         pessoa = PessoaFisica(
             nome_completo=nome_completo,
             cpf=cpf,
@@ -50,19 +47,27 @@ class PessoaFisicaService:
 
         if enderecos_vinculados:
             for end_data in enderecos_vinculados:
-                EnderecoService.criar_endereco_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **end_data)
+                EnderecoService.criar_endereco_pessoa_fisica(
+                    pessoa_fisica=pessoa, created_by=created_by, **end_data
+                    )
         
         if contatos_vinculados:
             for ctt_data in contatos_vinculados:
-                ContatoService.add_contato_to_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **ctt_data)
+                ContatoService.add_contato_to_pessoa_fisica(
+                    pessoa_fisica=pessoa, created_by=created_by, **ctt_data
+                    )
 
         if documentos_vinculados:
             for doc_data in documentos_vinculados:
-                DocumentoService.add_documento_to_pessoa_fisica(pessoa_fisica=pessoa, created_by=created_by, **doc_data)
+                DocumentoService.criar_documento_pessoa_fisica(
+                    pessoa_fisica=pessoa, created_by=created_by, **doc_data
+                    )
 
         if anexos_vinculados:
             for anx_data in anexos_vinculados:
-                AnexoService.create(entidade=pessoa, created_by=created_by, **anx_data)
+                AnexoService.create(
+                    entidade=pessoa, created_by=created_by, **anx_data
+                    )
 
         return pessoa
 

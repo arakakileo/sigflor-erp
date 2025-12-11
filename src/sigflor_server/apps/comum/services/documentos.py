@@ -1,4 +1,5 @@
-from typing import Optional, Union
+from typing import Optional
+import puremagic
 import mimetypes
 from django.db import transaction
 from django.db.models import QuerySet
@@ -10,20 +11,27 @@ from ..validators.documentos import validar_tipo_arquivo
 
 
 class DocumentoService:
-    """Service layer para operações com Documento."""
 
     @staticmethod
     def _extrair_metadados_arquivo(arquivo: UploadedFile) -> dict:
-        """Extrai metadados do arquivo enviado."""
         nome_original = arquivo.name
         tamanho = arquivo.size
+        mimetype = None
+        try:
 
-        # Tenta detectar o mimetype
-        mimetype = arquivo.content_type
-        if not mimetype or mimetype == 'application/octet-stream':
-            # Fallback para detecção por extensão
-            guessed_type, _ = mimetypes.guess_type(nome_original)
-            mimetype = guessed_type or 'application/octet-stream'
+            initial_pos = arquivo.tell() 
+            arquivo.seek(0)
+            header_bytes = arquivo.read(2048)
+            mimetypes_found = puremagic.magic_string(header_bytes)
+
+            if mimetypes_found:
+                mimetype = mimetypes_found[0].mime_type
+            arquivo.seek(initial_pos)
+
+        except Exception:
+            if arquivo.tell() != 0:
+                arquivo.seek(0)
+            mimetype = None
 
         return {
             'nome_original': nome_original,
@@ -42,10 +50,9 @@ class DocumentoService:
         data_validade=None,
         created_by=None,
     ) -> Documento:
-        """Cria um novo Documento (sem vínculo com entidade)."""
+        
         metadados = DocumentoService._extrair_metadados_arquivo(arquivo)
 
-        # Valida o tipo do arquivo
         validar_tipo_arquivo(metadados['mimetype'])
 
         documento = Documento(
@@ -62,7 +69,7 @@ class DocumentoService:
 
     @staticmethod
     @transaction.atomic
-    def add_documento_to_pessoa_fisica(
+    def criar_documento_pessoa_fisica(
         *,
         pessoa_fisica: PessoaFisica,
         tipo: str,

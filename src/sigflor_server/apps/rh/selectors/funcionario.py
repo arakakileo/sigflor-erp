@@ -87,19 +87,14 @@ def funcionario_detail(*, user: Usuario, pk) -> Funcionario:
         'pessoa_fisica__enderecos_vinculados__endereco',
         'pessoa_fisica__contatos_vinculados__contato',
         'pessoa_fisica__documentos_vinculados__documento',
-        # Anexos usa GFK, então o acesso é direto
-        'pessoa_fisica__anexos',
-        'subordinados',
-        'subordinados__pessoa_fisica',
         'dependentes',
         'dependentes__pessoa_fisica',
-        'alocacoes',            # Histórico de alocações
+        'alocacoes',
         'alocacoes__projeto',
-        'alocacoes_equipe',     # Histórico de equipes
+        'alocacoes_equipe',
         'alocacoes_equipe__equipe'
     ).get(pk=pk, deleted_at__isnull=True)
 
-    # Verificação de Permissão Regional
     if not user.is_superuser and funcionario.projeto:
         if not user.allowed_filiais.filter(id=funcionario.projeto.filial_id).exists():
             raise PermissionDenied("Usuário não tem acesso à filial deste funcionário.")

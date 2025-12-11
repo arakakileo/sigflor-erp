@@ -27,12 +27,11 @@ class Projeto(SoftDeleteModel):
         editable=False,
         help_text="Código único gerado automaticamente"
     )
-    
+
     descricao = models.TextField(
         help_text="Nome ou objeto do projeto (ex: Manutenção da Fazenda X - Bloco Y)"
     )
 
-    # FK para o Cliente (quem paga pelo serviço)
     cliente = models.ForeignKey(
         'comum.Cliente',
         on_delete=models.PROTECT,
@@ -40,8 +39,6 @@ class Projeto(SoftDeleteModel):
         help_text="Cliente para quem o serviço está sendo prestado"
     )
 
-    # FK para a Empresa (CNPJ do próprio Grupo Econômico)
-    # Preenchido automaticamente via cliente.empresa_gestora
     empresa = models.ForeignKey(
         'comum.Empresa',
         on_delete=models.PROTECT,
@@ -49,7 +46,6 @@ class Projeto(SoftDeleteModel):
         help_text="Empresa do grupo que fatura (automático)"
     )
 
-    # FK para a Filial (onde o serviço é executado)
     filial = models.ForeignKey(
         'comum.Filial',
         on_delete=models.PROTECT,
@@ -60,6 +56,7 @@ class Projeto(SoftDeleteModel):
     data_inicio = models.DateField(
         help_text="Data de início das atividades"
     )
+
     data_fim = models.DateField(
         blank=True,
         null=True,

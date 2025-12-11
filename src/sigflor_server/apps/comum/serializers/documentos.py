@@ -79,13 +79,23 @@ class PessoaFisicaDocumentoListSerializer(serializers.ModelSerializer):
 
 
 class PessoaFisicaDocumentoNestedSerializer(PessoaFisicaDocumentoSerializer):
+
     id = serializers.UUIDField(required=False)
-    # Campos do documento
-    tipo = serializers.ChoiceField(choices=TipoDocumento.choices, required=False)
+    tipo = serializers.ChoiceField(choices=TipoDocumento.choices, required=True)
+    arquivo = serializers.FileField(required=True)
     descricao = serializers.CharField(required=False)
+    data_emissao = serializers.DateField(required=False, allow_null=True)
+    data_validade = serializers.DateField(required=False, allow_null=True)
 
     class Meta(PessoaFisicaDocumentoSerializer.Meta):
-        fields = PessoaFisicaDocumentoSerializer.Meta.fields + ['tipo', 'descricao']
+        fields = [
+            "id", 
+            "tipo", 
+            "descricao", 
+            "arquivo", 
+            "data_emissao",
+            "data_validade"
+        ]
         read_only_fields = ['created_at', 'updated_at']
 
 

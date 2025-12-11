@@ -192,6 +192,18 @@ files = [
 ]
 
 [[package]]
+name = "puremagic"
+version = "1.30"
+description = "Pure python implementation of magic file detection"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "puremagic-1.30-py3-none-any.whl", hash = "sha256:5eeeb2dd86f335b9cfe8e205346612197af3500c6872dffebf26929f56e9d3c1"},
+    {file = "puremagic-1.30.tar.gz", hash = "sha256:f9ff7ac157d54e9cf3bff1addfd97233548e75e685282d84ae11e7ffee1614c9"},
+]
+
+[[package]]
 name = "pyjwt"
 version = "2.10.1"
 description = "JSON Web Token implementation in Python"
@@ -256,4 +268,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "ae171e75a8f09860b3ad02030763be19577ade3782c60e8b290c2aaa6e5ce554"
+content-hash = "929aef57223e7c9d67e90605cf406e745f9c4c7904e3d465e06167982d7a2370"

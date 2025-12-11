@@ -92,7 +92,6 @@ class CargoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):
-        """Ativa um cargo."""
         try:
             cargo = Cargo.objects.get(pk=pk, deleted_at__isnull=True)
             CargoService.ativar(
@@ -109,7 +108,6 @@ class CargoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def desativar(self, request, pk=None):
-        """Desativa um cargo."""
         try:
             cargo = Cargo.objects.get(pk=pk, deleted_at__isnull=True)
             CargoService.desativar(
@@ -126,7 +124,6 @@ class CargoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def funcionarios(self, request, pk=None):
-        """Lista funcionarios de um cargo especifico."""
         try:
             Cargo.objects.get(pk=pk, deleted_at__isnull=True)
             funcionarios = selectors.funcionarios_por_cargo(user=request.user, cargo_id=pk)
@@ -140,13 +137,11 @@ class CargoViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def ativos(self, request):
-        """Lista apenas cargos ativos."""
         cargos = selectors.cargos_ativos(user=request.user)
         serializer = CargoListSerializer(cargos, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
-        """Retorna estatisticas de cargos."""
         stats = selectors.estatisticas_cargos(user=request.user)
         return Response(stats)

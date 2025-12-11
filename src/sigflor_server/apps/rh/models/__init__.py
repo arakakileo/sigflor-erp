@@ -5,7 +5,7 @@ from .funcionarios import Funcionario
 from .dependentes import Dependente
 from .equipes import Equipe, EquipeFuncionario
 from .alocacoes import Alocacao
-from .enums import NivelCargo, RiscoPadrao
+from .enums import NivelCargo, RiscoPadrao, StatusFuncionario
 
 __all__ = [
     'Cargo',
@@ -17,4 +17,5 @@ __all__ = [
     'Alocacao',
     'RiscoPadrao',
     'NivelCargo',
+    'StatusFuncionario',
 ]
