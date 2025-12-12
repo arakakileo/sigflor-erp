@@ -9,10 +9,6 @@ from .enums import Sexo, EstadoCivil, UF
 
 
 class PessoaFisica(SoftDeleteModel):
-    """
-    Cadastro tecnico de pessoas fisicas.
-    Nao e criado diretamente pelo usuario - apenas via modulos dependentes.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nome_completo = models.CharField(max_length=200)
@@ -22,27 +18,23 @@ class PessoaFisica(SoftDeleteModel):
         validators=[validar_cpf],
         help_text="CPF com 11 digitos (apenas numeros)"
     )
-    rg = models.CharField(max_length=20, blank=True, null=True)
-    orgao_emissor = models.CharField(max_length=20, blank=True, null=True)
+    rg = models.CharField(max_length=20, blank=True, default='')
+    orgao_emissor = models.CharField(max_length=20, blank=True, default='')
     data_nascimento = models.DateField(blank=True, null=True)
+    nome_mae = models.CharField(max_length=200, blank=True, default='')
+    nome_pai = models.CharField(max_length=200, blank=True, default='')
     sexo = models.CharField(
         max_length=1,
         choices=Sexo.choices,
-        blank=True,
-        null=True
     )
     estado_civil = models.CharField(
         max_length=20,
         choices=EstadoCivil.choices,
-        blank=True,
-        null=True
     )
-    nacionalidade = models.CharField(max_length=100, blank=True, null=True, default='Brasileira')
+    nacionalidade = models.CharField(max_length=100, blank=True, default='Brasileira')
     naturalidade = models.CharField(
         max_length=100,
         choices=UF.choices,
-        blank=True, 
-        null=True
         )
 
     possui_deficiencia = models.BooleanField(
@@ -50,7 +42,7 @@ class PessoaFisica(SoftDeleteModel):
         help_text='Indica se a pessoa possui alguma deficiencia'
     )
 
-    observacoes = models.TextField(blank=True, null=True)
+    observacoes = models.TextField(blank=True, default='')
 
 
     enderecos = models.ManyToManyField(

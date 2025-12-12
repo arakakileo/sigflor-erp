@@ -1,6 +1,5 @@
 from typing import Optional
 import puremagic
-import mimetypes
 from django.db import transaction
 from django.db.models import QuerySet
 from django.core.files.uploadedfile import UploadedFile

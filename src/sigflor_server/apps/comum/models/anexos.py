@@ -7,24 +7,18 @@ from .base import SoftDeleteModel
 
 
 def anexo_upload_path(instance, filename):
-    """Define o caminho de upload para anexos."""
     return f'anexos/{instance.content_type.model}/{instance.object_id}/{filename}'
 
 
 class Anexo(SoftDeleteModel):
-    """
-    Entidade genérica de anexos utilizando GenericForeignKey.
-    Para arquivos complementares e de natureza menos formal que Documentos.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nome_original = models.CharField(max_length=255, help_text="Nome original do arquivo enviado")
     arquivo = models.FileField(upload_to=anexo_upload_path)
-    descricao = models.TextField(blank=True, null=True)
+    descricao = models.TextField(blank=True, default='')
 
-    # GenericForeignKey
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.CharField(max_length=36)  # UUID como string
+    object_id = models.CharField(max_length=36)
     entidade = GenericForeignKey('content_type', 'object_id')
 
     tamanho = models.BigIntegerField(help_text="Tamanho do arquivo em bytes")
@@ -40,7 +34,6 @@ class Anexo(SoftDeleteModel):
         ]
 
     def save(self, *args, **kwargs):
-        # Extrai metadados do arquivo se não fornecidos
         if self.arquivo and not self.nome_original:
             self.nome_original = self.arquivo.name.split('/')[-1]
         if self.arquivo and not self.tamanho:
@@ -53,7 +46,6 @@ class Anexo(SoftDeleteModel):
 
     @property
     def tamanho_formatado(self) -> str:
-        """Retorna o tamanho do arquivo formatado."""
         if self.tamanho < 1024:
             return f"{self.tamanho} B"
         elif self.tamanho < 1024 * 1024:
@@ -65,7 +57,6 @@ class Anexo(SoftDeleteModel):
 
     @property
     def extensao(self) -> str:
-        """Retorna a extensão do arquivo."""
         if '.' in self.nome_original:
             return self.nome_original.rsplit('.', 1)[-1].lower()
         return ''

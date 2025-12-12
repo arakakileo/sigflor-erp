@@ -7,25 +7,18 @@ from .enums import TipoDocumento
 
 
 def documento_upload_path(instance, filename):
-    """Define o caminho de upload para documentos organizados por ano/mês."""
     from django.utils import timezone
     now = timezone.now()
     return f'documentos/{now.year}/{now.month:02d}/{filename}'
 
 
 class Documento(SoftDeleteModel):
-    """
-    Entidade centralizada de documentos formais.
-    Documentos são vinculados a outras entidades através de tabelas de junção
-    (ex: PessoaFisicaDocumento, PessoaJuridicaDocumento).
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=50, choices=TipoDocumento.choices)
-    descricao = models.TextField(blank=True, null=True)
+    descricao = models.TextField(blank=True, default='')
     arquivo = models.FileField(upload_to=documento_upload_path)
 
-    # Metadados do arquivo
     nome_original = models.CharField(
         max_length=255,
         help_text='Nome do arquivo no momento do upload'
@@ -68,7 +61,7 @@ class Documento(SoftDeleteModel):
 
 
 class PessoaFisicaDocumento(SoftDeleteModel):
-    """Tabela de vínculo entre PessoaFisica e Documento."""
+
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -107,7 +100,7 @@ class PessoaFisicaDocumento(SoftDeleteModel):
 
 
 class PessoaJuridicaDocumento(SoftDeleteModel):
-    """Tabela de vínculo entre PessoaJuridica e Documento."""
+
     pessoa_juridica = models.ForeignKey(
         'comum.PessoaJuridica',
         on_delete=models.CASCADE,

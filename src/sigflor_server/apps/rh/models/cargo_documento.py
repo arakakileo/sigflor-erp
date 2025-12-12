@@ -32,8 +32,8 @@ class CargoDocumento(SoftDeleteModel):
         help_text='Indica se a posse deste documento é mandatória para o cargo'
     )
     condicional = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Descrição de condições adicionais para a obrigatoriedade'
     )
 

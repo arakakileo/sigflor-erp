@@ -7,10 +7,6 @@ from .enums import StatusFilial
 
 
 class Filial(SoftDeleteModel):
-    """
-    Cadastro de filiais da empresa.
-    Representa unidades operacionais vinculadas a uma empresa do grupo.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -31,11 +27,10 @@ class Filial(SoftDeleteModel):
     )
     descricao = models.TextField(
         blank=True,
-        null=True,
+        default='',
         help_text='Descricao da filial'
     )
 
-    # Vinculo com empresa do grupo (opcional)
     empresa = models.ForeignKey(
         'comum.Empresa',
         on_delete=models.PROTECT,
@@ -45,7 +40,6 @@ class Filial(SoftDeleteModel):
         help_text='Empresa do grupo a qual a filial pertence'
     )
 
-    # Relacionamento com Enderecos via tabela de vínculo explícita (FilialEndereco)
     enderecos = models.ManyToManyField(
         'comum.Endereco',
         through='comum.FilialEndereco',
@@ -79,12 +73,10 @@ class Filial(SoftDeleteModel):
 
     @property
     def is_ativa(self):
-        """Verifica se a filial esta ativa."""
         return self.status == StatusFilial.ATIVA and self.deleted_at is None
 
     @property
     def empresa_nome(self):
-        """Retorna o nome da empresa."""
         if self.empresa and self.empresa.pessoa_juridica:
             return self.empresa.pessoa_juridica.razao_social
         return None

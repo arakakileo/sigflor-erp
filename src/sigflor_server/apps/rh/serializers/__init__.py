@@ -12,7 +12,7 @@ from .funcionarios import (
     FuncionarioListSerializer, FuncionarioUpdateSerializer
 )
 from .dependentes import (
-    DependenteSerializer, DependenteCreateSerializer,
+    DependenteSerializer, DependenteNestedCreateSerializer,
     DependenteListSerializer, DependenteUpdateSerializer
 )
 from .equipes import (
@@ -40,7 +40,7 @@ __all__ = [
     'FuncionarioListSerializer',
     'FuncionarioUpdateSerializer',
     'DependenteSerializer',
-    'DependenteCreateSerializer',
+    'DependenteNestedCreateSerializer',
     'DependenteListSerializer',
     'DependenteUpdateSerializer',
     'EquipeSerializer',

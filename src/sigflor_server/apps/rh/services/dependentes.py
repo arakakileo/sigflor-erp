@@ -119,8 +119,7 @@ class DependenteService:
     @staticmethod
     @transaction.atomic
     def delete(dependente: Dependente, user=None) -> None:
-        """Soft delete de um dependente."""
-        dependente.delete(user=user)  # delete() já atualiza tem_dependente
+        dependente.delete(user=user)
 
     @staticmethod
     @transaction.atomic
@@ -139,7 +138,6 @@ class DependenteService:
     @staticmethod
     @transaction.atomic
     def reativar_dependente(dependente: Dependente, updated_by=None) -> Dependente:
-        """Reativa um dependente previamente desativado."""
         dependente.ativo = True
         dependente.updated_by = updated_by
         dependente.save()
@@ -152,7 +150,6 @@ class DependenteService:
         dependencia_irrf: bool,
         updated_by=None
     ) -> Dependente:
-        """Atualiza status de dependência para IRRF."""
         dependente.dependencia_irrf = dependencia_irrf
         dependente.updated_by = updated_by
         dependente.save()
@@ -163,7 +160,6 @@ class DependenteService:
         funcionario: Funcionario,
         apenas_ativos: bool = True
     ) -> list:
-        """Retorna todos os dependentes de um funcionário."""
         qs = Dependente.objects.filter(
             funcionario=funcionario,
             deleted_at__isnull=True
@@ -176,7 +172,6 @@ class DependenteService:
 
     @staticmethod
     def get_dependentes_irrf(funcionario: Funcionario) -> list:
-        """Retorna dependentes inclusos no IRRF."""
         return list(Dependente.objects.filter(
             funcionario=funcionario,
             dependencia_irrf=True,
@@ -186,7 +181,6 @@ class DependenteService:
 
     @staticmethod
     def contar_dependentes(funcionario: Funcionario) -> dict:
-        """Retorna contagem de dependentes por categoria."""
         qs = Dependente.objects.filter(
             funcionario=funcionario,
             deleted_at__isnull=True

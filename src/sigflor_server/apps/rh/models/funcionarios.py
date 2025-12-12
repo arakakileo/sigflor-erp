@@ -16,10 +16,6 @@ from .enums import (
 
 
 class Funcionario(SoftDeleteModel):
-    """
-    Cadastro de funcionários da empresa.
-    Representa o vínculo empregatício de uma PessoaFisica com uma Empresa.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -101,14 +97,13 @@ class Funcionario(SoftDeleteModel):
     )
 
     indicacao = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Informações sobre quem indicou o funcionário'
     )
+
     cidade_atual = models.CharField(
         max_length=100,
-        blank=True,
-        null=True,
         help_text='Cidade de localização do funcionário'
     )
 
@@ -119,65 +114,59 @@ class Funcionario(SoftDeleteModel):
 
     ctps_numero = models.CharField(
         max_length=20,
-        blank=True,
-        null=True,
         help_text='Número da CTPS'
     )
     ctps_serie = models.CharField(
         max_length=10,
-        blank=True,
-        null=True,
         help_text='Série da CTPS'
     )
     ctps_uf = models.CharField(
         max_length=2,
         choices=UF.choices,
-        blank=True,
-        null=True,
         help_text='UF de emissão da CTPS'
     )
     pis_pasep = models.CharField(
         max_length=15,
-        blank=True,
-        null=True,
         help_text='Número do PIS/PASEP'
     )
 
-    banco = models.CharField(max_length=100, blank=True, null=True)
-    agencia = models.CharField(max_length=20, blank=True, null=True)
-    conta_corrente = models.CharField(max_length=30, blank=True, null=True)
+    banco = models.CharField(max_length=100, blank=True, default='')
+    agencia = models.CharField(max_length=20, blank=True, default='')
+    conta_corrente = models.CharField(max_length=30, blank=True, default='')
     tipo_conta = models.CharField(
         max_length=20,
         choices=TipoConta.choices,
-        blank=True,
-        null=True
+        blank=True, 
+        default='',
     )
     chave_pix = models.CharField(
         max_length=100,
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Chave PIX'
     )
 
     tamanho_camisa = models.CharField(
         max_length=10,
         choices=TamanhoCamisa.choices,
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Tamanho da camisa (P, M, G, GG, etc.)'
     )
+
     tamanho_calca = models.CharField(
         max_length=10,
         choices=TamanhoCalca.choices,
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Tamanho da calça (38, 40, 42, etc.)'
     )
+
     tamanho_calcado = models.CharField(
         max_length=10,
         choices=TamanhoCalcado.choices,
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Tamanho do calçado (39, 40, 41, etc.)'
     )
 

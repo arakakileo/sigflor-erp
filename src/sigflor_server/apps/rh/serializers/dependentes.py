@@ -7,7 +7,6 @@ from ..models.enums import Parentesco
 
 
 class DependenteListSerializer(serializers.ModelSerializer):
-    """Serializer simplificado para listagem de dependentes."""
 
     nome_completo = serializers.ReadOnlyField()
     cpf_formatado = serializers.ReadOnlyField()
@@ -30,7 +29,6 @@ class DependenteListSerializer(serializers.ModelSerializer):
 
 
 class DependenteSerializer(serializers.ModelSerializer):
-    """Serializer completo para detalhes do dependente."""
 
     pessoa_fisica = PessoaFisicaSerializer(read_only=True)
     nome_completo = serializers.ReadOnlyField()
@@ -72,15 +70,13 @@ class DependenteSerializer(serializers.ModelSerializer):
         ]
 
 
-class DependenteCreateSerializer(serializers.ModelSerializer):
-    """Serializer para criação de dependente usando estrutura aninhada."""
+class DependenteNestedCreateSerializer(serializers.ModelSerializer):
 
     pessoa_fisica = PessoaFisicaCreateSerializer(required=True)
 
     class Meta:
         model = Dependente
         fields = [
-            'funcionario',
             'pessoa_fisica',
             'parentesco',
             'dependencia_irrf',
@@ -89,25 +85,8 @@ class DependenteCreateSerializer(serializers.ModelSerializer):
             'parentesco': {'choices': Parentesco.choices}
         }
 
-    def create(self, validated_data):
-        """Cria dependente usando o service."""
-        from ..services import DependenteService
-
-        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
-        funcionario = validated_data.pop('funcionario')
-
-        return DependenteService.vincular_dependente(
-            funcionario=funcionario,
-            pessoa_fisica_data=pessoa_fisica_data,
-            created_by=self.context.get('request').user if self.context.get('request') else None,
-            **validated_data
-        )
-
-
 class DependenteUpdateSerializer(serializers.ModelSerializer):
-    """Serializer para atualização de dependente."""
 
-    # Adicionamos o campo aninhado para permitir edição dos dados pessoais
     pessoa_fisica = PessoaFisicaCreateSerializer(required=False)
 
     class Meta:
@@ -116,22 +95,8 @@ class DependenteUpdateSerializer(serializers.ModelSerializer):
             'parentesco',
             'dependencia_irrf',
             'ativo',
-            'pessoa_fisica', # Incluído aqui
+            'pessoa_fisica',
         ]
         extra_kwargs = {
             'parentesco': {'choices': Parentesco.choices}
         }
-
-    def update(self, instance, validated_data):
-        """Atualiza dependente usando o service."""
-        from ..services import DependenteService
-
-        # Extrai os dados da pessoa física, se houver
-        pessoa_fisica_data = validated_data.pop('pessoa_fisica', None)
-
-        return DependenteService.update(
-            dependente=instance,
-            updated_by=self.context.get('request').user if self.context.get('request') else None,
-            pessoa_fisica_data=pessoa_fisica_data, # Passamos os dados para o service
-            **validated_data
-        )

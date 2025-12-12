@@ -8,30 +8,25 @@ from .enums import SituacaoCadastral
 
 
 class PessoaJuridica(SoftDeleteModel):
-    """
-    Cadastro técnico e centralizado de pessoas jurídicas.
-    Não é criado diretamente pelo usuário - apenas via módulos dependentes.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     razao_social = models.CharField(max_length=200)
-    nome_fantasia = models.CharField(max_length=200, blank=True, null=True)
+    nome_fantasia = models.CharField(max_length=200, blank=True, default='')
     cnpj = models.CharField(
         max_length=14,
         unique=True,
         validators=[validar_cnpj],
         help_text="CNPJ com 14 dígitos (apenas números)"
     )
-    inscricao_estadual = models.CharField(max_length=20, blank=True, null=True)
+    inscricao_estadual = models.CharField(max_length=20, blank=True, default='')
     data_abertura = models.DateField(blank=True, null=True)
     situacao_cadastral = models.CharField(
         max_length=20,
         choices=SituacaoCadastral.choices,
         default=SituacaoCadastral.ATIVA,
         blank=True,
-        null=True
     )
-    observacoes = models.TextField(blank=True, null=True)
+    observacoes = models.TextField(blank=True, default='')
 
     class Meta:
         db_table = 'pessoa_juridica'

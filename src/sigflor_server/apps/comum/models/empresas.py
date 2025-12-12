@@ -5,10 +5,6 @@ from .base import SoftDeleteModel
 
 
 class Empresa(SoftDeleteModel):
-    """
-    Representa as empresas pertencentes ao grupo econômico da organização.
-    É uma especialização de PessoaJuridica.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_juridica = models.OneToOneField(
@@ -17,7 +13,7 @@ class Empresa(SoftDeleteModel):
         related_name='empresa',
         help_text="Dados jurídicos associados"
     )
-    descricao = models.TextField(blank=True, null=True, help_text="Observações internas")
+    descricao = models.TextField(blank=True, default='', help_text="Observações internas")
     ativa = models.BooleanField(default=True, help_text="Indica se a empresa está ativa")
 
 

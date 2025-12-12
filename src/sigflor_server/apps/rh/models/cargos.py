@@ -7,10 +7,6 @@ from .enums import NivelCargo, RiscoPadrao
 
 
 class Cargo(SoftDeleteModel):
-    """
-    Cadastro de cargos da empresa.
-    Define a posição, salário base, classificação CBO e níveis de risco ocupacional.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -22,8 +18,8 @@ class Cargo(SoftDeleteModel):
     
     cbo = models.CharField(
         max_length=10,
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Código CBO (Classificação Brasileira de Ocupações)'
     )
 
@@ -36,8 +32,8 @@ class Cargo(SoftDeleteModel):
     )
 
     descricao = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Descrição das atribuições do cargo'
     )
 

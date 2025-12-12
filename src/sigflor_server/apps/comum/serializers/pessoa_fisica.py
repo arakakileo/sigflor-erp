@@ -11,19 +11,17 @@ from .anexos import AnexoSerializer, AnexoNestedSerializer
 
 
 class PessoaFisicaSerializer(serializers.ModelSerializer):
-    """Serializer para leitura de Pessoa Física (GET)."""
 
     cpf_formatado = serializers.ReadOnlyField()
 
-    # Campos aninhados para exibição completa
     enderecos = PessoaFisicaEnderecoListSerializer(many=True, read_only=True, source='enderecos_vinculados')
     contatos = PessoaFisicaContatoListSerializer(many=True, read_only=True, source='contatos_vinculados')
     documentos = PessoaFisicaDocumentoListSerializer(many=True, read_only=True, source='documentos_vinculados')
-    anexos = AnexoSerializer(many=True, read_only=True) # Anexos usa GFK por exceção
+    anexos = AnexoSerializer(many=True, read_only=True)
 
     class Meta:
             model = PessoaFisica
-            fields = '__all__' # (Resumido para brevidade, mantenha seus campos)
+            fields = '__all__'
 
 class PessoaFisicaCreateSerializer(serializers.ModelSerializer):
 
@@ -43,7 +41,7 @@ class PessoaFisicaCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PessoaFisica
         fields = [
-            'nome_completo', 'cpf', 'rg', 'orgao_emissor', 'data_nascimento',
+            'nome_completo','nome_mae','nome_pai', 'cpf', 'rg', 'orgao_emissor', 'data_nascimento',
             'sexo', 'estado_civil', 'nacionalidade', 'naturalidade', 'observacoes',
             'enderecos', 'contatos', 'documentos', 'anexos'
         ]

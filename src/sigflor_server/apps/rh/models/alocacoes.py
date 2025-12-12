@@ -36,8 +36,8 @@ class Alocacao(SoftDeleteModel):
         help_text='Data de término da alocação. Se null, a alocação está ativa.'
     )
     observacoes = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Detalhes ou justificativas da alocação'
     )
 
@@ -64,7 +64,6 @@ class Alocacao(SoftDeleteModel):
     def clean(self):
         from django.core.exceptions import ValidationError
         super().clean()
-        # Valida que data_fim não seja anterior a data_inicio
         if self.data_fim and self.data_fim < self.data_inicio:
             raise ValidationError({
                 'data_fim': 'A data de término não pode ser anterior à data de início.'
@@ -76,22 +75,18 @@ class Alocacao(SoftDeleteModel):
 
     @property
     def is_ativa(self):
-        """Indica se a alocação está ativa."""
         return self.data_fim is None and self.deleted_at is None
 
     @property
     def funcionario_nome(self):
-        """Retorna o nome do funcionário."""
         return self.funcionario.nome if self.funcionario else None
 
     @property
     def projeto_descricao(self):
-        """Retorna a descrição do projeto."""
         return self.projeto.descricao if self.projeto else None
 
     @property
     def duracao_dias(self):
-        """Retorna a duração da alocação em dias."""
         from django.utils import timezone
         fim = self.data_fim or timezone.now().date()
         return (fim - self.data_inicio).days

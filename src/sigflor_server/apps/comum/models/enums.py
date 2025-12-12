@@ -81,7 +81,6 @@ class UF(models.TextChoices):
     TO = 'TO', 'Tocantins'
 
 class TipoEndereco(models.TextChoices):
-    """Tipos de endereço para uso nas tabelas de vínculo."""
     RESIDENCIAL = 'RESIDENCIAL', 'Residencial'
     COMERCIAL = 'COMERCIAL', 'Comercial'
     CORRESPONDENCIA = 'CORRESPONDENCIA', 'Correspondência'
@@ -106,7 +105,6 @@ class EstadoCivil(models.TextChoices):
     UNIAO_ESTAVEL = 'uniao_estavel', 'Uniao Estavel'
 
 class SituacaoCadastral(models.TextChoices):
-    """Situação cadastral na Receita Federal."""
     ATIVA = 'ativa', 'Ativa'
     SUSPENSA = 'suspensa', 'Suspensa'
     INAPTA = 'inapta', 'Inapta'
@@ -114,7 +112,6 @@ class SituacaoCadastral(models.TextChoices):
     NULA = 'nula', 'Nula'
 
 class StatusProjeto(models.TextChoices):
-    """Status do projeto."""
     PLANEJADO = 'PLANEJADO', 'Planejado'
     EM_EXECUCAO = 'EM_EXECUCAO', 'Em Execução'
     CONCLUIDO = 'CONCLUIDO', 'Concluído'

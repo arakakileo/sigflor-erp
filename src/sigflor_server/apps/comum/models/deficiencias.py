@@ -7,11 +7,7 @@ from .enums import TipoDeficiencia, GrauDeficiencia
 
 
 class Deficiencia(SoftDeleteModel):
-    """
-    Cadastro de deficiencias vinculadas a pessoas fisicas.
-    Uma pessoa pode ter multiplas deficiencias cadastradas.
-    """
-
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     pessoa_fisica = models.ForeignKey(
@@ -36,7 +32,7 @@ class Deficiencia(SoftDeleteModel):
     cid = models.CharField(
         max_length=10,
         blank=True,
-        null=True,
+        default='',
         help_text='Codigo CID (Classificacao Internacional de Doencas)'
     )
 
@@ -44,7 +40,7 @@ class Deficiencia(SoftDeleteModel):
         max_length=50,
         choices=GrauDeficiencia.choices,
         blank=True,
-        null=True,
+        default='',
         help_text='Grau da deficiencia (leve, moderado, grave, etc.)'
     )
 

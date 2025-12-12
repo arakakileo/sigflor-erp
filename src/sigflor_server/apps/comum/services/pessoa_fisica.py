@@ -16,6 +16,8 @@ class PessoaFisicaService:
     def create(
         nome_completo: str,
         cpf: str,
+        nome_mae:Optional[str] = None,
+        nome_pai:Optional[str] = None,
         rg: Optional[str] = None,
         orgao_emissor: Optional[str] = None,
         data_nascimento=None,
@@ -32,6 +34,8 @@ class PessoaFisicaService:
     ) -> PessoaFisica:
         pessoa = PessoaFisica(
             nome_completo=nome_completo,
+            nome_mae=nome_mae,
+            nome_pai=nome_pai,
             cpf=cpf,
             rg=rg,
             orgao_emissor=orgao_emissor,

@@ -8,10 +8,6 @@ from .enums import TipoEquipe
 
 
 class Equipe(SoftDeleteModel):
-    """
-    Representa uma equipe de trabalho, vinculada a um Projeto.
-    Pode ter um líder e um coordenador.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -20,6 +16,7 @@ class Equipe(SoftDeleteModel):
         unique=True,
         help_text='Nome único da equipe'
     )
+
     tipo_equipe = models.CharField(
         max_length=20,
         choices=TipoEquipe.choices,
@@ -36,17 +33,13 @@ class Equipe(SoftDeleteModel):
     lider = models.OneToOneField(
         'rh.Funcionario',
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name='equipe_liderada',
         help_text='Líder da equipe'
     )
 
     coordenador = models.ForeignKey(
         'rh.Funcionario',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
         related_name='equipes_coordenadas',
         help_text='Coordenador da equipe'
     )
@@ -57,8 +50,8 @@ class Equipe(SoftDeleteModel):
     )
 
     observacoes = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, 
+        default='',
         help_text='Observações'
     )
 
@@ -113,15 +106,18 @@ class EquipeFuncionario(SoftDeleteModel):
         related_name='membros',
         help_text='Equipe'
     )
+
     funcionario = models.ForeignKey(
         'rh.Funcionario',
         on_delete=models.CASCADE,
         related_name='alocacoes_equipe',
         help_text='Funcionário'
     )
+
     data_entrada = models.DateField(
         help_text='Data de entrada do funcionário na equipe'
     )
+
     data_saida = models.DateField(
         null=True,
         blank=True,

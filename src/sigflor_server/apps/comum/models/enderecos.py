@@ -8,17 +8,12 @@ from .enums import UF, TipoEndereco
 
 
 class Endereco(SoftDeleteModel):
-    """
-    Entidade centralizada de endereços.
-    Endereços são vinculados a outras entidades através de tabelas de junção
-    (ex: PessoaFisicaEndereco, PessoaJuridicaEndereco, FilialEndereco).
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     logradouro = models.CharField(max_length=255)
-    numero = models.CharField(max_length=20, blank=True, null=True)
-    complemento = models.CharField(max_length=100, blank=True, null=True)
-    bairro = models.CharField(max_length=100, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, default='')
+    complemento = models.CharField(max_length=100, blank=True, default='')
+    bairro = models.CharField(max_length=100, blank=True, default='')
     cidade = models.CharField(max_length=100)
     estado = models.CharField(max_length=2, choices=UF.choices)
     cep = models.CharField(max_length=8, help_text='Armazenado sem máscara, apenas dígitos')
@@ -53,7 +48,6 @@ class Endereco(SoftDeleteModel):
 
     @property
     def endereco_completo(self) -> str:
-        """Retorna o endereço formatado em uma linha."""
         partes = [self.logradouro]
         if self.numero:
             partes.append(f"nº {self.numero}")
@@ -66,10 +60,8 @@ class Endereco(SoftDeleteModel):
         return ', '.join(partes)
 
 
-
-
 class PessoaFisicaEndereco(SoftDeleteModel):
-    """Tabela de vínculo entre PessoaFisica e Endereco."""
+
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -100,7 +92,7 @@ class PessoaFisicaEndereco(SoftDeleteModel):
                 fields=['pessoa_fisica', 'endereco'],
                 name='uniq_pf_endereco'
             ),
-            # Apenas um endereço principal por tipo por pessoa física
+
             models.UniqueConstraint(
                 fields=['pessoa_fisica', 'tipo'],
                 condition=Q(principal=True, deleted_at__isnull=True),
@@ -113,7 +105,7 @@ class PessoaFisicaEndereco(SoftDeleteModel):
 
 
 class PessoaJuridicaEndereco(SoftDeleteModel):
-    """Tabela de vínculo entre PessoaJuridica e Endereco."""
+
     pessoa_juridica = models.ForeignKey(
         'comum.PessoaJuridica',
         on_delete=models.CASCADE,
@@ -156,7 +148,7 @@ class PessoaJuridicaEndereco(SoftDeleteModel):
 
 
 class FilialEndereco(SoftDeleteModel):
-    """Tabela de vínculo entre Filial e Endereco."""
+
     filial = models.ForeignKey(
         'comum.Filial',
         on_delete=models.CASCADE,

@@ -157,7 +157,7 @@ class FuncionarioAdmin(admin.ModelAdmin):
     ]
     raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'projeto']
     ordering = ['pessoa_fisica__nome_completo']
-    inlines = [DependenteInline, AlocacaoInline] # Adicionado inlines
+    inlines = [DependenteInline, AlocacaoInline]
 
     fieldsets = (
         ('Identificacao', {

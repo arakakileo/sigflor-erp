@@ -2,6 +2,7 @@
 from rest_framework import serializers
 
 from apps.comum.serializers.pessoa_fisica import PessoaFisicaCreateSerializer, PessoaFisicaSerializer
+from .dependentes import DependenteNestedCreateSerializer
 from ..models import Funcionario
 from ..models.enums import (
     TipoContrato, 
@@ -112,6 +113,8 @@ class FuncionarioSerializer(serializers.ModelSerializer):
 class FuncionarioCreateSerializer(serializers.ModelSerializer):
 
     pessoa_fisica = PessoaFisicaCreateSerializer(required=True)
+    tem_dependente = serializers.BooleanField(required=True)
+    dependentes = DependenteNestedCreateSerializer(many=True, required=False)
 
     class Meta:
         model = Funcionario
@@ -144,6 +147,8 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
             'tamanho_camisa',
             'tamanho_calca',
             'tamanho_calcado',
+            'tem_dependente',
+            'dependentes',
         ]
         extra_kwargs = {
             'salario_nominal': {'required': False},
@@ -154,6 +159,24 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
             'tamanho_calca': {'choices': TamanhoCalca.choices},
             'tamanho_calcado': {'choices': TamanhoCalcado.choices},
         }
+
+    def validate(self, data):
+        tem_dependente = data.get('tem_dependente')
+        dependentes = data.get('dependentes')
+
+        if tem_dependente is True:
+            if not dependentes:
+                raise serializers.ValidationError({
+                    "dependentes": "A lista de dependentes é obrigatória quando 'tem_dependente' é verdadeiro."
+                })
+
+        if tem_dependente is False:
+            if dependentes:
+                raise serializers.ValidationError({
+                    "dependentes": "Não envie dados de dependentes quando 'tem_dependente' for falso."
+                })
+
+        return data
 
 class FuncionarioUpdateSerializer(serializers.ModelSerializer):
 

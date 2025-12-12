@@ -49,18 +49,36 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        #arrumar a serializer
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        pesoa_fisica_data = serializer.validated_data.pop('pessoa_fisica')
+        funcionario_data = serializer.validated_data
         try:
             funcionario = FuncionarioService.create(
                 user=request.user,
-                validated_data=serializer.validated_data,
+                pessoa_fisica_data=pesoa_fisica_data,
+                funcionario_data=funcionario_data
             )
             output_serializer = FuncionarioSerializer(funcionario)
         except DjangoValidationError as e:
             raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
     
+    @action(detail=True, methods=['post'], url_path='dependentes')
+    def adicionar_dependente(self, request, pk=None):
+        funcionario = self.get_object()
+        serializer = DependenteNestedCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        dependente = FuncionarioService.adicionar_dependente(
+            funcionario=funcionario,
+            dependente_data=serializer.validated_data,
+            user=request.user
+        )
+        
+        return Response(status=status.HTTP_201_CREATED)
+
     def retrieve(self, request, pk=None):
         try:
             funcionario = selectors.funcionario_detail(user=request.user, pk=pk)
@@ -92,9 +110,9 @@ class FuncionarioViewSet(viewsets.ModelViewSet):
             funcionario = Funcionario.objects.get(pk=pk, deleted_at__isnull=True)
             data_demissao = request.data.get('data_demissao')
             FuncionarioService.demitir(
-                funcionario,
+                funcionario=funcionario,
                 data_demissao=data_demissao,
-                updated_by=request.user if request.user.is_authenticated else None
+                updated_by=request.user
             )
             serializer = FuncionarioSerializer(funcionario)
             return Response(serializer.data)

@@ -6,8 +6,6 @@ from rest_framework.decorators import action
 from ..models import Dependente
 from ..serializers import (
     DependenteSerializer,
-    DependenteCreateSerializer,
-    DependenteListSerializer,
     FuncionarioListSerializer
 )
 from ..services import DependenteService
@@ -19,33 +17,6 @@ class DependenteViewSet(viewsets.ModelViewSet):
 
     queryset = Dependente.objects.filter(deleted_at__isnull=True)
     serializer_class = DependenteSerializer
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return DependenteListSerializer
-        if self.action in ['create', 'update', 'partial_update']:
-            return DependenteCreateSerializer
-        return DependenteSerializer
-
-    def get_queryset(self):
-        funcionario_id = self.request.query_params.get('funcionario_id')
-        busca = self.request.query_params.get('busca')
-        parentesco = self.request.query_params.get('parentesco')
-        dependencia_irrf = self.request.query_params.get('dependencia_irrf')
-        apenas_ativos = self.request.query_params.get('apenas_ativos', 'true').lower() == 'true'
-
-        # Converte strings para boolean
-        if dependencia_irrf is not None:
-            dependencia_irrf = dependencia_irrf.lower() == 'true'
-
-        return selectors.dependente_list(
-            user=self.request.user,
-            funcionario_id=funcionario_id,
-            busca=busca,
-            parentesco=parentesco,
-            dependencia_irrf=dependencia_irrf,
-            apenas_ativos=apenas_ativos
-        )
 
     def retrieve(self, request, pk=None):
         try:

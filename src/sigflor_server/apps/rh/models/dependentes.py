@@ -16,7 +16,6 @@ class Dependente(SoftDeleteModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Vínculo com funcionário
     funcionario = models.ForeignKey(
         'rh.Funcionario',
         on_delete=models.CASCADE,
@@ -24,7 +23,6 @@ class Dependente(SoftDeleteModel):
         help_text='Funcionário responsável pelo dependente'
     )
 
-    # Vínculo com PessoaFisica (dados civis do dependente)
     pessoa_fisica = models.OneToOneField(
         'comum.PessoaFisica',
         on_delete=models.PROTECT,
@@ -32,20 +30,17 @@ class Dependente(SoftDeleteModel):
         help_text='Dados civis do dependente'
     )
 
-    # Tipo de parentesco
     parentesco = models.CharField(
         max_length=30,
         choices=Parentesco.choices,
         help_text='Grau de parentesco com o funcionário'
     )
 
-    # Para fins de IR
     dependencia_irrf = models.BooleanField(
         default=False,
         help_text='Indica se é dependente para fins de Imposto de Renda'
     )
 
-    # Status
     ativo = models.BooleanField(
         default=True,
         help_text='Indica se o dependente está ativo'
@@ -73,18 +68,15 @@ class Dependente(SoftDeleteModel):
     def save(self, *args, **kwargs):
         self.full_clean()
         result = super().save(*args, **kwargs)
-        # Atualiza flag tem_dependente do funcionário
         self._atualizar_flag_funcionario()
         return result
 
     def delete(self, user=None):
         result = super().delete(user=user)
-        # Atualiza flag tem_dependente do funcionário
         self._atualizar_flag_funcionario()
         return result
 
     def _atualizar_flag_funcionario(self):
-        """Atualiza o campo tem_dependente do funcionário."""
         from .funcionarios import Funcionario
         tem_dependentes = Dependente.objects.filter(
             funcionario=self.funcionario,
@@ -97,27 +89,22 @@ class Dependente(SoftDeleteModel):
 
     @property
     def nome_completo(self):
-        """Retorna o nome completo do dependente."""
         return self.pessoa_fisica.nome_completo
 
     @property
     def cpf(self):
-        """Retorna o CPF do dependente."""
         return self.pessoa_fisica.cpf
 
     @property
     def cpf_formatado(self):
-        """Retorna o CPF formatado."""
         return self.pessoa_fisica.cpf_formatado
 
     @property
     def data_nascimento(self):
-        """Retorna a data de nascimento do dependente."""
         return self.pessoa_fisica.data_nascimento
 
     @property
     def idade(self):
-        """Calcula a idade do dependente."""
         if not self.pessoa_fisica.data_nascimento:
             return None
         from django.utils import timezone

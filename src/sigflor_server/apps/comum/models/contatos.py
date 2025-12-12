@@ -8,10 +8,6 @@ from .enums import TipoContato
 
 
 class Contato(SoftDeleteModel):
-    """
-    Entidade centralizada de contatos.
-    Não possui vínculo direto, sendo ligada a outras entidades por tabelas de junção.
-    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=20, choices=TipoContato.choices)
@@ -69,7 +65,6 @@ class Contato(SoftDeleteModel):
 
 
 class PessoaFisicaContato(SoftDeleteModel):
-    """Tabela de ligação entre PessoaFisica e Contato."""
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -131,7 +126,6 @@ class PessoaJuridicaContato(SoftDeleteModel):
 
 
 class FilialContato(SoftDeleteModel):
-    """Tabela de ligação entre Filial e Contato."""
     filial = models.ForeignKey(
         'comum.Filial',
         on_delete=models.CASCADE,

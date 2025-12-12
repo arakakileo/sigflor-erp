@@ -5,11 +5,7 @@ from .base import SoftDeleteModel
 
 
 class Cliente(SoftDeleteModel):
-    """
-    Representa empresas responsáveis pela contratação dos serviços da organização.
-    É uma especialização de PessoaJuridica.
-    """
-
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_juridica = models.OneToOneField(
         'comum.PessoaJuridica',
@@ -23,7 +19,7 @@ class Cliente(SoftDeleteModel):
         related_name='clientes_geridos',
         help_text="Empresa do grupo que gerencia este cliente"
     )
-    descricao = models.TextField(blank=True, null=True, help_text="Observações complementares")
+    descricao = models.TextField(blank=True, default='', help_text="Observações complementares")
     ativo = models.BooleanField(default=True, help_text="Indica se o cliente está ativo")
 
     class Meta:

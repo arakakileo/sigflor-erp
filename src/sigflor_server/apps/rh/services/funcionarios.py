@@ -8,7 +8,6 @@ from django.core.exceptions import ValidationError
 from apps.autenticacao.models import Usuario
 from apps.comum.services import PessoaFisicaService
 from ..models import Funcionario, Alocacao, EquipeFuncionario, Equipe, StatusFuncionario
-from .cargo_documento import CargoDocumentoService
 
 
 class FuncionarioService:
@@ -17,31 +16,11 @@ class FuncionarioService:
     @transaction.atomic
     def create(
         *,
-        user:Usuario=None,
-        validated_data:dict,
+        user: Usuario,
+        pessoa_fisica_data: dict,
+        funcionario_data: dict,
     ) -> Funcionario:
-        """
-        Realiza a admissão de um novo funcionário.
-
-        Fluxo:
-        1. Cria ou recupera a PessoaFisica via PessoaFisicaService
-        2. Gera matrícula automática
-        3. Valida e define salário nominal
-        4. Cria o registro de Funcionário
-        5. Cria alocação inicial se projeto informado
-
-        Args:
-            pessoa_fisica_data: Dados da pessoa física (incluindo endereços, contatos, documentos)
-            funcionario_data: Dados do funcionário (empresa, cargo, projeto, etc.)
-            created_by: Usuário que está realizando a operação
-
-        Returns:
-            Funcionario: Instância do funcionário criado
-
-        Raises:
-            ValidationError: Se dados inválidos ou funcionário já existe
-        """
-        pessoa_fisica_data = validated_data.pop('pessoa_fisica')
+        
         cpf = pessoa_fisica_data.pop('cpf')
         pessoa_fisica, _ = PessoaFisicaService.get_or_create_by_cpf(
             cpf=cpf,
@@ -49,13 +28,13 @@ class FuncionarioService:
             **pessoa_fisica_data
         )
 
-        cargo = validated_data.get('cargo')
-        salario_nominal = validated_data.get('salario_nominal')
+        cargo = funcionario_data.get('cargo')
+        salario_nominal = funcionario_data.get('salario_nominal')
 
         if cargo:
             if salario_nominal is None:
                 if cargo.salario_base:
-                    validated_data['salario_nominal'] = cargo.salario_base
+                    funcionario_data['salario_nominal'] = cargo.salario_base
                 else:
                     raise ValidationError(
                         'Salário nominal é obrigatório quando o cargo não possui salário base definido.'
@@ -66,40 +45,62 @@ class FuncionarioService:
                         f'O salário nominal ({salario_nominal}) não pode ser inferior '
                         f'ao salário base do cargo ({cargo.salario_base}).'
                     )
-
-        projeto = validated_data.get('projeto')
-        data_admissao = validated_data.get('data_admissao', timezone.now().date())
-
+        
         funcionario = Funcionario(
             pessoa_fisica=pessoa_fisica,
             created_by=user,
-            **validated_data
+            **funcionario_data
         )
         funcionario.save()
 
-        if funcionario.cargo:
-            validacao = CargoDocumentoService.validar_documentos_funcionario(funcionario)
-
-            if not validacao['valido']:
-                faltantes = [
-                    f"{doc['tipo_display']} ({doc.get('condicional') or 'Obrigatório'})"
-                    for doc in validacao['documentos_faltantes']
-                ]
-
-                raise ValidationError({
-                    'documentos': f"Documentos obrigatórios para o cargo '{funcionario.cargo.nome}' estão faltando: {', '.join(faltantes)}"
-                })
-
-        if projeto:
+        if projeto := funcionario_data.get('projeto'):
             Alocacao.objects.create(
                 funcionario=funcionario,
                 projeto=projeto,
-                data_inicio=data_admissao,
-                observacoes='Alocação inicial na admissão',
+                data_inicio=funcionario_data.get('data_admissao'),
                 created_by=user
             )
 
         return funcionario
+
+    @staticmethod
+    @transaction.atomic
+    def adicionar_dependente(
+        *,
+        funcionario: Funcionario,
+        dependente_data: dict,
+        user: Usuario
+    ):
+
+        pessoa_fisica_data = dependente_data.pop('pessoa_fisica')
+        
+        return DependenteService.create(
+            funcionario=funcionario,
+            pessoa_fisica_data=pessoa_fisica_data,
+            parentesco=dependente_data.get('parentesco'),
+            dependencia_irrf=dependente_data.get('dependencia_irrf'),
+            created_by=user
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def adicionar_documentos_lote(
+        *,
+        funcionario: Funcionario,
+        documentos: list[dict],
+        user: Usuario
+    ):
+        
+        resultados = []
+        for doc_data in documentos:
+            doc = DocumentoService.criar_documento_funcionario(
+                funcionario=funcionario,
+                created_by=user,
+                **doc_data
+            )
+            resultados.append(doc)
+        return resultados
+
 
     @staticmethod
     @transaction.atomic
@@ -132,7 +133,7 @@ class FuncionarioService:
 
     @staticmethod
     @transaction.atomic
-    def demitir_funcionario(
+    def demitir(
         *,
         funcionario: Funcionario,
         data_demissao: Optional[timezone.datetime] = None,
