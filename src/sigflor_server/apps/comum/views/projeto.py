@@ -1,59 +1,99 @@
-from rest_framework import viewsets, permissions, status
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
+# -*- coding: utf-8 -*-
+from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 
-from apps.comum.models import Projeto
-from apps.comum.serializers.projeto import ProjetoSerializer, ProjetoListSerializer
-from apps.comum.permissions import HasPermission
-from apps.comum import selectors as projeto_selectors # Importa o seletor
+from apps.comum.views.base import BaseRBACViewSet
+from ..models import Projeto
+from ..serializers import (
+    ProjetoSerializer, 
+    ProjetoListSerializer,
+    ProjetoCreateSerializer,
+    ProjetoUpdateSerializer
+)
+from ..services import ProjetoService
+from .. import selectors
 
+class ProjetoViewSet(BaseRBACViewSet):
+    
+    permissao_leitura = 'cadastros_projetos_ler'
+    permissao_escrita = 'cadastros_projetos_escrever'
+    permissoes_acoes = {
+        'ativar': 'cadastros_projetos_escrever',
+        'desativar': 'cadastros_projetos_escrever',
+        'estatisticas': 'cadastros_projetos_ler',
+    }
 
-class ProjetoViewSet(viewsets.ModelViewSet):
-
+    # 1. Atributo queryset obrigatório
     queryset = Projeto.objects.filter(deleted_at__isnull=True)
-    # permission_classes = [] # Será definido pelo get_permissions
-    # filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    # filterset_fields = ['nome', 'cliente', 'filial', 'empresa', 'created_at']
-    # search_fields = ['nome', 'cliente__pessoa_juridica__nome_fantasia', 'filial__nome', 'empresa__pessoa_juridica__nome_fantasia']
-    # ordering_fields = ['nome', 'created_at', 'updated_at']
-
-    def get_permissions(self):
-        """
-        Instancia e retorna a lista de permissões que esta view exige.
-        """
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [HasPermission('comum_projeto_visualizar')]
-        else:
-            permission_classes = [HasPermission('comum_projeto_editar')]
-        return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == 'list':
             return ProjetoListSerializer
+        if self.action == 'create':
+            return ProjetoCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return ProjetoUpdateSerializer
         return ProjetoSerializer
 
     def get_queryset(self):
-        # Usar o seletor para obter o queryset, com filtro de usuário
-        search = self.request.query_params.get('search')
-        return projeto_selectors.projeto_list(user=self.request.user, search=search)
+        # Captura filtros da URL
+        busca = self.request.query_params.get('busca')
+        ativo = self.request.query_params.get('ativo')
+        filial_id = self.request.query_params.get('filial')
 
-    def retrieve(self, request, pk=None):
-        # Usar o seletor para obter o detalhe do projeto
-        try:
-            projeto = projeto_selectors.projeto_detail(user=self.request.user, pk=pk)
-            serializer = self.get_serializer(projeto)
-            return Response(serializer.data)
-        except Projeto.DoesNotExist:
-            return Response(
-                {'detail': 'Projeto não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        if ativo is not None:
+            ativo = ativo.lower() == 'true'
 
-    def perform_create(self, serializer):
-        # O campo 'empresa' é preenchido automaticamente pelo save() do modelo Projeto
-        serializer.save()
+        # Delega para o Selector (passando user primeiro)
+        return selectors.projeto_list(
+            user=self.request.user,
+            busca=busca,
+            ativo=ativo,
+            filial_id=filial_id
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        nome = serializer.validated_data.pop('nome')
+        filial = serializer.validated_data.pop('filial')
+        projeto = ProjetoService.create(
+            user=request.user,
+            nome=nome,
+            filial=filial,
+            **serializer.validated_data
+        )
+        output_serializer = ProjetoSerializer(projeto)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
-        # O campo 'empresa' é preenchido automaticamente pelo save() do modelo Projeto
-        serializer.save()
+        ProjetoService.update(
+            user=self.request.user,
+            projeto=serializer.instance,
+            **serializer.validated_data
+        )
+
+    def perform_destroy(self, instance):
+        ProjetoService.delete(
+            user=self.request.user,
+            projeto=instance
+        )
+
+    @action(detail=True, methods=['post'])
+    def ativar(self, request, pk=None):
+        projeto = self.get_object()
+        ProjetoService.ativar(
+            user=request.user, 
+            projeto=projeto
+        )
+        return Response(self.get_serializer(projeto).data)
+
+    @action(detail=True, methods=['post'])
+    def desativar(self, request, pk=None):
+        projeto = self.get_object()
+        ProjetoService.desativar(
+            user=request.user, 
+            projeto=projeto
+        )
+        return Response(self.get_serializer(projeto).data)

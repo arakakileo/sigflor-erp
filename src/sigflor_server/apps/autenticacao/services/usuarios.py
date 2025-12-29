@@ -1,110 +1,82 @@
-from typing import Optional
 from django.db import transaction
-
-from ..models import Usuario, Papel, Permissao
-
+from apps.autenticacao.models import Usuario
+from rest_framework.exceptions import ValidationError
 
 class UsuarioService:
-    """Service layer para operações com Usuário."""
 
     @staticmethod
     @transaction.atomic
-    def create(
-        username: str,
-        email: str,
-        password: str,
-        first_name: str,
-        last_name: str,
-        pessoa_fisica=None,
-        ativo: bool = True,
-        is_staff: bool = False,
-        is_superuser: bool = False,
-    ) -> Usuario:
-        """Cria um novo Usuário."""
-        usuario = Usuario(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            pessoa_fisica=pessoa_fisica,
-            ativo=ativo,
-            is_staff=is_staff,
-            is_superuser=is_superuser,
+    def create(*, user: Usuario, password: str, **dados_validos) -> Usuario:
+
+        lista_papeis = dados_validos.pop('papeis', []) 
+        lista_filiais = dados_validos.pop('allowed_filiais', [])
+        lista_permissoes = dados_validos.pop('permissoes_diretas', [])
+
+        novo_usuario = Usuario.objects.create_user(
+            password=password,
+            **dados_validos
         )
-        usuario.set_password(password)
-        usuario.save()
-        return usuario
+
+        if len(lista_papeis) > 0:
+            novo_usuario.papeis.set(lista_papeis)
+        
+        if len(lista_filiais) > 0:
+            novo_usuario.allowed_filiais.set(lista_filiais)
+
+        if len(lista_permissoes) > 0:
+            novo_usuario.permissoes_diretas.set(lista_permissoes)
+
+        return novo_usuario
 
     @staticmethod
     @transaction.atomic
-    def update(usuario: Usuario, **kwargs) -> Usuario:
-        """Atualiza um Usuário existente."""
-        password = kwargs.pop('password', None)
-        for attr, value in kwargs.items():
-            if hasattr(usuario, attr):
-                setattr(usuario, attr, value)
-        if password:
-            usuario.set_password(password)
-        usuario.save()
-        return usuario
+    def update(*, user: Usuario, usuario_para_editar: Usuario, **dados_novos) -> Usuario:
+        
+        if 'password' in dados_novos:
+            del dados_novos['password']
+        
+        # 1. Extraindo listas (se vier None, é porque o front não mandou alterar)
+        lista_papeis = dados_novos.pop('papeis', None)
+        lista_filiais = dados_novos.pop('allowed_filiais', None)
+        lista_permissoes = dados_novos.pop('permissoes_diretas', None) # <--- NOVO
+
+        # 2. Atualizando campos de texto
+        for campo, valor in dados_novos.items():
+            if hasattr(usuario_para_editar, campo):
+                setattr(usuario_para_editar, campo, valor)
+        
+        usuario_para_editar.save()
+
+        # 3. Atualizando relacionamentos
+        if lista_papeis is not None:
+            usuario_para_editar.papeis.set(lista_papeis)
+            
+        if lista_filiais is not None:
+            usuario_para_editar.allowed_filiais.set(lista_filiais)
+
+        if lista_permissoes is not None: # <--- Lógica Nova
+            usuario_para_editar.permissoes_diretas.set(lista_permissoes)
+
+        return usuario_para_editar
 
     @staticmethod
     @transaction.atomic
-    def delete(usuario: Usuario, user=None) -> None:
-        """Soft delete de um Usuário."""
-        usuario.delete(user=user)
+    def delete(*, user: Usuario, usuario_para_deletar: Usuario) -> None:
+        # Chama o método delete customizado do Model (Soft Delete)
+        usuario_para_deletar.delete(user=user)
 
     @staticmethod
     @transaction.atomic
-    def restore(usuario: Usuario) -> Usuario:
-        """Restaura um Usuário excluído."""
-        usuario.restore()
-        return usuario
+    def redefinir_senha(*, user: Usuario, usuario_alvo: Usuario, nova_senha: str) -> None:
+        # set_password faz a criptografia (hash)
+        usuario_alvo.set_password(nova_senha)
+        usuario_alvo.save()
 
     @staticmethod
     @transaction.atomic
-    def atribuir_papel(usuario: Usuario, papel: Papel) -> None:
-        """Atribui um papel ao usuário."""
-        usuario.papeis.add(papel)
-
-    @staticmethod
-    @transaction.atomic
-    def remover_papel(usuario: Usuario, papel: Papel) -> None:
-        """Remove um papel do usuário."""
-        usuario.papeis.remove(papel)
-
-    @staticmethod
-    @transaction.atomic
-    def atribuir_permissao_direta(usuario: Usuario, permissao: Permissao) -> None:
-        """Atribui uma permissão direta ao usuário."""
-        usuario.permissoes_diretas.add(permissao)
-
-    @staticmethod
-    @transaction.atomic
-    def remover_permissao_direta(usuario: Usuario, permissao: Permissao) -> None:
-        """Remove uma permissão direta do usuário."""
-        usuario.permissoes_diretas.remove(permissao)
-
-    @staticmethod
-    @transaction.atomic
-    def reset_senha(usuario: Usuario, nova_senha: str) -> Usuario:
-        """Reseta a senha do usuário."""
-        usuario.set_password(nova_senha)
-        usuario.save()
-        return usuario
-
-    @staticmethod
-    def get_by_username(username: str) -> Optional[Usuario]:
-        """Busca Usuário por username."""
-        return Usuario.objects.filter(
-            username=username,
-            deleted_at__isnull=True
-        ).first()
-
-    @staticmethod
-    def get_by_email(email: str) -> Optional[Usuario]:
-        """Busca Usuário por email."""
-        return Usuario.objects.filter(
-            email=email,
-            deleted_at__isnull=True
-        ).first()
+    def alterar_senha_proprio_usuario(*, user: Usuario, senha_atual: str, nova_senha: str) -> None:
+        senha_correta = user.check_password(senha_atual)
+        if not senha_correta:
+            raise ValidationError({"senha_atual": "A senha atual informada está incorreta."})
+        user.set_password(nova_senha)
+        user.save()

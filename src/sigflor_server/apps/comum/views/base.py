@@ -12,7 +12,9 @@ class BaseRBACViewSet(viewsets.ModelViewSet):
         permissoes_acoes (dict): Mapeamento { 'nome_da_action': 'codigo_permissao' }.
     """
     permissao_leitura = None
-    permissao_escrita = None
+    permissao_update = None
+    permissao_create = None
+    permissao_delete = None
     permissoes_acoes = None
 
     def get_permissions(self):
@@ -24,8 +26,12 @@ class BaseRBACViewSet(viewsets.ModelViewSet):
         
         elif self.action in ['list', 'retrieve']:
             permissoes_requeridas = self.permissao_leitura
-        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permissoes_requeridas = self.permissao_escrita
+        elif self.action in ['update', 'partial_update']:
+            permissoes_requeridas = self.permissao_update
+        elif self.action in ['create']:
+            permissoes_requeridas = self.permissao_create
+        elif self.action in ['destroy']:
+            permissoes_requeridas = self.permissao_delete
         else:
             permissoes_requeridas = None
 

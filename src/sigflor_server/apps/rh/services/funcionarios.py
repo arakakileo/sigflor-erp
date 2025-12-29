@@ -89,7 +89,7 @@ class FuncionarioService:
     ):
 
         pessoa_fisica_data = dependente_data.pop('pessoa_fisica')
-        
+
         return DependenteService.create(
             funcionario=funcionario,
             pessoa_fisica_data=pessoa_fisica_data,

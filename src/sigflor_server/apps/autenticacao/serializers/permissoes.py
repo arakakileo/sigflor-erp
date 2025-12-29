@@ -1,22 +1,16 @@
 from rest_framework import serializers
-
-from ..models import Permissao
-
+from django.contrib.auth.models import Permission
 
 class PermissaoSerializer(serializers.ModelSerializer):
-    """Serializer para Permissão."""
+    modulo = serializers.CharField(source='content_type.app_label', read_only=True)
+    entidade = serializers.CharField(source='content_type.model', read_only=True)
 
     class Meta:
-        model = Permissao
+        model = Permission
         fields = [
-            'id',
-            'codigo',
-            'nome',
-            'descricao',
-            'created_at',
-            'updated_at',
+            'id', 
+            'name',
+            'codename',
+            'modulo',
+            'entidade',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-

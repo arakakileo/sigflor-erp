@@ -38,7 +38,7 @@ class Funcionario(SoftDeleteModel):
         unique=True,
         help_text='Matrícula única do funcionário'
     )
-    
+
     cargo = models.ForeignKey(
         'rh.Cargo',
         on_delete=models.PROTECT,
@@ -47,24 +47,24 @@ class Funcionario(SoftDeleteModel):
     )
 
     data_admissao = models.DateField(help_text='Data de admissão')
-    
+
     data_demissao = models.DateField(
         blank=True,
         null=True,
         help_text='Data de demissão (se aplicável)'
     )
-    
+
     status = models.CharField(
         max_length=30,
         choices=StatusFuncionario.choices,
         default=StatusFuncionario.ATIVO
     )
-    
+
     tipo_contrato = models.CharField(
         max_length=30,
         choices=TipoContrato.choices
     )
-    
+
     salario_nominal = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -87,7 +87,7 @@ class Funcionario(SoftDeleteModel):
         null=True,
         help_text='Peso do funcionário em kg'
     )
-    
+
     altura = models.DecimalField(
         max_digits=3,
         decimal_places=2,

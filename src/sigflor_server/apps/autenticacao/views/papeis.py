@@ -1,86 +1,101 @@
-from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
+from apps.comum.views.base import BaseRBACViewSet
 from ..models import Papel
-from ..serializers import PapelSerializer
-from ..services import PermissaoService
+from ..serializers import (
+    PapelSerializer, 
+    PapelCreateSerializer,
+    PapelUpdateSerializer,
+    PapelPermissoesBatchSerializer,
+    PapelUsuariosListSerializer
+)
+from ..services import PapelService
 from .. import selectors
 
-class PapelViewSet(viewsets.ModelViewSet):
-    """ViewSet para Papel."""
+class PapelViewSet(BaseRBACViewSet):
+    
+
+    permissao_leitura = 'autenticacao.view_papel'
+    permissao_update = 'autenticacao.change_papel'
+    permissao_create = 'autenticacao.add_papel'
+    permissao_delete = 'autenticacao.delete_papel'
+    
+    permissoes_acoes = {
+        'usuarios': 'autenticacao.view_papel',
+        'adicionar_permissoes': 'autenticacao.change_papel',
+        'remover_permissoes': 'autenticacao.change_papel',
+    }
 
     queryset = Papel.objects.filter(deleted_at__isnull=True)
-    serializer_class = PapelSerializer
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return PapelCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return PapelUpdateSerializer
         return PapelSerializer
 
     def get_queryset(self):
         search = self.request.query_params.get('search')
-        return selectors.papel_list(search=search)
 
-    def retrieve(self, request, pk=None):
-        try:
-            papel = selectors.papel_detail(pk=pk)
-            serializer = self.get_serializer(papel)
-            return Response(serializer.data)
-        except Papel.DoesNotExist:
-            return Response(
-                {'detail': 'Papel não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        return selectors.papel_list(
+            user=self.request.user,
+            search=search
+        )
 
-    def destroy(self, request, pk=None):
-        try:
-            papel = Papel.objects.get(pk=pk, deleted_at__isnull=True)
-            PermissaoService.delete_papel(
-                papel,
-                user=request.user if request.user.is_authenticated else None
-            )
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Papel.DoesNotExist:
-            return Response(
-                {'detail': 'Papel não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def perform_create(self, serializer):
+        PapelService.create(
+            user=self.request.user,
+            **serializer.validated_data
+        )
 
-    @action(detail=True, methods=['post'])
-    def adicionar_permissao(self, request, pk=None):
-        """Adiciona uma permissão ao papel."""
-        try:
-            papel = Papel.objects.get(pk=pk, deleted_at__isnull=True)
-            permissao_id = request.data.get('permissao_id')
-            if not permissao_id:
-                return Response(
-                    {'detail': 'permissao_id é obrigatório.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            PermissaoService.adicionar_permissao_papel(papel, permissao_id)
-            serializer = self.get_serializer(papel)
-            return Response(serializer.data)
-        except Papel.DoesNotExist:
-            return Response(
-                {'detail': 'Papel não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def perform_update(self, serializer):
+        PapelService.update(
+            user=self.request.user,
+            papel=serializer.instance,
+            **serializer.validated_data
+        )
 
-    @action(detail=True, methods=['post'])
-    def remover_permissao(self, request, pk=None):
-        """Remove uma permissão do papel."""
-        try:
-            papel = Papel.objects.get(pk=pk, deleted_at__isnull=True)
-            permissao_id = request.data.get('permissao_id')
-            if not permissao_id:
-                return Response(
-                    {'detail': 'permissao_id é obrigatório.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            PermissaoService.remover_permissao_papel(papel, permissao_id)
-            serializer = self.get_serializer(papel)
-            return Response(serializer.data)
-        except Papel.DoesNotExist:
-            return Response(
-                {'detail': 'Papel não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def perform_destroy(self, instance):
+        PapelService.delete(
+            user=self.request.user,
+            papel=instance
+        )
+
+    @action(detail=True, methods=['get'])
+    def usuarios(self, request, pk=None):
+        papel = self.get_object()
+        usuarios = selectors.usuarios_por_papel(user=request.user, papel=papel)
+        serializer = PapelUsuariosListSerializer(usuarios, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], url_path='adicionar-permissoes')
+    def adicionar_permissoes(self, request, pk=None):
+        papel = self.get_object()
+        serializer = PapelPermissoesBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        permissoes_objs = serializer.validated_data['permissoes_ids']
+
+        PapelService.adicionar_permissoes(
+            user=request.user,
+            papel=papel,
+            permissoes=permissoes_objs
+        )
+
+        return Response(self.get_serializer(papel).data)
+
+    @action(detail=True, methods=['post'], url_path='remover-permissoes')
+    def remover_permissoes(self, request, pk=None):
+        papel = self.get_object()
+        serializer = PapelPermissoesBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        permissoes_objs = serializer.validated_data['permissoes_ids']
+
+        PapelService.remover_permissoes(
+            user=request.user,
+            papel=papel,
+            permissoes=permissoes_objs
+        )
+
+        return Response(self.get_serializer(papel).data)

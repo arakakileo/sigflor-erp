@@ -1,146 +1,137 @@
-from rest_framework import viewsets, status
+# -*- coding: utf-8 -*-
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 
-from ..models import Usuario
-from ..serializers import UsuarioSerializer, UsuarioCreateSerializer
+from apps.comum.views.base import BaseRBACViewSet
+from apps.autenticacao.models import Usuario
+from ..serializers import (
+    UsuarioListSerializer,
+    UsuarioCreateSerializer,
+    UsuarioUpdateSerializer,
+    UsuarioRedefinirSenhaSerializer,
+    UsuarioAlterarMinhaSenhaSerializer
+)
 from ..services import UsuarioService
 from .. import selectors
-from apps.comum.permissions import HasPermission
 
+class UsuarioViewSet(BaseRBACViewSet):
 
-class UsuarioViewSet(viewsets.ModelViewSet):
-    """ViewSet para Usuario."""
+    permissao_leitura = 'autenticacao.view_usuario'
+    permissao_update = 'autenticacao.change_usuario'
+    permissao_create = 'autenticacao.add_usuario'
+    permissao_delete = 'autenticacao.delete_usuario'
 
-    def get_permissions(self):
-        """
-        Instancia e retorna a lista de permissões que esta view exige.
-        """
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [HasPermission('autenticacao_usuarios_visualizar')]
-        else:
-            permission_classes = [HasPermission('autenticacao_usuarios_editar')]
-        return [permission() for permission in permission_classes]
+    permissoes_acoes = {
+        'redefinir_senha': 'autenticacao.change_usuario', # Só admin pode resetar senha
+        'me': None,
+        'alterar_minha_senha': None,
+        'destroy': 'autenticacao.delete_usuario'
+    }
+
+    queryset = Usuario.objects.filter(deleted_at__isnull=True)
 
     def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        if self.action == 'create':
             return UsuarioCreateSerializer
-        return UsuarioSerializer
+        if self.action in ['update', 'partial_update']:
+            return UsuarioUpdateSerializer
+        if self.action == 'redefinir_senha':
+            return UsuarioRedefinirSenhaSerializer
+        if self.action == 'alterar_minha_senha':
+            return UsuarioAlterarMinhaSenhaSerializer
+        return UsuarioListSerializer
 
     def get_queryset(self):
-        search = self.request.query_params.get('search')
-        ativo = self.request.query_params.get('ativo')
+        termo_busca = self.request.query_params.get('search')
+        status_ativo = self.request.query_params.get('ativo')
+        filtro_papel = self.request.query_params.get('papel')
 
-        if ativo is not None:
-            ativo = ativo.lower() == 'true'
+        return selectors.usuario_list(
+            user=self.request.user,
+            busca=termo_busca,
+            ativo=status_ativo,
+            papel_id=filtro_papel
+        )
 
-        return selectors.usuario_list(search=search, ativo=ativo)
+    def perform_create(self, serializer):
+        dados_do_formulario = serializer.validated_data
+        UsuarioService.create(
+            user=self.request.user,
+            **dados_do_formulario
+        )
 
-    def retrieve(self, request, pk=None):
-        try:
-            usuario = selectors.usuario_detail(pk=pk)
-            serializer = self.get_serializer(usuario)
-            return Response(serializer.data)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def perform_update(self, serializer):
+        """
+        Executado quando o PUT/PATCH é enviado para editar um usuário.
+        """
+        usuario_que_sera_editado = serializer.instance
+        dados_novos = serializer.validated_data
 
-    def destroy(self, request, pk=None):
-        try:
-            usuario = Usuario.objects.get(pk=pk, deleted_at__isnull=True)
-            UsuarioService.delete(usuario, user=request.user if request.user.is_authenticated else None)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        UsuarioService.update(
+            user=self.request.user,
+            usuario_para_editar=usuario_que_sera_editado,
+            **dados_novos
+        )
 
-    @action(detail=True, methods=['post'])
-    def ativar(self, request, pk=None):
-        """Ativa o usuário."""
-        try:
-            usuario = Usuario.objects.get(pk=pk, deleted_at__isnull=True)
-            UsuarioService.ativar(
-                usuario,
-                updated_by=request.user if request.user.is_authenticated else None
-            )
-            serializer = self.get_serializer(usuario)
-            return Response(serializer.data)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def perform_destroy(self, instance):
+        """
+        Executado quando o DELETE é enviado.
+        """
+        usuario_que_sera_deletado = instance
+        
+        UsuarioService.delete(
+            user=self.request.user,
+            usuario_para_deletar=usuario_que_sera_deletado
+        )
 
-    @action(detail=True, methods=['post'])
-    def desativar(self, request, pk=None):
-        """Desativa o usuário."""
-        try:
-            usuario = Usuario.objects.get(pk=pk, deleted_at__isnull=True)
-            UsuarioService.desativar(
-                usuario,
-                updated_by=request.user if request.user.is_authenticated else None
-            )
-            serializer = self.get_serializer(usuario)
-            return Response(serializer.data)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    # --- ACTIONS EXTRAS ---
 
-    @action(detail=True, methods=['post'])
-    def atribuir_papel(self, request, pk=None):
-        """Atribui um papel ao usuário."""
-        try:
-            usuario = Usuario.objects.get(pk=pk, deleted_at__isnull=True)
-            papel_id = request.data.get('papel_id')
-            if not papel_id:
-                return Response(
-                    {'detail': 'papel_id é obrigatório.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            UsuarioService.atribuir_papel(usuario, papel_id)
-            serializer = self.get_serializer(usuario)
-            return Response(serializer.data)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    @action(detail=True, methods=['post'], url_path='redefinir-senha')
+    def redefinir_senha(self, request, pk=None):
+        """
+        Rota para Admin resetar a senha de outro usuário.
+        URL: POST /api/auth/usuarios/{id}/redefinir-senha/
+        """
+        # 1. Pega o usuário alvo pelo ID da URL
+        usuario_alvo = self.get_object()
+        
+        # 2. Valida os dados enviados (nova_senha)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        nova_senha = serializer.validated_data['nova_senha']
 
-    @action(detail=True, methods=['post'])
-    def remover_papel(self, request, pk=None):
-        """Remove um papel do usuário."""
-        try:
-            usuario = Usuario.objects.get(pk=pk, deleted_at__isnull=True)
-            papel_id = request.data.get('papel_id')
-            if not papel_id:
-                return Response(
-                    {'detail': 'papel_id é obrigatório.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            UsuarioService.remover_papel(usuario, papel_id)
-            serializer = self.get_serializer(usuario)
-            return Response(serializer.data)
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # 3. Chama o Service para criptografar e salvar
+        UsuarioService.redefinir_senha(
+            user=request.user, # Quem está fazendo a ação (Admin)
+            usuario_alvo=usuario_alvo, # Quem vai ter a senha trocada
+            nova_senha=nova_senha
+        )
+        
+        return Response({'detail': 'Senha alterada com sucesso.'}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['get'])
-    def permissoes(self, request, pk=None):
-        """Retorna as permissões efetivas do usuário."""
-        try:
-            usuario = selectors.usuario_detail(pk=pk)
-            permissoes = usuario.get_permissoes_efetivas()
-            return Response({'permissoes': list(permissoes)})
-        except Usuario.DoesNotExist:
-            return Response(
-                {'detail': 'Usuário não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        usuario_logado = request.user
+        serializer = UsuarioListSerializer(usuario_logado)
+        dados_resposta = serializer.data
+        dados_resposta['permissoes'] = usuario_logado.get_all_permissions()
+        return Response(dados_resposta, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='alterar-minha-senha')
+    def alterar_minha_senha(self, request):
+        usuario_logado = request.user
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        dados = serializer.validated_data
+
+        UsuarioService.alterar_senha_proprio_usuario(
+            user=usuario_logado,
+            senha_atual=dados['senha_atual'],
+            nova_senha=dados['nova_senha']
+        )
+        
+        return Response({'detail': 'Sua senha foi alterada com sucesso.'}, status=status.HTTP_200_OK)

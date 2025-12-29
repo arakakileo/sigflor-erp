@@ -76,19 +76,16 @@ class ProjetoCreateSerializer(serializers.Serializer):
     )
 
     def validate_cliente_id(self, value):
-        """Valida se o cliente existe e está ativo."""
         if not Cliente.objects.filter(id=value, deleted_at__isnull=True).exists():
             raise serializers.ValidationError("Cliente não encontrado ou inativo.")
         return value
 
     def validate_filial_id(self, value):
-        """Valida se a filial existe e está ativa."""
         if not Filial.objects.filter(id=value, deleted_at__isnull=True).exists():
             raise serializers.ValidationError("Filial não encontrada ou inativa.")
         return value
 
     def validate(self, data):
-        """Valida datas."""
         data_inicio = data.get('data_inicio')
         data_fim = data.get('data_fim')
 
@@ -108,13 +105,11 @@ class ProjetoUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=StatusProjeto.choices, required=False)
 
     def validate_filial_id(self, value):
-        """Valida se a filial existe e está ativa."""
         if value and not Filial.objects.filter(id=value, deleted_at__isnull=True).exists():
             raise serializers.ValidationError("Filial não encontrada ou inativa.")
         return value
 
     def validate(self, data):
-        """Valida datas."""
         data_inicio = data.get('data_inicio')
         data_fim = data.get('data_fim')
 

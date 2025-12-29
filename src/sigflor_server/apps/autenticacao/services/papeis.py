@@ -1,24 +1,21 @@
 from typing import Optional
 from django.db import transaction
 
-from ..models import Papel
+from ..models import Papel, Usuario
 
 class PapelService:
-    """Service layer para operações com Papel."""
 
     @staticmethod
     @transaction.atomic
     def create(
-        nome: str,
-        descricao: Optional[str] = None,
+        *,
+        user: Usuario,
         permissoes: Optional[list] = None,
-        created_by=None,
+        **kwargs
     ) -> Papel:
-        """Cria um novo Papel."""
         papel = Papel(
-            nome=nome,
-            descricao=descricao,
-            created_by=created_by,
+            created_by=user,
+            **kwargs
         )
         papel.save()
         if permissoes:
@@ -27,32 +24,34 @@ class PapelService:
 
     @staticmethod
     @transaction.atomic
-    def update(papel: Papel, updated_by=None, **kwargs) -> Papel:
-        """Atualiza um Papel existente."""
-        permissoes = kwargs.pop('permissoes', None)
+    def update(
+        *,
+        user: Usuario,
+        papel: Papel,
+        **kwargs
+    ) -> Papel:
         for attr, value in kwargs.items():
             if hasattr(papel, attr):
                 setattr(papel, attr, value)
-        papel.updated_by = updated_by
+        papel.updated_by = user
         papel.save()
-        if permissoes is not None:
-            papel.permissoes.set(permissoes)
         return papel
 
     @staticmethod
     @transaction.atomic
-    def delete(papel: Papel, user=None) -> None:
-        """Soft delete de um Papel."""
+    def delete(user: Usuario , papel: Papel) -> None:
         papel.delete(user=user)
 
     @staticmethod
     @transaction.atomic
-    def adicionar_permissao(papel: Papel, permissao: Permissao) -> None:
-        """Adiciona uma permissão ao papel."""
-        papel.permissoes.add(permissao)
+    def adicionar_permissoes(*, user: Usuario, papel: Papel, permissoes: list) -> None:
+        papel.permissoes.add(*permissoes)
+        papel.updated_by = user
+        papel.save()
 
     @staticmethod
     @transaction.atomic
-    def remover_permissao(papel: Papel, permissao: Permissao) -> None:
-        """Remove uma permissão do papel."""
-        papel.permissoes.remove(permissao)
+    def remover_permissoes(*, user: Usuario, papel: Papel, permissoes: list) -> None:
+        papel.permissoes.remove(*permissoes)
+        papel.updated_by = user
+        papel.save()

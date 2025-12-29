@@ -1,57 +1,39 @@
-from uuid import UUID
+# -*- coding: utf-8 -*-
 from django.db import transaction
-from rest_framework.exceptions import PermissionDenied
+from django.utils import timezone
 
-from apps.autenticacao.models.usuarios import Usuario
-from ..models import Projeto, StatusProjeto, Cliente, Filial
-
+from ..models import Projeto
+from apps.autenticacao.models import Usuario
 
 class ProjetoService:
-
-    @staticmethod
-    def _check_filial_access(user: Usuario, filial: Filial) -> bool:
-        """
-        Verifica se o usuário tem acesso à filial.
-        Superusuários sempre têm acesso.
-        """
-        if user.is_superuser:
-            return True
-        if not user.allowed_filiais.filter(id=filial.id).exists():
-            raise PermissionDenied(f"Usuário não tem acesso à filial {filial.nome}.")
-        return True
 
     @staticmethod
     @transaction.atomic
     def create(
         *,
         user: Usuario,
-        descricao: str,
-        cliente_id: UUID,
-        filial_id: UUID,
-        data_inicio,
-        data_fim=None,
-        status: str = StatusProjeto.PLANEJADO,
+        nome: str,
+        filial,
+        **kwargs
     ) -> Projeto:
         """
-        Cria um novo Projeto.
-        O número é gerado automaticamente.
-        A empresa é preenchida automaticamente via cliente.empresa_gestora.
+        Cria um novo projeto vinculado a uma filial.
         """
-        cliente = Cliente.objects.get(id=cliente_id, deleted_at__isnull=True)
-        filial = Filial.objects.get(id=filial_id, deleted_at__isnull=True)
-
-        ProjetoService._check_filial_access(user, filial)
+        
+        # Garante que 'filial' seja tratado corretamente (ID ou Objeto)
+        filial_id = getattr(filial, 'id', filial)
 
         projeto = Projeto(
-            descricao=descricao,
-            cliente=cliente,
-            filial=filial,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            status=status,
+            nome=nome,
+            filial_id=filial_id,
             created_by=user,
+            **kwargs
         )
+        
+        # Validações extras podem ser feitas aqui antes de salvar
+        projeto.full_clean()
         projeto.save()
+
         return projeto
 
     @staticmethod
@@ -63,51 +45,52 @@ class ProjetoService:
         **kwargs
     ) -> Projeto:
         """
-        Atualiza um Projeto existente.
-        Não permite alterar cliente (e consequentemente empresa).
+        Atualiza dados do projeto.
         """
+        
+        # Se estiver trocando a filial do projeto
+        if 'filial' in kwargs:
+            nova_filial = kwargs.pop('filial')
+            projeto.filial_id = getattr(nova_filial, 'id', nova_filial)
 
-        ProjetoService._check_filial_access(user, projeto.filial)
+        for attr, value in kwargs.items():
+            if hasattr(projeto, attr):
+                setattr(projeto, attr, value)
+        
+        projeto.updated_by = user
+        projeto.full_clean()
+        projeto.save()
 
-        filial_id = kwargs.pop('filial_id', None)
-        if filial_id and filial_id != projeto.filial_id:
-            nova_filial = Filial.objects.get(id=filial_id, deleted_at__isnull=True)
-            ProjetoService._check_filial_access(user, nova_filial)
-            projeto.filial = nova_filial
+        return projeto
 
-        allowed_fields = ['descricao', 'data_inicio', 'data_fim', 'status']
-        for field, value in kwargs.items():
-            if field in allowed_fields and hasattr(projeto, field):
-                setattr(projeto, field, value)
+    @staticmethod
+    @transaction.atomic
+    def delete(*, user: Usuario, projeto: Projeto) -> None:
+        """
+        Realiza o Soft Delete do projeto.
+        """
+        # Regra de Negócio: Não pode excluir projeto com funcionários ativos?
+        # A validação de ProtectedError do Django já deve barrar se houver FK protegida,
+        # mas podemos verificar alocações ativas aqui se necessário.
+        
+        projeto.deleted_at = timezone.now()
+        projeto.ativo = False
+        projeto.updated_by = user
+        projeto.save()
 
+    @staticmethod
+    @transaction.atomic
+    def ativar(*, user: Usuario, projeto: Projeto) -> Projeto:
+        projeto.ativo = True
         projeto.updated_by = user
         projeto.save()
         return projeto
 
     @staticmethod
     @transaction.atomic
-    def delete(*, user: Usuario, projeto: Projeto) -> None:
-        ProjetoService._check_filial_access(user, projeto.filial)
-        projeto.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
-    def restore(*, user: Usuario, projeto: Projeto) -> Projeto:
-        ProjetoService._check_filial_access(user, projeto.filial)
-        projeto.restore(user=user)
-        return projeto
-
-    @staticmethod
-    @transaction.atomic
-    def change_status(
-        *,
-        user: Usuario,
-        projeto: Projeto,
-        novo_status: str
-    ) -> Projeto:
-        ProjetoService._check_filial_access(user, projeto.filial)
-
-        projeto.status = novo_status
+    def desativar(*, user: Usuario, projeto: Projeto) -> Projeto:
+        # Opcional: Validar se existem alocações ativas antes de desativar
+        projeto.ativo = False
         projeto.updated_by = user
         projeto.save()
         return projeto

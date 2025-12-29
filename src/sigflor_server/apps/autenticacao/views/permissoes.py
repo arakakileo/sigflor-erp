@@ -1,32 +1,20 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-
-from ..models import Permissao
+# -*- coding: utf-8 -*-
+from apps.comum.views.base import BaseRBACViewSet
+from django.contrib.auth.models import Permission
 from ..serializers import PermissaoSerializer
-from ..services import PermissaoService
 from .. import selectors
 
+class PermissaoViewSet(BaseRBACViewSet):
 
-class PermissaoViewSet(viewsets.ModelViewSet):
-    """ViewSet para Permissao."""
+    permissao_leitura = 'autenticacao.view_papel'
+    permissao_escrita = 'autenticacao.change_papel'
+    http_method_names = ['get', 'head', 'options']
 
-    queryset = Permissao.objects.filter(deleted_at__isnull=True)
+    queryset = Permission.objects.all()
     serializer_class = PermissaoSerializer
 
     def get_queryset(self):
-        search = self.request.query_params.get('search')
-        return selectors.permissao_list(search=search)
-
-    def destroy(self, request, pk=None):
-        try:
-            permissao = Permissao.objects.get(pk=pk, deleted_at__isnull=True)
-            PermissaoService.delete_permissao(
-                permissao,
-                user=request.user if request.user.is_authenticated else None
-            )
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Permissao.DoesNotExist:
-            return Response(
-                {'detail': 'Permissão não encontrada.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        return selectors.permissao_list(
+            user=self.request.user,
+            search=self.request.query_params.get('search')
+        )
