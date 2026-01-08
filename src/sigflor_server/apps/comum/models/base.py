@@ -52,6 +52,6 @@ class SoftDeleteModel(AuditModel):
 
     def restore(self, user=None):
         self.deleted_at = None
-
+        self.deleted_by = None
         self.updated_by = user
-        self.save(update_fields=['deleted_at', 'updated_by', 'updated_at'])
+        self.save(update_fields=['deleted_by','deleted_at', 'updated_by', 'updated_at'])

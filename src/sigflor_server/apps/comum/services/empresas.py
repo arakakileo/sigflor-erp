@@ -60,8 +60,19 @@ class EmpresaService:
 
     @staticmethod
     @transaction.atomic
-    def delete(empresa: Empresa, user:Usuario) -> None:
+    def delete(empresa: Empresa, user: Usuario) -> None:
+        pessoa_juridica = empresa.pessoa_juridica
         empresa.delete(user=user)
+        if pessoa_juridica:
+            PessoaJuridicaService.delete(pessoa_juridica, user=user)
+
+    @staticmethod
+    @transaction.atomic
+    def restore(empresa: Empresa, user: Usuario) -> Empresa:
+        empresa.restore(user=user)
+        if empresa.pessoa_juridica:
+            PessoaJuridicaService.restore(empresa.pessoa_juridica, user=user)
+        return empresa
 
     @staticmethod
     @transaction.atomic

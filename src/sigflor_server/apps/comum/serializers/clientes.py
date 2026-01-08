@@ -61,7 +61,7 @@ class ClienteCreateSerializer(serializers.ModelSerializer):
 
 class ClienteUpdateSerializer(serializers.ModelSerializer):
 
-    pessoa_juridica = PessoaJuridicaUpdateSerializer(required=False)
+    pessoa_juridica = PessoaJuridicaUpdateSerializer(required=True)
     
     class Meta:
         model = Cliente
@@ -69,8 +69,14 @@ class ClienteUpdateSerializer(serializers.ModelSerializer):
             'pessoa_juridica',
             'descricao',
             'empresa_gestora',
-            'ativo',
         ]
+
+    def validate(self, attrs):
+        if 'ativo' in self.initial_data or 'ativa' in self.initial_data:
+            raise serializers.ValidationError({
+                "ativo": "Para ativar ou desativar clientes use as rotas específicas de ativação/desativação."
+            })
+        return attrs
 
 class ClienteSelecaoSerializer(serializers.ModelSerializer):
     label = serializers.CharField(source='pessoa_juridica.razao_social', read_only=True)

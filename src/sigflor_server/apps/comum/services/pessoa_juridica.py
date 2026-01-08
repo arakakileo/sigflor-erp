@@ -83,28 +83,25 @@ class PessoaJuridicaService:
     @transaction.atomic
     def update(pessoa: PessoaJuridica, updated_by=None, **kwargs) -> PessoaJuridica:
 
-        enderecos = kwargs.pop('enderecos_vinculados', None)
-        contatos = kwargs.pop('contatos_vinculados', None)
-        documentos = kwargs.pop('documentos_vinculados', None)
-        anexos = kwargs.pop('anexos_vinculados', None)
+        enderecos = kwargs.pop('enderecos', None)
+        contatos = kwargs.pop('contatos', None)
+        documentos = kwargs.pop('documentos', None)
+        anexos = kwargs.pop('anexos', None)
         for attr, value in kwargs.items():
             if hasattr(pessoa, attr): setattr(pessoa, attr, value)
         pessoa.updated_by = updated_by
         pessoa.save()
 
         if enderecos is not None:
-            EnderecoService.atualizar_enderecos_pessoa_juridica(pessoa, enderecos, updated_by)
+            EnderecoService.atualizar_enderecos_pessoa_juridica(
+                pessoa, enderecos, updated_by
+            )
 
-        # if contatos is not None:
-        #     ServiceUtils.sincronizar_lista_aninhada(
-        #         entidade_pai=pessoa,
-        #         dados_lista=contatos,
-        #         service_filho=ContatoService,
-        #         user=updated_by,
-        #         metodo_busca_existentes='get_contatos_pessoa_juridica',
-        #         metodo_criar='vincular_contato_pessoa_juridica',
-        #         campo_entidade_pai='pessoa_juridica'
-        #     )
+        if contatos is not None:
+            ContatoService.atualizar_contatos_pessoa_juridica(
+                pessoa, contatos, updated_by
+            )
+
 
         # if documentos is not None:
         #     ServiceUtils.sincronizar_lista_aninhada(

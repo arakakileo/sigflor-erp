@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
 from ..models import Filial
-from ..serializers.enderecos import FilialEnderecoNestedSerializer, FilialEnderecoListSerializer
-from ..serializers.contatos import FilialContatoNestedSerializer, FilialContatoListSerializer
+from ..serializers.enderecos import FilialEnderecoNestedSerializer, FilialEnderecoSerializer
+from ..serializers.contatos import FilialContatoNestedSerializer, FilialContatoSerializer
 from ..models.enums import StatusFilial
 
 
@@ -22,8 +22,8 @@ class FilialListSerializer(serializers.ModelSerializer):
 class FilialSerializer(serializers.ModelSerializer):
     is_ativa = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
-    enderecos = FilialEnderecoListSerializer(many=True, read_only=True, source='enderecos_vinculados')
-    contatos = FilialContatoListSerializer(many=True, read_only=True, source='contatos_vinculados')
+    enderecos = FilialEnderecoSerializer(many=True, read_only=True, source='enderecos_vinculados')
+    contatos = FilialContatoSerializer(many=True, read_only=True, source='contatos_vinculados')
 
     class Meta:
         model = Filial
@@ -71,12 +71,18 @@ class FilialUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'nome',
             'codigo_interno',
-            'status',
             'descricao',
             'empresa',
             'contatos',
             'enderecos',
         ]
+
+    def validate(self, attrs):
+        if 'status' in self.initial_data:
+            raise serializers.ValidationError({
+                "status": "Para alterar status de filial use as rotas específicas ativar/desativar/suspender."
+            })
+        return attrs
 
 class FilialSelecaoSerializer(serializers.ModelSerializer):
     label = serializers.CharField(source='nome', read_only=True)

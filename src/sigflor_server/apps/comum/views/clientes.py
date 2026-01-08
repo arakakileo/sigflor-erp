@@ -1,3 +1,4 @@
+from urllib import request
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -23,6 +24,7 @@ class ClienteViewSet(BaseRBACViewSet):
         'ativar': 'comum_clientes_escrever',
         'desativar': 'comum_clientes_escrever',
         'selecao': 'comum_clientes_ler',
+        'restaurar': 'comum_clientes_escrever',
     }
 
     queryset = Cliente.objects.filter(deleted_at__isnull=True)
@@ -46,7 +48,11 @@ class ClienteViewSet(BaseRBACViewSet):
         if ativo is not None:
             ativo = ativo.lower() == 'true'
 
-        return selectors.cliente_list(search=search, ativo=ativo)
+        return selectors.cliente_list(
+            user = self.request.user,
+            search=search, 
+            ativo=ativo
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -65,15 +71,21 @@ class ClienteViewSet(BaseRBACViewSet):
         output_serializer = ClienteSerializer(cliente)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_update(self, serializer):
-            ClienteService.update(
-                cliente=serializer.instance,
-                updated_by=self.request.user,
-                **serializer.validated_data
-            )
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        cliente_atualizado = ClienteService.update(
+            cliente=instance,
+            updated_by=request.user,
+            **serializer.validated_data
+        )
+        read_serializer = ClienteSerializer(cliente_atualizado)
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
-        cliente = selectors.cliente_detail(pk=pk)
+        cliente = selectors.cliente_detail(user = request.user, pk=pk)
         serializer = self.get_serializer(cliente)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -82,6 +94,18 @@ class ClienteViewSet(BaseRBACViewSet):
                 instance, 
                 user=self.request.user
             )
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        cliente = selectors.cliente_get_by_id_irrestrito(user=request.user, pk=pk)
+        if not cliente:
+            return Response(
+                {'detail': 'Cliente não encontrado.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        ClienteService.restore(cliente, user=request.user)
+        serializer = self.get_serializer(cliente)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):

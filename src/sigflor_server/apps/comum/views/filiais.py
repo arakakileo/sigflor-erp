@@ -63,12 +63,18 @@ class FilialViewSet(BaseRBACViewSet):
         output_serializer = FilialSerializer(filial)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_update(self, serializer):
-        FilialService.update(
-            filial=serializer.instance,
-            user=self.request.user,
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        filial_atualizada = FilialService.update(
+            filial=instance,
+            user=request.user,
             **serializer.validated_data
         )
+        read_serializer = FilialSerializer(filial_atualizada)
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         filial = selectors.filial_detail(user=request.user,pk=pk)

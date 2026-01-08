@@ -1,8 +1,11 @@
+from typing import Optional
 from django.db.models import QuerySet
 from django.contrib.contenttypes.models import ContentType
+
+from apps.autenticacao.models.usuarios import Usuario
 from ..models import Contato
 
-def contato_list_por_entidade(*, entidade, tipo: str = None) -> QuerySet:
+def contato_list_por_entidade(*, user: Usuario, entidade, tipo: Optional[str] = None) -> QuerySet:
     """Lista contatos de uma entidade. (FIXME: Lógica de GFK pode precisar de revisão)"""
     content_type = ContentType.objects.get_for_model(entidade)
     qs = Contato.objects.filter(

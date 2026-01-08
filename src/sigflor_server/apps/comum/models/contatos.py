@@ -65,6 +65,8 @@ class Contato(SoftDeleteModel):
 
 
 class PessoaFisicaContato(SoftDeleteModel):
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -97,7 +99,8 @@ class PessoaFisicaContato(SoftDeleteModel):
 
 
 class PessoaJuridicaContato(SoftDeleteModel):
-    """Tabela de ligação entre PessoaJuridica e Contato."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_juridica = models.ForeignKey(
         'comum.PessoaJuridica',
         on_delete=models.CASCADE,
@@ -126,6 +129,8 @@ class PessoaJuridicaContato(SoftDeleteModel):
 
 
 class FilialContato(SoftDeleteModel):
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     filial = models.ForeignKey(
         'comum.Filial',
         on_delete=models.CASCADE,

@@ -62,6 +62,7 @@ class Documento(SoftDeleteModel):
 
 class PessoaFisicaDocumento(SoftDeleteModel):
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -90,6 +91,7 @@ class PessoaFisicaDocumento(SoftDeleteModel):
 
 class PessoaJuridicaDocumento(SoftDeleteModel):
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pessoa_juridica = models.ForeignKey(
         'comum.PessoaJuridica',
         on_delete=models.CASCADE,

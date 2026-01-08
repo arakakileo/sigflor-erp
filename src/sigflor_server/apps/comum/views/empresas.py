@@ -23,6 +23,7 @@ class EmpresaViewSet(BaseRBACViewSet):
         'ativar': 'comum_empresas_escrever',
         'desativar': 'comum_empresas_escrever',
         'selecao': 'comum_empresas_ler',
+        'restaurar': 'comum_empresas_escrever',
     }
 
     queryset = Empresa.objects.filter(deleted_at__isnull=True)
@@ -45,7 +46,11 @@ class EmpresaViewSet(BaseRBACViewSet):
         if ativa is not None:
             ativa = ativa.lower() == 'true'
 
-        return selectors.empresa_list(search=search, ativa=ativa)
+        return selectors.empresa_list(
+            user=self.request.user, 
+            search=search, 
+            ativa=ativa
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -74,7 +79,19 @@ class EmpresaViewSet(BaseRBACViewSet):
         return Response(read_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
-        empresa = selectors.empresa_detail(pk=pk)
+        empresa = selectors.empresa_detail(user = request.user, pk=pk)
+        serializer = self.get_serializer(empresa)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        empresa = selectors.empresa_get_by_id_irrestrito(user = request.user, pk=pk)
+        if not empresa:
+            return Response(
+                {'detail': 'Empresa não encontrada.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        EmpresaService.restore(empresa, user=request.user)
         serializer = self.get_serializer(empresa)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

@@ -80,25 +80,19 @@ class FilialService:
         filial.save()
 
         if enderecos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=filial,
-                dados_lista=enderecos,
-                service_filho=EnderecoService,
-                user=user,
-                metodo_busca_existentes='get_enderecos_filial', #
-                metodo_criar='criar_endereco_filial',           #
-                campo_entidade_pai='filial'
+            EnderecoService.atualizar_enderecos_filial(
+                filial, enderecos, user
             )
 
-        if contatos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=filial,
-                dados_lista=contatos,
-                service_filho=ContatoService,
-                user=user,
-                metodo_busca_existentes='get_contatos_filial',
-                metodo_criar='criar_contato_filial',
-            )
+        # if contatos is not None:
+        #     ServiceUtils.sincronizar_lista_aninhada(
+        #         entidade_pai=filial,
+        #         dados_lista=contatos,
+        #         service_filho=ContatoService,
+        #         user=user,
+        #         metodo_busca_existentes='get_contatos_filial',
+        #         metodo_criar='criar_contato_filial',
+        #     )
 
         return filial
 

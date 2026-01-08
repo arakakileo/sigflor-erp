@@ -1,14 +1,16 @@
+from typing import Optional
 from django.db.models import QuerySet, Q
 from ..models import Cliente
+from apps.autenticacao.models.usuarios import Usuario
 
 def cliente_list(
     *,
-    filters: dict = None,
-    search: str = None,
-    ativo: bool = None,
-    empresa_id: str = None
+    user: Usuario,
+    filters: Optional[dict] = None,
+    search: Optional[str] = None,
+    ativo: Optional[bool] = None,
+    empresa_id: Optional[str] = None
 ) -> QuerySet:
-    """Lista clientes com filtros opcionais."""
     qs = Cliente.objects.filter(deleted_at__isnull=True).select_related('pessoa_juridica', 'empresa_gestora')
 
     if ativo is not None:
@@ -29,8 +31,10 @@ def cliente_list(
 
     return qs.order_by('pessoa_juridica__razao_social')
 
+def cliente_get_by_id_irrestrito(*, user: Usuario, pk: str) -> Optional[Cliente]:
+    return Cliente.objects.filter(pk=pk).select_related('pessoa_juridica').first()
 
-def cliente_detail(*, pk) -> Cliente:
+def cliente_detail(*, user: Usuario, pk) -> Cliente:
     return Cliente.objects.select_related(
         'pessoa_juridica', 'empresa_gestora'
     ).prefetch_related(
@@ -39,10 +43,7 @@ def cliente_detail(*, pk) -> Cliente:
         'pessoa_juridica__documentos_vinculados__documento'
     ).get(pk=pk, deleted_at__isnull=True)
 
-def cliente_list_selection(*, user, ativo: bool = True) -> QuerySet:
-    """
-    Lista leve apenas para seleção. Traz Razão Social e CNPJ.
-    """
+def cliente_list_selection(*, user: Usuario, ativo: bool = True) -> QuerySet:
     qs = Cliente.objects.filter(
         deleted_at__isnull=True,
         ativo=ativo

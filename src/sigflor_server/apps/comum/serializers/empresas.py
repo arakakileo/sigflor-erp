@@ -59,9 +59,8 @@ class EmpresaUpdateSerializer(serializers.ModelSerializer):
             'pessoa_juridica',
             'descricao',
         ]
+
     def validate(self, attrs):
-        # Verificamos 'initial_data' pois campos fora do 'Meta.fields' 
-        # são ignorados pelo DRF antes de chegar aqui.
         if 'ativa' in self.initial_data or 'ativo' in self.initial_data:
             raise serializers.ValidationError({
                 "ativa": "Para ativar ou desativar empresas use as rotas específicas de ativação/desativação."

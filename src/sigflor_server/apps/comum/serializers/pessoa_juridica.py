@@ -6,7 +6,7 @@ from ..models.enums import SituacaoCadastral
 from ..validators import validar_cnpj
 
 from .enderecos import PessoaJuridicaEnderecoNestedSerializer, PessoaJuridicaEnderecoSerializer
-from .contatos import PessoaJuridicaContatoNestedSerializer, PessoaJuridicaContatoListSerializer
+from .contatos import PessoaJuridicaContatoNestedSerializer, PessoaJuridicaContatoSerializer
 from .documentos import PessoaJuridicaDocumentoNestedSerializer, PessoaJuridicaDocumentoListSerializer
 from .anexos import AnexoSerializer, AnexoNestedSerializer
 
@@ -35,7 +35,7 @@ class PessoaJuridicaSerializer(serializers.ModelSerializer):
         source='get_situacao_cadastral_display', read_only=True
     )
     enderecos = PessoaJuridicaEnderecoSerializer(many=True, read_only=True, source='enderecos_vinculados')
-    contatos = PessoaJuridicaContatoListSerializer(many=True, read_only=True, source='contatos_vinculados')
+    contatos = PessoaJuridicaContatoSerializer(many=True, read_only=True, source='contatos_vinculados')
     documentos = PessoaJuridicaDocumentoListSerializer(many=True, read_only=True, source='documentos_vinculados')
     anexos = AnexoSerializer(many=True, read_only=True)
 
@@ -107,13 +107,13 @@ class PessoaJuridicaUpdateSerializer(serializers.Serializer):
     observacoes = serializers.CharField(required=False, allow_blank=True)
 
     enderecos = PessoaJuridicaEnderecoNestedSerializer(
-        many=True, required=False, allow_empty=True, source='enderecos_vinculados'
+        many=True, required=False, allow_empty=True
     )
     contatos = PessoaJuridicaContatoNestedSerializer(
-        many=True, required=False, allow_empty=True, source='contatos_vinculados'
+        many=True, required=False, allow_empty=True
     )
     documentos = PessoaJuridicaDocumentoNestedSerializer(
-        many=True, required=False, allow_empty=True, source='documentos_vinculados'
+        many=True, required=False, allow_empty=True
     )
     anexos = AnexoNestedSerializer(
         many=True, required=False, allow_empty=True

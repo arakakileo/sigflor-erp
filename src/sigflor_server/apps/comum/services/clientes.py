@@ -64,8 +64,19 @@ class ClienteService:
 
     @staticmethod
     @transaction.atomic
-    def delete(cliente: Cliente, user:Usuario) -> None:
+    def delete(cliente: Cliente, user: Usuario) -> None:
+        pessoa_juridica = cliente.pessoa_juridica
         cliente.delete(user=user)
+        if pessoa_juridica:
+            PessoaJuridicaService.delete(pessoa_juridica, user=user)
+
+    @staticmethod
+    @transaction.atomic
+    def restore(cliente: Cliente, user: Usuario) -> Cliente:
+        cliente.restore(user=user)
+        if cliente.pessoa_juridica:
+            PessoaJuridicaService.restore(cliente.pessoa_juridica, user=user)
+        return cliente
 
     @staticmethod
     @transaction.atomic

@@ -11,6 +11,8 @@ class EnderecoSerializer(serializers.ModelSerializer):
     endereco_completo = serializers.ReadOnlyField()
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     cep = serializers.CharField(max_length=9)
+    created_by = UsuarioResumoSerializer()
+    updated_by = UsuarioResumoSerializer()
 
     class Meta:
         model = Endereco
@@ -27,6 +29,8 @@ class EnderecoSerializer(serializers.ModelSerializer):
             'cep_formatado',
             'pais',
             'endereco_completo',
+            'created_by',
+            'updated_by',
             'created_at',
             'updated_at',
         ]
@@ -68,6 +72,8 @@ class PessoaFisicaEnderecoSerializer(serializers.ModelSerializer):
 
     endereco = EnderecoSerializer(read_only=True)
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    created_by = UsuarioResumoSerializer()
+    updated_by = UsuarioResumoSerializer()
 
     class Meta:
         model = PessoaFisicaEndereco
@@ -176,7 +182,17 @@ class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
             'pais',
         ]
 
-
+    def validate(self, attrs):
+        item_id = attrs.get('id')
+        if not item_id:
+            erros = {}
+            campos_obrigatorios = ['logradouro', 'cidade', 'estado', 'cep', 'pais']
+            for campo in campos_obrigatorios:
+                if campo not in attrs:
+                    erros[campo] = "Este campo é obrigatório para cadastrar um novo endereço."
+            if erros:
+                raise serializers.ValidationError(erros)
+        return attrs
 # ==============================================================================
 # 3. FILIAL (Vínculos)
 # ==============================================================================
@@ -184,6 +200,8 @@ class PessoaJuridicaEnderecoNestedSerializer(PessoaJuridicaEnderecoSerializer):
 class FilialEnderecoSerializer(serializers.ModelSerializer):
     endereco = EnderecoSerializer(read_only=True)
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    created_by = UsuarioResumoSerializer()
+    updated_by = UsuarioResumoSerializer()
 
     class Meta:
         model = FilialEndereco
@@ -197,20 +215,6 @@ class FilialEnderecoSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['endereco', 'tipo_display', 'created_at', 'updated_at']
-
-class FilialEnderecoListSerializer(serializers.ModelSerializer):
-    endereco = EnderecoSerializer(read_only=True)
-    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
-
-    class Meta:
-        model = FilialEndereco
-        fields = [
-            'id',
-            'endereco',
-            'tipo',
-            'tipo_display',
-            'principal',
-        ]
 
 class FilialEnderecoNestedSerializer(FilialEnderecoSerializer):
     id = serializers.UUIDField(required=False)

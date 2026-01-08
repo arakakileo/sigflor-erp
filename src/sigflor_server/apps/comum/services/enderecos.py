@@ -89,32 +89,40 @@ class EnderecoService:
         if lista_enderecos is None:
             return
 
+        ids_recebidos_raw = [str(item['id']) for item in lista_enderecos if item.get('id')]
+        if len(ids_recebidos_raw) != len(set(ids_recebidos_raw)):
+            raise ValidationError({
+                "non_field_errors": ["Não é permitido enviar o mesmo ID mais de uma vez na mesma requisição."]
+            })
+        
+        ids_recebidos_set = set(ids_recebidos_raw)
         existentes_list = getter_func(entidade_pai)
         existentes_map = {str(v.id): v for v in existentes_list}
-        ids_recebidos = {str(item['id']) for item in lista_enderecos if item.get('id')}
 
-        cls._validar_regras_negocio(existentes_map, lista_enderecos, ids_recebidos)
+        cls._validar_regras_negocio(existentes_map, lista_enderecos)
 
         for vinculo_id, vinculo in existentes_map.items():
-            if vinculo_id not in ids_recebidos:
+            if vinculo_id not in ids_recebidos_set:
                 remover_func(vinculo, user=user)
 
         for item in lista_enderecos:
             item_id = str(item.get('id')) if item.get('id') else None
+
+            if item_id and item_id not in existentes_map:
+                raise ValidationError({
+                    "enderecos": [f"O endereço com id '{item_id}' não foi encontrado ou não pertence a este registro."]
+                })
 
             if not item_id:
                 dados_create = {k:v for k,v in item.items() if k != 'id'}
                 criador_func(entidade_pai, user, **dados_create)
                 continue
 
-            if item_id not in existentes_map:
-                raise ValidationError({"enderecos": [f"O endereço com id '{item_id}' não pertence a esta entidade."]})\
-
             vinculo = existentes_map[item_id]
             cls._atualizar_vinculo_existente(vinculo, item, user)
 
     @classmethod
-    def _validar_regras_negocio(cls, existentes_map, lista_enderecos, ids_recebidos):
+    def _validar_regras_negocio(cls, existentes_map, lista_enderecos):
         """
         Valida regras de consistência:
         1. Duplicidade de endereços (no payload e contra o banco).
@@ -204,6 +212,10 @@ class EnderecoService:
 
     @staticmethod
     def _get_assinatura_enderecos(dados_dict: Optional[dict] = None, obj_model: Optional[Endereco] = None) -> tuple:
+        """
+        Gera uma assinatura única para identificar duplicidade de endereço.
+        Considera: Logradouro, Número, Complemento, Cidade, Estado e CEP.
+        """
         if obj_model:
             return (
                 str(obj_model.logradouro or '').strip().lower(),
@@ -282,6 +294,19 @@ class EnderecoService:
         endereco = vinculo.endereco
         vinculo.delete(user=user)
         EnderecoService._verificar_e_apagar_orfao(endereco, user)
+
+    @classmethod
+    def atualizar_enderecos_pessoa_fisica(cls, pessoa_fisica, lista_enderecos: list, user):
+        cls._sincronizar_vinculos_generico(
+            entidade_pai=pessoa_fisica,
+            lista_enderecos=lista_enderecos,
+            user=user,
+            getter_func=cls.get_enderecos_pessoa_fisica,
+            remover_func=cls.remove_vinculo_pessoa_fisica,
+            criador_func=lambda ent, usr, **kw: cls.vincular_endereco_pessoa_fisica(
+                pessoa_fisica=ent, created_by=usr, **kw
+            )
+        )
 
     # =========================================================================
     # 2. PESSOA JURÍDICA (Gestão de Vínculos)
@@ -415,3 +440,16 @@ class EnderecoService:
         endereco = vinculo.endereco
         vinculo.delete(user=user)
         EnderecoService._verificar_e_apagar_orfao(endereco, user)
+
+    @classmethod
+    def atualizar_enderecos_filial(cls, filial, lista_enderecos: list, user):
+        cls._sincronizar_vinculos_generico(
+            entidade_pai=filial,
+            lista_enderecos=lista_enderecos,
+            user=user,
+            getter_func=cls.get_enderecos_filial,
+            remover_func=cls.remove_vinculo_filial,
+            criador_func=lambda ent, usr, **kw: cls.vincular_endereco_filial(
+                filial=ent, created_by=usr, **kw
+            )
+        )
