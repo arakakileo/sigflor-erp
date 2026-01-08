@@ -3,10 +3,9 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 from ..models import PessoaJuridica
 from ..models.enums import SituacaoCadastral
-
 from ..validators import validar_cnpj
 
-from .enderecos import PessoaJuridicaEnderecoNestedSerializer, PessoaJuridicaEnderecoListSerializer
+from .enderecos import PessoaJuridicaEnderecoNestedSerializer, PessoaJuridicaEnderecoSerializer
 from .contatos import PessoaJuridicaContatoNestedSerializer, PessoaJuridicaContatoListSerializer
 from .documentos import PessoaJuridicaDocumentoNestedSerializer, PessoaJuridicaDocumentoListSerializer
 from .anexos import AnexoSerializer, AnexoNestedSerializer
@@ -35,7 +34,7 @@ class PessoaJuridicaSerializer(serializers.ModelSerializer):
     situacao_cadastral_display = serializers.CharField(
         source='get_situacao_cadastral_display', read_only=True
     )
-    enderecos = PessoaJuridicaEnderecoListSerializer(many=True, read_only=True, source='enderecos_vinculados')
+    enderecos = PessoaJuridicaEnderecoSerializer(many=True, read_only=True, source='enderecos_vinculados')
     contatos = PessoaJuridicaContatoListSerializer(many=True, read_only=True, source='contatos_vinculados')
     documentos = PessoaJuridicaDocumentoListSerializer(many=True, read_only=True, source='documentos_vinculados')
     anexos = AnexoSerializer(many=True, read_only=True)

@@ -7,7 +7,7 @@ from .enderecos import EnderecoService
 from .contatos import ContatoService
 from .documentos import DocumentoService
 from .anexos import AnexoService
-from apps.autenticacao.models.usuarios import Usuario
+from apps.autenticacao.models import Usuario
 from .utils import ServiceUtils
 
 
@@ -83,58 +83,49 @@ class PessoaJuridicaService:
     @transaction.atomic
     def update(pessoa: PessoaJuridica, updated_by=None, **kwargs) -> PessoaJuridica:
 
-        enderecos = kwargs.pop('enderecos', None)
-        contatos = kwargs.pop('contatos', None)
-        documentos = kwargs.pop('documentos', None)
-        anexos = kwargs.pop('anexos', None)
-
+        enderecos = kwargs.pop('enderecos_vinculados', None)
+        contatos = kwargs.pop('contatos_vinculados', None)
+        documentos = kwargs.pop('documentos_vinculados', None)
+        anexos = kwargs.pop('anexos_vinculados', None)
         for attr, value in kwargs.items():
             if hasattr(pessoa, attr): setattr(pessoa, attr, value)
         pessoa.updated_by = updated_by
         pessoa.save()
 
         if enderecos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=pessoa,
-                dados_lista=enderecos,
-                service_filho=EnderecoService,
-                user=updated_by,
-                metodo_busca_existentes='get_enderecos_pessoa_juridica',
-                metodo_criar='vincular_endereco_pessoa_juridica',
-                campo_entidade_pai='pessoa_juridica'
-            )
+            EnderecoService.atualizar_enderecos_pessoa_juridica(pessoa, enderecos, updated_by)
 
-        if contatos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=pessoa,
-                dados_lista=contatos,
-                service_filho=ContatoService,
-                user=updated_by,
-                metodo_busca_existentes='get_contatos_pessoa_juridica',
-                metodo_criar='vincular_contato_pessoa_juridica',
-                campo_entidade_pai='pessoa_juridica'
-            )
+        # if contatos is not None:
+        #     ServiceUtils.sincronizar_lista_aninhada(
+        #         entidade_pai=pessoa,
+        #         dados_lista=contatos,
+        #         service_filho=ContatoService,
+        #         user=updated_by,
+        #         metodo_busca_existentes='get_contatos_pessoa_juridica',
+        #         metodo_criar='vincular_contato_pessoa_juridica',
+        #         campo_entidade_pai='pessoa_juridica'
+        #     )
 
-        if documentos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=pessoa,
-                dados_lista=documentos,
-                service_filho=DocumentoService,
-                user=updated_by,
-                metodo_busca_existentes='get_documentos_pessoa_juridica',
-                metodo_criar='vincular_documento_pessoa_juridica',
-                campo_entidade_pai='pessoa_juridica'
-            )
+        # if documentos is not None:
+        #     ServiceUtils.sincronizar_lista_aninhada(
+        #         entidade_pai=pessoa,
+        #         dados_lista=documentos,
+        #         service_filho=DocumentoService,
+        #         user=updated_by,
+        #         metodo_busca_existentes='get_documentos_pessoa_juridica',
+        #         metodo_criar='vincular_documento_pessoa_juridica',
+        #         campo_entidade_pai='pessoa_juridica'
+        #     )
 
-        if anexos is not None:
-            ServiceUtils.sincronizar_lista_aninhada(
-                entidade_pai=pessoa,
-                dados_lista=anexos,
-                service_filho=AnexoService,
-                user=updated_by,
-                metodo_busca_existentes='get_anexos_por_entidade',
-                # Defaults: metodo_criar='create', campo_entidade_pai='entidade' (Funciona para Anexo GFK)
-            )
+        # if anexos is not None:
+        #     ServiceUtils.sincronizar_lista_aninhada(
+        #         entidade_pai=pessoa,
+        #         dados_lista=anexos,
+        #         service_filho=AnexoService,
+        #         user=updated_by,
+        #         metodo_busca_existentes='get_anexos_por_entidade',
+        #         # Defaults: metodo_criar='create', campo_entidade_pai='entidade' (Funciona para Anexo GFK)
+        #     )
 
         return pessoa
 

@@ -60,12 +60,18 @@ class EmpresaViewSet(BaseRBACViewSet):
         output_serializer = EmpresaSerializer(empresa)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_update(self, serializer):
-        EmpresaService.update(
-            empresa=serializer.instance,
-            updated_by=self.request.user,
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        pessoa_atualizada = EmpresaService.update(
+            empresa=instance,
+            updated_by=request.user,
             **serializer.validated_data
         )
+        read_serializer = EmpresaSerializer(pessoa_atualizada)
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         empresa = selectors.empresa_detail(pk=pk)

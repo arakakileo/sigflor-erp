@@ -5,6 +5,8 @@ from apps.comum.models import Filial
 
 class UsuarioListSerializer(serializers.ModelSerializer):
     nome = serializers.CharField(source='first_name', read_only=True)
+    is_superuser = serializers.ReadOnlyField()
+    is_staff = serializers.ReadOnlyField()
     sobrenome = serializers.CharField(source='last_name', read_only=True)
     ativo = serializers.BooleanField(source='is_active', read_only=True)
     ultimo_login = serializers.CharField(source='last_login', read_only=True)
@@ -33,7 +35,9 @@ class UsuarioListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = [
-            'id', 
+            'id',
+            'is_superuser', 
+            'is_staff',
             'username', 
             'email', 
             'nome', 
@@ -146,3 +150,8 @@ class UsuarioAlterarMinhaSenhaSerializer(serializers.Serializer):
             raise serializers.ValidationError({"nova_senha": "A nova senha e a confirmação não conferem."})
         
         return dados
+
+class UsuarioResumoSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    nome_completo = serializers.CharField(read_only=True)

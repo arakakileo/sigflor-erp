@@ -8,17 +8,10 @@ class RbacBackend(ModelBackend):
     """
 
     def _get_group_permissions(self, user_obj):
-        """
-        Sobrescreve a lógica padrão que busca em 'user.groups'.
-        Agora busca em 'user.papeis'.
-        """
         if not user_obj.is_active or user_obj.is_anonymous:
             return set()
 
         if not hasattr(user_obj, '_papeis_perm_cache'):
-            # A MÁGICA ACONTECE AQUI:
-            # Buscamos as permissões através do relacionamento 'papeis'
-            # Filtrando apenas papeis ativos (deleted_at=None e ativo=True)
             perms = Permission.objects.filter(
                 papeis__usuarios=user_obj,  
                 papeis__deleted_at__isnull=True

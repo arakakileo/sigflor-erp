@@ -1,13 +1,13 @@
-from typing import Optional
+from typing import Optional, Any, Callable
 from django.db import transaction
 from django.db.models import QuerySet
+from rest_framework.exceptions import ValidationError
 
 from ..models import (
     Endereco, TipoEndereco,
     PessoaFisicaEndereco, PessoaJuridicaEndereco, FilialEndereco,
     PessoaFisica, PessoaJuridica, Filial
 )
-
 
 class EnderecoService:
 
@@ -25,7 +25,7 @@ class EnderecoService:
         pais: str = 'Brasil',
         created_by=None,
     ) -> Endereco:
-        """Cria um novo Endereço (sem vínculo com entidade)."""
+
         endereco = Endereco(
             logradouro=logradouro,
             numero=numero,
@@ -39,6 +39,200 @@ class EnderecoService:
         )
         endereco.save()
         return endereco
+
+    @staticmethod
+    @transaction.atomic
+    def update(endereco: Endereco, updated_by=None, **kwargs) -> Endereco:
+
+        campos_permitidos = [
+            'logradouro', 'numero', 'complemento', 'bairro',
+            'cidade', 'estado', 'cep', 'pais'
+        ]
+        for attr, value in kwargs.items():
+            if attr in campos_permitidos and hasattr(endereco, attr):
+                setattr(endereco, attr, value)
+        
+        endereco.updated_by = updated_by
+        endereco.save()
+        return endereco
+
+    @staticmethod
+    def _verificar_e_apagar_orfao(endereco: Endereco, user) -> None:
+
+        if PessoaFisicaEndereco.objects.filter(endereco=endereco, deleted_at__isnull=True).exists():
+            return
+        
+        if PessoaJuridicaEndereco.objects.filter(endereco=endereco, deleted_at__isnull=True).exists():
+            return
+
+        if FilialEndereco.objects.filter(endereco=endereco, deleted_at__isnull=True).exists():
+            return
+
+        endereco.delete(user=user)
+
+    @classmethod
+    @transaction.atomic
+    def _sincronizar_vinculos_generico(
+        cls, 
+        entidade_pai: Any, 
+        lista_enderecos: list, 
+        user: Any,
+        getter_func: Callable, 
+        remover_func: Callable, 
+        criador_func: Callable
+    ):
+        """
+        Algoritmo genérico de sincronização de endereços.
+        Funciona para qualquer entidade que tenha relacionamento N:N com Endereço
+        e use tabelas intermediárias com campos 'tipo' e 'principal'.
+        """
+        if lista_enderecos is None:
+            return
+
+        existentes_list = getter_func(entidade_pai)
+        existentes_map = {str(v.id): v for v in existentes_list}
+        ids_recebidos = {str(item['id']) for item in lista_enderecos if item.get('id')}
+
+        cls._validar_regras_negocio(existentes_map, lista_enderecos, ids_recebidos)
+
+        for vinculo_id, vinculo in existentes_map.items():
+            if vinculo_id not in ids_recebidos:
+                remover_func(vinculo, user=user)
+
+        for item in lista_enderecos:
+            item_id = str(item.get('id')) if item.get('id') else None
+
+            if not item_id:
+                dados_create = {k:v for k,v in item.items() if k != 'id'}
+                criador_func(entidade_pai, user, **dados_create)
+                continue
+
+            if item_id not in existentes_map:
+                raise ValidationError({"enderecos": [f"O endereço com id '{item_id}' não pertence a esta entidade."]})\
+
+            vinculo = existentes_map[item_id]
+            cls._atualizar_vinculo_existente(vinculo, item, user)
+
+    @classmethod
+    def _validar_regras_negocio(cls, existentes_map, lista_enderecos, ids_recebidos):
+        """
+        Valida regras de consistência:
+        1. Duplicidade de endereços (no payload e contra o banco).
+        2. Obrigatoriedade de exatamente um endereço principal.
+        """
+        mapa_assinaturas_banco = {}
+        
+        for v_id, v in existentes_map.items():
+            sig = cls._get_assinatura_enderecos(obj_model=v.endereco)
+            mapa_assinaturas_banco[sig] = v_id
+
+        total_principais = 0
+        assinaturas_no_payload = set()
+
+        for item in lista_enderecos:
+            item_id = str(item.get('id')) if item.get('id') else None
+            
+            sig_atual = cls._get_assinatura_enderecos(dados_dict=item)
+            
+            if sig_atual in assinaturas_no_payload:
+                raise ValidationError({
+                    "enderecos": [f"O endereço '{item.get('logradouro')}' foi enviado duplicado na lista."]
+                })
+            assinaturas_no_payload.add(sig_atual)
+
+            if sig_atual in mapa_assinaturas_banco:
+                id_dono = mapa_assinaturas_banco[sig_atual]
+                
+                if not item_id:
+                    raise ValidationError({
+                        "enderecos": [f"O endereço '{item.get('logradouro')}' já está cadastrado. Utilize o ID existente ({id_dono}) para atualizá-lo."]
+                    })
+                
+                if item_id and item_id != id_dono:
+                    raise ValidationError({
+                        "enderecos": [f"O endereço '{item.get('logradouro')}' já existe em outro cadastro desta empresa."]
+                    })
+
+            eh_principal = False
+            
+            if item_id and item_id in existentes_map:
+                eh_principal = item.get('principal', existentes_map[item_id].principal)
+            elif not item_id:
+                eh_principal = item.get('principal', False)
+            
+            if eh_principal:
+                total_principais += 1
+
+        if total_principais > 1:
+            raise ValidationError({
+                "enderecos": ["Não é permitido ter mais de um endereço marcado como principal."]
+            })
+            
+        if total_principais == 0:
+            raise ValidationError({
+                "enderecos": ["É obrigatório ter pelo menos um endereço marcado como principal."]
+            })
+
+    @classmethod
+    def _atualizar_vinculo_existente(cls, vinculo, item_dict, user):
+
+        vinculo_mudou = False
+        
+        if 'tipo' in item_dict and vinculo.tipo != item_dict['tipo']:
+            vinculo.tipo = item_dict['tipo']
+            vinculo_mudou = True
+        
+        if 'principal' in item_dict and vinculo.principal != item_dict['principal']:
+            vinculo.principal = item_dict['principal']
+            vinculo_mudou = True
+            
+        if vinculo_mudou:
+            vinculo.updated_by = user
+            vinculo.save()
+
+        endereco_mudou = False
+        ignorar = ['id', 'tipo', 'principal']
+        
+        for key, value in item_dict.items():
+            if key not in ignorar and hasattr(vinculo.endereco, key):
+                if getattr(vinculo.endereco, key) != value:
+                    endereco_mudou = True
+                    break
+        
+        if endereco_mudou:
+            cls.update(vinculo.endereco, updated_by=user, **item_dict)
+
+    @staticmethod
+    def _get_assinatura_enderecos(dados_dict: Optional[dict] = None, obj_model: Optional[Endereco] = None) -> tuple:
+        if obj_model:
+            return (
+                str(obj_model.logradouro or '').strip().lower(),
+                str(obj_model.numero or '').strip().lower(),
+                str(obj_model.complemento or '').strip().lower(),
+                str(obj_model.cidade or '').strip().lower(),
+                str(obj_model.estado or '').strip().lower(),
+                str(obj_model.cep or '').strip().lower(),
+            )
+        else:
+            return (
+                str(dados_dict.get('logradouro') or '').strip().lower(),
+                str(dados_dict.get('numero') or '').strip().lower(),
+                str(dados_dict.get('complemento') or '').strip().lower(),
+                str(dados_dict.get('cidade') or '').strip().lower(),
+                str(dados_dict.get('estado') or '').strip().lower(),
+                str(dados_dict.get('cep') or '').strip().lower(),
+            )
+
+    # =========================================================================
+    # 1. PESSOA FÍSICA (Gestão de Vínculos)
+    # =========================================================================
+
+    @staticmethod
+    def get_enderecos_pessoa_fisica(pessoa_fisica: PessoaFisica) -> QuerySet:
+        return PessoaFisicaEndereco.objects.filter(
+            pessoa_fisica=pessoa_fisica,
+            deleted_at__isnull=True
+        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
 
     @staticmethod
     @transaction.atomic
@@ -57,24 +251,13 @@ class EnderecoService:
         principal: bool = False,
         created_by=None,
     ) -> PessoaFisicaEndereco:
-        """
-        Cria um endereço e vincula a uma PessoaFisica.
-        Se principal=True, desmarca outros endereços do mesmo tipo como principal.
-        """
-        # Cria o endereço
+        
         endereco = EnderecoService.create(
-            logradouro=logradouro,
-            numero=numero,
-            complemento=complemento,
-            bairro=bairro,
-            cidade=cidade,
-            estado=estado,
-            cep=cep,
-            pais=pais,
-            created_by=created_by,
+            logradouro=logradouro, numero=numero, complemento=complemento,
+            bairro=bairro, cidade=cidade, estado=estado, cep=cep,
+            pais=pais, created_by=created_by,
         )
 
-        # Se é principal, desmarca outros do mesmo tipo
         if principal:
             PessoaFisicaEndereco.objects.filter(
                 pessoa_fisica=pessoa_fisica,
@@ -83,7 +266,6 @@ class EnderecoService:
                 deleted_at__isnull=True
             ).update(principal=False)
 
-        # Cria o vínculo
         vinculo = PessoaFisicaEndereco(
             pessoa_fisica=pessoa_fisica,
             endereco=endereco,
@@ -93,6 +275,24 @@ class EnderecoService:
         )
         vinculo.save()
         return vinculo
+
+    @staticmethod
+    @transaction.atomic
+    def remove_vinculo_pessoa_fisica(vinculo: PessoaFisicaEndereco, user=None) -> None:
+        endereco = vinculo.endereco
+        vinculo.delete(user=user)
+        EnderecoService._verificar_e_apagar_orfao(endereco, user)
+
+    # =========================================================================
+    # 2. PESSOA JURÍDICA (Gestão de Vínculos)
+    # =========================================================================
+
+    @staticmethod
+    def get_enderecos_pessoa_juridica(pessoa_juridica: PessoaJuridica) -> QuerySet:
+        return PessoaJuridicaEndereco.objects.filter(
+            pessoa_juridica=pessoa_juridica,
+            deleted_at__isnull=True
+        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
 
     @staticmethod
     @transaction.atomic
@@ -111,20 +311,11 @@ class EnderecoService:
         principal: bool = False,
         created_by=None,
     ) -> PessoaJuridicaEndereco:
-        """
-        Cria um endereço e vincula a uma PessoaJuridica.
-        Se principal=True, desmarca outros endereços do mesmo tipo como principal.
-        """
+        
         endereco = EnderecoService.create(
-            logradouro=logradouro,
-            numero=numero,
-            complemento=complemento,
-            bairro=bairro,
-            cidade=cidade,
-            estado=estado,
-            cep=cep,
-            pais=pais,
-            created_by=created_by,
+            logradouro=logradouro, numero=numero, complemento=complemento,
+            bairro=bairro, cidade=cidade, estado=estado, cep=cep,
+            pais=pais, created_by=created_by,
         )
 
         if principal:
@@ -147,6 +338,37 @@ class EnderecoService:
 
     @staticmethod
     @transaction.atomic
+    def remove_vinculo_pessoa_juridica(vinculo: PessoaJuridicaEndereco, user=None) -> None:
+        endereco = vinculo.endereco
+        vinculo.delete(user=user)
+        EnderecoService._verificar_e_apagar_orfao(endereco, user)
+
+    @classmethod
+    def atualizar_enderecos_pessoa_juridica(cls, pessoa_juridica, lista_enderecos: list, user):
+        cls._sincronizar_vinculos_generico(
+            entidade_pai=pessoa_juridica,
+            lista_enderecos=lista_enderecos,
+            user=user,
+            getter_func=cls.get_enderecos_pessoa_juridica,
+            remover_func=cls.remove_vinculo_pessoa_juridica,
+            criador_func=lambda ent, usr, **kw: cls.vincular_endereco_pessoa_juridica(
+                pessoa_juridica=ent, created_by=usr, **kw
+            )
+        )
+
+    # =========================================================================
+    # 3. FILIAL (Gestão de Vínculos)
+    # =========================================================================
+
+    @staticmethod
+    def get_enderecos_filial(filial: Filial) -> QuerySet:
+        return FilialEndereco.objects.filter(
+            filial=filial,
+            deleted_at__isnull=True
+        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
+
+    @staticmethod
+    @transaction.atomic
     def vincular_endereco_filial(
         *,
         filial: Filial,
@@ -162,20 +384,11 @@ class EnderecoService:
         principal: bool = False,
         created_by=None,
     ) -> FilialEndereco:
-        """
-        Cria um endereço e vincula a uma Filial.
-        Se principal=True, desmarca outros endereços do mesmo tipo como principal.
-        """
+        
         endereco = EnderecoService.create(
-            logradouro=logradouro,
-            numero=numero,
-            complemento=complemento,
-            bairro=bairro,
-            cidade=cidade,
-            estado=estado,
-            cep=cep,
-            pais=pais,
-            created_by=created_by,
+            logradouro=logradouro, numero=numero, complemento=complemento,
+            bairro=bairro, cidade=cidade, estado=estado, cep=cep,
+            pais=pais, created_by=created_by,
         )
 
         if principal:
@@ -198,184 +411,7 @@ class EnderecoService:
 
     @staticmethod
     @transaction.atomic
-    def set_principal_pessoa_fisica(
-        *,
-        vinculo: PessoaFisicaEndereco,
-        updated_by=None,
-    ) -> PessoaFisicaEndereco:
-        """Define um endereço como principal para uma PessoaFisica."""
-        PessoaFisicaEndereco.objects.filter(
-            pessoa_fisica=vinculo.pessoa_fisica,
-            tipo=vinculo.tipo,
-            principal=True,
-            deleted_at__isnull=True
-        ).exclude(pk=vinculo.pk).update(principal=False)
-
-        vinculo.principal = True
-        vinculo.updated_by = updated_by
-        vinculo.save()
-        return vinculo
-
-    @staticmethod
-    @transaction.atomic
-    def set_principal_pessoa_juridica(
-        *,
-        vinculo: PessoaJuridicaEndereco,
-        updated_by=None,
-    ) -> PessoaJuridicaEndereco:
-        """Define um endereço como principal para uma PessoaJuridica."""
-        PessoaJuridicaEndereco.objects.filter(
-            pessoa_juridica=vinculo.pessoa_juridica,
-            tipo=vinculo.tipo,
-            principal=True,
-            deleted_at__isnull=True
-        ).exclude(pk=vinculo.pk).update(principal=False)
-
-        vinculo.principal = True
-        vinculo.updated_by = updated_by
-        vinculo.save()
-        return vinculo
-
-    @staticmethod
-    @transaction.atomic
-    def set_principal_filial(
-        *,
-        vinculo: FilialEndereco,
-        updated_by=None,
-    ) -> FilialEndereco:
-        """Define um endereço como principal para uma Filial."""
-        FilialEndereco.objects.filter(
-            filial=vinculo.filial,
-            tipo=vinculo.tipo,
-            principal=True,
-            deleted_at__isnull=True
-        ).exclude(pk=vinculo.pk).update(principal=False)
-
-        vinculo.principal = True
-        vinculo.updated_by = updated_by
-        vinculo.save()
-        return vinculo
-
-    @staticmethod
-    @transaction.atomic
-    def update(endereco: Endereco, updated_by=None, **kwargs) -> Endereco:
-        """Atualiza um Endereço existente."""
-        allowed_fields = [
-            'logradouro', 'numero', 'complemento', 'bairro',
-            'cidade', 'estado', 'cep', 'pais'
-        ]
-        for attr, value in kwargs.items():
-            if attr in allowed_fields and hasattr(endereco, attr):
-                setattr(endereco, attr, value)
-        endereco.updated_by = updated_by
-        endereco.save()
-        return endereco
-
-    @staticmethod
-    @transaction.atomic
-    def delete(endereco: Endereco, user=None) -> None:
-        """Soft delete de um Endereço e seus vínculos."""
-        from django.utils import timezone
-        now = timezone.now()
-
-        PessoaFisicaEndereco.objects.filter(
-            endereco=endereco,
-            deleted_at__isnull=True
-        ).update(deleted_at=now)
-        PessoaJuridicaEndereco.objects.filter(
-            endereco=endereco,
-            deleted_at__isnull=True
-        ).update(deleted_at=now)
-        FilialEndereco.objects.filter(
-            endereco=endereco,
-            deleted_at__isnull=True
-        ).update(deleted_at=now)
-
-        endereco.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
-    def remove_vinculo_pessoa_fisica(vinculo: PessoaFisicaEndereco, user=None) -> None:
-        """Remove o vínculo de um endereço com uma PessoaFisica."""
-        vinculo.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
-    def remove_vinculo_pessoa_juridica(vinculo: PessoaJuridicaEndereco, user=None) -> None:
-        """Remove o vínculo de um endereço com uma PessoaJuridica."""
-        vinculo.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
     def remove_vinculo_filial(vinculo: FilialEndereco, user=None) -> None:
-        """Remove o vínculo de um endereço com uma Filial."""
+        endereco = vinculo.endereco
         vinculo.delete(user=user)
-
-    @staticmethod
-    def get_enderecos_pessoa_fisica(pessoa_fisica: PessoaFisica) -> QuerySet:
-        """Retorna todos os endereços de uma PessoaFisica."""
-        return PessoaFisicaEndereco.objects.filter(
-            pessoa_fisica=pessoa_fisica,
-            deleted_at__isnull=True
-        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
-
-    @staticmethod
-    def get_enderecos_pessoa_juridica(pessoa_juridica: PessoaJuridica) -> QuerySet:
-        """Retorna todos os endereços de uma PessoaJuridica."""
-        return PessoaJuridicaEndereco.objects.filter(
-            pessoa_juridica=pessoa_juridica,
-            deleted_at__isnull=True
-        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
-
-    @staticmethod
-    def get_enderecos_filial(filial: Filial) -> QuerySet:
-        """Retorna todos os endereços de uma Filial."""
-        return FilialEndereco.objects.filter(
-            filial=filial,
-            deleted_at__isnull=True
-        ).select_related('endereco').order_by('tipo', '-principal', '-created_at')
-
-    @staticmethod
-    def get_endereco_principal_pessoa_fisica(
-        pessoa_fisica: PessoaFisica,
-        tipo: str = None
-    ) -> Optional[PessoaFisicaEndereco]:
-        """Retorna o endereço principal de uma PessoaFisica."""
-        qs = PessoaFisicaEndereco.objects.filter(
-            pessoa_fisica=pessoa_fisica,
-            principal=True,
-            deleted_at__isnull=True
-        ).select_related('endereco')
-        if tipo:
-            qs = qs.filter(tipo=tipo)
-        return qs.first()
-
-    @staticmethod
-    def get_endereco_principal_pessoa_juridica(
-        pessoa_juridica: PessoaJuridica,
-        tipo: str = None
-    ) -> Optional[PessoaJuridicaEndereco]:
-        """Retorna o endereço principal de uma PessoaJuridica."""
-        qs = PessoaJuridicaEndereco.objects.filter(
-            pessoa_juridica=pessoa_juridica,
-            principal=True,
-            deleted_at__isnull=True
-        ).select_related('endereco')
-        if tipo:
-            qs = qs.filter(tipo=tipo)
-        return qs.first()
-
-    @staticmethod
-    def get_endereco_principal_filial(
-        filial: Filial,
-        tipo: str = None
-    ) -> Optional[FilialEndereco]:
-        """Retorna o endereço principal de uma Filial."""
-        qs = FilialEndereco.objects.filter(
-            filial=filial,
-            principal=True,
-            deleted_at__isnull=True
-        ).select_related('endereco')
-        if tipo:
-            qs = qs.filter(tipo=tipo)
-        return qs.first()
+        EnderecoService._verificar_e_apagar_orfao(endereco, user)

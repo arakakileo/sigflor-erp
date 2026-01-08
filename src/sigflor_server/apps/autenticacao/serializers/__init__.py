@@ -3,7 +3,8 @@ from .usuarios import (
     UsuarioCreateSerializer,
     UsuarioUpdateSerializer,
     UsuarioRedefinirSenhaSerializer,
-    UsuarioAlterarMinhaSenhaSerializer
+    UsuarioAlterarMinhaSenhaSerializer,
+    UsuarioResumoSerializer
 )
 from .permissoes import PermissaoSerializer
 from .papeis import (
@@ -21,6 +22,7 @@ __all__ = [
     'UsuarioUpdateSerializer',
     'UsuarioRedefinirSenhaSerializer',
     'UsuarioAlterarMinhaSenhaSerializer',
+    'UsuarioResumoSerializer',
     'PermissaoSerializer',
     'PapelSerializer',
     'PapelCreateSerializer',

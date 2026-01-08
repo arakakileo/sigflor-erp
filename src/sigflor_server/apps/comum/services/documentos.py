@@ -3,9 +3,13 @@ import puremagic
 from django.db import transaction
 from django.db.models import QuerySet
 from django.core.files.uploadedfile import UploadedFile
+from django.utils import timezone
+from datetime import timedelta
 
-from ..models import Documento, PessoaFisicaDocumento, PessoaJuridicaDocumento
-from ..models import PessoaFisica, PessoaJuridica
+from ..models import (
+    Documento, PessoaFisicaDocumento, PessoaJuridicaDocumento,
+    PessoaFisica, PessoaJuridica
+)
 from ..validators.documentos import validar_tipo_arquivo
 
 
@@ -17,7 +21,6 @@ class DocumentoService:
         tamanho = arquivo.size
         mimetype = None
         try:
-
             initial_pos = arquivo.tell() 
             arquivo.seek(0)
             header_bytes = arquivo.read(2048)
@@ -51,7 +54,6 @@ class DocumentoService:
     ) -> Documento:
         
         metadados = DocumentoService._extrair_metadados_arquivo(arquivo)
-
         validar_tipo_arquivo(metadados['mimetype'])
 
         documento = Documento(
@@ -68,6 +70,41 @@ class DocumentoService:
 
     @staticmethod
     @transaction.atomic
+    def update(documento: Documento, updated_by=None, **kwargs) -> Documento:
+        campos_permitidos = ['tipo', 'descricao', 'data_emissao', 'data_validade']
+        for attr, value in kwargs.items():
+            if attr in campos_permitidos and hasattr(documento, attr):
+                setattr(documento, attr, value)
+        documento.updated_by = updated_by
+        documento.save()
+        return documento
+
+    @staticmethod
+    def _verificar_e_apagar_orfao(documento: Documento, user) -> None:
+
+        if PessoaFisicaDocumento.objects.filter(documento=documento, deleted_at__isnull=True).exists():
+            return
+        
+        if PessoaJuridicaDocumento.objects.filter(documento=documento, deleted_at__isnull=True).exists():
+            return
+
+        documento.delete(user=user)
+
+    # =========================================================================
+    # 1. PESSOA FÍSICA (Gestão de Vínculos)
+    # =========================================================================
+
+    @staticmethod
+    def get_documentos_pessoa_fisica(pessoa_fisica: PessoaFisica) -> QuerySet:
+        return PessoaFisicaDocumento.objects.filter(
+            pessoa_fisica=pessoa_fisica,
+            deleted_at__isnull=True
+        ).select_related('documento').order_by(
+            'documento__tipo', '-created_at'
+        )
+
+    @staticmethod
+    @transaction.atomic
     def vincular_documento_pessoa_fisica(
         *,
         pessoa_fisica: PessoaFisica,
@@ -76,14 +113,9 @@ class DocumentoService:
         descricao: Optional[str] = None,
         data_emissao=None,
         data_validade=None,
-        principal: bool = False,
         created_by=None,
     ) -> PessoaFisicaDocumento:
-        """
-        Cria um documento e vincula a uma PessoaFisica.
-        Se principal=True, desmarca outros documentos do mesmo tipo como principal.
-        """
-        # Cria o documento
+        
         documento = DocumentoService.create(
             tipo=tipo,
             arquivo=arquivo,
@@ -93,24 +125,33 @@ class DocumentoService:
             created_by=created_by,
         )
 
-        # Se é principal, desmarca outros do mesmo tipo
-        if principal:
-            PessoaFisicaDocumento.objects.filter(
-                pessoa_fisica=pessoa_fisica,
-                documento__tipo=tipo,
-                principal=True,
-                deleted_at__isnull=True
-            ).update(principal=False)
-
-        # Cria o vínculo
         vinculo = PessoaFisicaDocumento(
             pessoa_fisica=pessoa_fisica,
             documento=documento,
-            principal=principal,
             created_by=created_by,
         )
         vinculo.save()
         return vinculo
+
+    @staticmethod
+    @transaction.atomic
+    def remove_vinculo_pessoa_fisica(vinculo: PessoaFisicaDocumento, user=None) -> None:
+        documento = vinculo.documento
+        vinculo.delete(user=user)
+        DocumentoService._verificar_e_apagar_orfao(documento, user)
+
+    # =========================================================================
+    # 2. PESSOA JURÍDICA (Gestão de Vínculos)
+    # =========================================================================
+
+    @staticmethod
+    def get_documentos_pessoa_juridica(pessoa_juridica: PessoaJuridica) -> QuerySet:
+        return PessoaJuridicaDocumento.objects.filter(
+            pessoa_juridica=pessoa_juridica,
+            deleted_at__isnull=True
+        ).select_related('documento').order_by(
+            'documento__tipo', '-created_at'
+        )
 
     @staticmethod
     @transaction.atomic
@@ -122,14 +163,9 @@ class DocumentoService:
         descricao: Optional[str] = None,
         data_emissao=None,
         data_validade=None,
-        principal: bool = False,
         created_by=None,
     ) -> PessoaJuridicaDocumento:
-        """
-        Cria um documento e vincula a uma PessoaJuridica.
-        Se principal=True, desmarca outros documentos do mesmo tipo como principal.
-        """
-        # Cria o documento
+        
         documento = DocumentoService.create(
             tipo=tipo,
             arquivo=arquivo,
@@ -139,20 +175,9 @@ class DocumentoService:
             created_by=created_by,
         )
 
-        # Se é principal, desmarca outros do mesmo tipo
-        if principal:
-            PessoaJuridicaDocumento.objects.filter(
-                pessoa_juridica=pessoa_juridica,
-                documento__tipo=tipo,
-                principal=True,
-                deleted_at__isnull=True
-            ).update(principal=False)
-
-        # Cria o vínculo
         vinculo = PessoaJuridicaDocumento(
             pessoa_juridica=pessoa_juridica,
             documento=documento,
-            principal=principal,
             created_by=created_by,
         )
         vinculo.save()
@@ -160,112 +185,17 @@ class DocumentoService:
 
     @staticmethod
     @transaction.atomic
-    def set_principal_pessoa_fisica(
-        *,
-        vinculo: PessoaFisicaDocumento,
-        updated_by=None,
-    ) -> PessoaFisicaDocumento:
-        """Define um documento como principal para uma PessoaFisica."""
-        # Desmarca outros do mesmo tipo
-        PessoaFisicaDocumento.objects.filter(
-            pessoa_fisica=vinculo.pessoa_fisica,
-            documento__tipo=vinculo.documento.tipo,
-            principal=True,
-            deleted_at__isnull=True
-        ).exclude(pk=vinculo.pk).update(principal=False)
-
-        vinculo.principal = True
-        vinculo.updated_by = updated_by
-        vinculo.save()
-        return vinculo
-
-    @staticmethod
-    @transaction.atomic
-    def set_principal_pessoa_juridica(
-        *,
-        vinculo: PessoaJuridicaDocumento,
-        updated_by=None,
-    ) -> PessoaJuridicaDocumento:
-        """Define um documento como principal para uma PessoaJuridica."""
-        # Desmarca outros do mesmo tipo
-        PessoaJuridicaDocumento.objects.filter(
-            pessoa_juridica=vinculo.pessoa_juridica,
-            documento__tipo=vinculo.documento.tipo,
-            principal=True,
-            deleted_at__isnull=True
-        ).exclude(pk=vinculo.pk).update(principal=False)
-
-        vinculo.principal = True
-        vinculo.updated_by = updated_by
-        vinculo.save()
-        return vinculo
-
-    @staticmethod
-    @transaction.atomic
-    def update(documento: Documento, updated_by=None, **kwargs) -> Documento:
-        """Atualiza um Documento existente (metadados, não arquivo)."""
-        allowed_fields = ['tipo', 'descricao', 'data_emissao', 'data_validade']
-        for attr, value in kwargs.items():
-            if attr in allowed_fields and hasattr(documento, attr):
-                setattr(documento, attr, value)
-        documento.updated_by = updated_by
-        documento.save()
-        return documento
-
-    @staticmethod
-    @transaction.atomic
-    def delete(documento: Documento, user=None) -> None:
-        """Soft delete de um Documento e seus vínculos."""
-        # Remove vínculos
-        PessoaFisicaDocumento.objects.filter(
-            documento=documento,
-            deleted_at__isnull=True
-        ).update(deleted_at=documento.deleted_at)
-        PessoaJuridicaDocumento.objects.filter(
-            documento=documento,
-            deleted_at__isnull=True
-        ).update(deleted_at=documento.deleted_at)
-        # Remove documento
-        documento.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
-    def remove_vinculo_pessoa_fisica(vinculo: PessoaFisicaDocumento, user=None) -> None:
-        """Remove o vínculo de um documento com uma PessoaFisica."""
-        vinculo.delete(user=user)
-
-    @staticmethod
-    @transaction.atomic
     def remove_vinculo_pessoa_juridica(vinculo: PessoaJuridicaDocumento, user=None) -> None:
-        """Remove o vínculo de um documento com uma PessoaJuridica."""
+        documento = vinculo.documento
         vinculo.delete(user=user)
+        DocumentoService._verificar_e_apagar_orfao(documento, user)
 
-    @staticmethod
-    def get_documentos_pessoa_fisica(pessoa_fisica: PessoaFisica) -> QuerySet:
-        """Retorna todos os documentos de uma PessoaFisica."""
-        return PessoaFisicaDocumento.objects.filter(
-            pessoa_fisica=pessoa_fisica,
-            deleted_at__isnull=True
-        ).select_related('documento').order_by(
-            'documento__tipo', '-principal', '-created_at'
-        )
-
-    @staticmethod
-    def get_documentos_pessoa_juridica(pessoa_juridica: PessoaJuridica) -> QuerySet:
-        """Retorna todos os documentos de uma PessoaJuridica."""
-        return PessoaJuridicaDocumento.objects.filter(
-            pessoa_juridica=pessoa_juridica,
-            deleted_at__isnull=True
-        ).select_related('documento').order_by(
-            'documento__tipo', '-principal', '-created_at'
-        )
+    # =========================================================================
+    # 3. QUERIES DE NEGÓCIO (Alertas e Validade)
+    # =========================================================================
 
     @staticmethod
     def get_documentos_a_vencer(dias: int = 30) -> QuerySet:
-        """Retorna documentos cuja data_validade está dentro do prazo especificado."""
-        from django.utils import timezone
-        from datetime import timedelta
-
         data_limite = timezone.now().date() + timedelta(days=dias)
         return Documento.objects.filter(
             data_validade__lte=data_limite,
@@ -275,9 +205,6 @@ class DocumentoService:
 
     @staticmethod
     def get_documentos_vencidos() -> QuerySet:
-        """Retorna todos os documentos vencidos."""
-        from django.utils import timezone
-
         return Documento.objects.filter(
             data_validade__lt=timezone.now().date(),
             deleted_at__isnull=True

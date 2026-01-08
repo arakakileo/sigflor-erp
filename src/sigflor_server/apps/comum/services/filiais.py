@@ -96,9 +96,8 @@ class FilialService:
                 dados_lista=contatos,
                 service_filho=ContatoService,
                 user=user,
-                metodo_busca_existentes='get_contatos_filial', # <--- ATENÇÃO AQUI
-                metodo_criar='criar_contato_filial',           #
-                campo_entidade_pai='filial'
+                metodo_busca_existentes='get_contatos_filial',
+                metodo_criar='criar_contato_filial',
             )
 
         return filial

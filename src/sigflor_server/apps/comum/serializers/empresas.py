@@ -51,15 +51,23 @@ class EmpresaCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class EmpresaUpdateSerializer(serializers.ModelSerializer):
-    pessoa_juridica = PessoaJuridicaUpdateSerializer(required=False)
+    pessoa_juridica = PessoaJuridicaUpdateSerializer(required=True)
 
     class Meta:
         model = Empresa
         fields = [
             'pessoa_juridica',
             'descricao',
-            'ativa',
         ]
+    def validate(self, attrs):
+        # Verificamos 'initial_data' pois campos fora do 'Meta.fields' 
+        # são ignorados pelo DRF antes de chegar aqui.
+        if 'ativa' in self.initial_data or 'ativo' in self.initial_data:
+            raise serializers.ValidationError({
+                "ativa": "Para ativar ou desativar empresas use as rotas específicas de ativação/desativação."
+            })
+            
+        return attrs
 
 class EmpresaSelecaoSerializer(serializers.ModelSerializer):
     label = serializers.CharField(source='pessoa_juridica.razao_social', read_only=True)

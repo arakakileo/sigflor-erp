@@ -62,6 +62,12 @@ class Endereco(SoftDeleteModel):
 
 class PessoaFisicaEndereco(SoftDeleteModel):
 
+    id = models.UUIDField(
+        primary_key=True, 
+        default=uuid.uuid4, 
+        editable=False
+    )
+
     pessoa_fisica = models.ForeignKey(
         'comum.PessoaFisica',
         on_delete=models.CASCADE,
@@ -106,6 +112,12 @@ class PessoaFisicaEndereco(SoftDeleteModel):
 
 class PessoaJuridicaEndereco(SoftDeleteModel):
 
+    id = models.UUIDField(
+        primary_key=True, 
+        default=uuid.uuid4, 
+        editable=False
+    )
+
     pessoa_juridica = models.ForeignKey(
         'comum.PessoaJuridica',
         on_delete=models.CASCADE,
@@ -148,6 +160,12 @@ class PessoaJuridicaEndereco(SoftDeleteModel):
 
 
 class FilialEndereco(SoftDeleteModel):
+
+    id = models.UUIDField(
+        primary_key=True, 
+        default=uuid.uuid4, 
+        editable=False
+    )
 
     filial = models.ForeignKey(
         'comum.Filial',

@@ -72,10 +72,6 @@ class PessoaFisicaDocumento(SoftDeleteModel):
         on_delete=models.CASCADE,
         related_name='vinculos_pessoa_fisica'
     )
-    principal = models.BooleanField(
-        default=False,
-        help_text='Indica se é o documento principal deste tipo para esta pessoa'
-    )
 
     class Meta:
         db_table = 'pessoas_fisicas_documentos'
@@ -85,13 +81,6 @@ class PessoaFisicaDocumento(SoftDeleteModel):
             models.UniqueConstraint(
                 fields=['pessoa_fisica', 'documento'],
                 name='uniq_pf_documento'
-            ),
-            # Apenas um documento principal por tipo por pessoa física
-            models.UniqueConstraint(
-                fields=['pessoa_fisica'],
-                condition=Q(principal=True, deleted_at__isnull=True),
-                name='uniq_pf_documento_principal_por_tipo',
-                # Nota: a constraint de unicidade por tipo será verificada no service
             ),
         ]
 
@@ -111,10 +100,6 @@ class PessoaJuridicaDocumento(SoftDeleteModel):
         on_delete=models.CASCADE,
         related_name='vinculos_pessoa_juridica'
     )
-    principal = models.BooleanField(
-        default=False,
-        help_text='Indica se é o documento principal deste tipo para esta pessoa jurídica'
-    )
 
     class Meta:
         db_table = 'pessoas_juridicas_documentos'
@@ -124,11 +109,6 @@ class PessoaJuridicaDocumento(SoftDeleteModel):
             models.UniqueConstraint(
                 fields=['pessoa_juridica', 'documento'],
                 name='uniq_pj_documento'
-            ),
-            models.UniqueConstraint(
-                fields=['pessoa_juridica'],
-                condition=Q(principal=True, deleted_at__isnull=True),
-                name='uniq_pj_documento_principal_por_tipo',
             ),
         ]
 
