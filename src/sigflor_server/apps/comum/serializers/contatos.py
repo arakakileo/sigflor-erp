@@ -82,10 +82,22 @@ class PessoaFisicaContatoNestedSerializer(PessoaFisicaContatoSerializer):
         read_only_fields = ['created_at', 'updated_at', 'contato']
 
     def validate(self, data):
+        item_id = data.get('id')
+        if not item_id:
+            erros = {}
+            campos_obrigatorios = ['tipo', 'valor'] 
+            for campo in campos_obrigatorios:
+                if campo not in data:
+                    erros[campo] = "Este campo é obrigatório para novos contatos."
+            if erros:
+                raise serializers.ValidationError(erros)
+
         tipo = data.get('tipo')
         if tipo == TipoContato.CELULAR:
             if 'tem_whatsapp' not in data:
                 raise serializers.ValidationError({"tem_whatsapp": "Obrigatório para celular."})
+        elif tipo is not None:
+            data['tem_whatsapp'] = False
         return data
 
 
@@ -155,6 +167,8 @@ class PessoaJuridicaContatoNestedSerializer(PessoaJuridicaContatoSerializer):
         if tipo == TipoContato.CELULAR:
             if 'tem_whatsapp' not in data:
                 raise serializers.ValidationError({"tem_whatsapp": "Obrigatório para celular."})
+        elif tipo is not None:
+            data['tem_whatsapp'] = False
         return data
 
 
@@ -210,8 +224,20 @@ class FilialContatoNestedSerializer(FilialContatoSerializer):
         read_only_fields = ['created_at', 'updated_at', 'contato']
 
     def validate(self, data):
+        item_id = data.get('id')
+        if not item_id:
+            erros = {}
+            campos_obrigatorios = ['tipo', 'valor'] 
+            for campo in campos_obrigatorios:
+                if campo not in data:
+                    erros[campo] = "Este campo é obrigatório para novos contatos."
+            if erros:
+                raise serializers.ValidationError(erros)
+
         tipo = data.get('tipo')
         if tipo == TipoContato.CELULAR:
             if 'tem_whatsapp' not in data:
                 raise serializers.ValidationError({"tem_whatsapp": "Obrigatório para celular."})
+        elif tipo is not None:
+            data['tem_whatsapp'] = False
         return data

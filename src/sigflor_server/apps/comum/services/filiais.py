@@ -67,7 +67,7 @@ class FilialService:
     @transaction.atomic
     def update(filial: Filial, user: Usuario, **kwargs) -> Filial:
 
-        FilialService._verificar_acesso_filial(user, filial)
+        # FilialService._verificar_acesso_filial(user, filial)
 
         enderecos = kwargs.pop('enderecos', None)
         contatos = kwargs.pop('contatos', None)
@@ -83,16 +83,6 @@ class FilialService:
             EnderecoService.atualizar_enderecos_filial(
                 filial, enderecos, user
             )
-
-        # if contatos is not None:
-        #     ServiceUtils.sincronizar_lista_aninhada(
-        #         entidade_pai=filial,
-        #         dados_lista=contatos,
-        #         service_filho=ContatoService,
-        #         user=user,
-        #         metodo_busca_existentes='get_contatos_filial',
-        #         metodo_criar='criar_contato_filial',
-        #     )
 
         return filial
 

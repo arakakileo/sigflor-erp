@@ -102,27 +102,11 @@ class PessoaJuridicaService:
                 pessoa, contatos, updated_by
             )
 
+        if documentos is not None:
+            ...
 
-        # if documentos is not None:
-        #     ServiceUtils.sincronizar_lista_aninhada(
-        #         entidade_pai=pessoa,
-        #         dados_lista=documentos,
-        #         service_filho=DocumentoService,
-        #         user=updated_by,
-        #         metodo_busca_existentes='get_documentos_pessoa_juridica',
-        #         metodo_criar='vincular_documento_pessoa_juridica',
-        #         campo_entidade_pai='pessoa_juridica'
-        #     )
-
-        # if anexos is not None:
-        #     ServiceUtils.sincronizar_lista_aninhada(
-        #         entidade_pai=pessoa,
-        #         dados_lista=anexos,
-        #         service_filho=AnexoService,
-        #         user=updated_by,
-        #         metodo_busca_existentes='get_anexos_por_entidade',
-        #         # Defaults: metodo_criar='create', campo_entidade_pai='entidade' (Funciona para Anexo GFK)
-        #     )
+        if anexos is not None:
+            ...
 
         return pessoa
 
