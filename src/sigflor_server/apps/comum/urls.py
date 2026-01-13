@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     EmpresaViewSet,
     ClienteViewSet,
-    DeficienciaRelatoriosViewSet,
+    DeficienciaViewSet,
     FilialViewSet,
     ProjetoViewSet,
     EnumsView
@@ -22,7 +22,7 @@ router.register(r'projetos', ProjetoViewSet, basename='projeto')
 
 
 
-router.register(r'deficiencias', DeficienciaRelatoriosViewSet, basename='deficiencia')
+router.register(r'deficiencias', DeficienciaViewSet, basename='deficiencia')
 
 urlpatterns = [
     path('', include(router.urls)),

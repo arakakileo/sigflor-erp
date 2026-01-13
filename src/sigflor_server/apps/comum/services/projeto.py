@@ -48,8 +48,6 @@ class ProjetoService:
         projeto.save()
         return projeto
 
-        return projeto
-
     @staticmethod
     @transaction.atomic
     def delete(*, user: Usuario, projeto: Projeto) -> None:
@@ -59,20 +57,65 @@ class ProjetoService:
 
     @staticmethod
     @transaction.atomic
-    def alterar_status(
-        *, 
-        user: Usuario, 
-        projeto: Projeto, 
-        novo_status: str
-    ) -> Projeto:
-        if novo_status not in StatusProjeto.values:
-            raise ValidationError({'status': f"O status '{novo_status}' não é válido."})
+    def planejar(projeto: Projeto, user: Usuario) -> Projeto:
+        """
+        Altera o status para PLANEJADO.
+        Regra: Não pode voltar para planejado se já estiver Concluído ou Cancelado.
+        """
+        if projeto.status in [StatusProjeto.CONCLUIDO, StatusProjeto.CANCELADO]:
+            raise ValidationError(
+                f"Não é possível redefinir para 'Planejado' um projeto que já está {projeto.get_status_display()}."
+            )
 
-        if projeto.status == StatusProjeto.CONCLUIDO and novo_status == StatusProjeto.CANCELADO:
-            raise ValidationError("Não é possível cancelar um projeto já concluído.")
-
-        projeto.status = novo_status
+        projeto.status = StatusProjeto.PLANEJADO
         projeto.updated_by = user
         projeto.save()
+        return projeto
+
+    @staticmethod
+    @transaction.atomic
+    def iniciar(projeto: Projeto, user: Usuario) -> Projeto:
+        """
+        Altera o status para EM_EXECUCAO.
+        Regra: Não pode iniciar um projeto Cancelado ou Concluído.
+        """
+        if projeto.status == StatusProjeto.CANCELADO:
+            raise ValidationError("Não é possível iniciar um projeto cancelado.")
         
+        if projeto.status == StatusProjeto.CONCLUIDO:
+            raise ValidationError("O projeto já foi concluído.")
+
+        projeto.status = StatusProjeto.EM_EXECUCAO
+        projeto.updated_by = user
+        projeto.save()
+        return projeto
+
+    @staticmethod
+    @transaction.atomic
+    def concluir(projeto: Projeto, user: Usuario) -> Projeto:
+        """
+        Altera o status para CONCLUIDO.
+        Regra: Não pode concluir um projeto Cancelado.
+        """
+        if projeto.status == StatusProjeto.CANCELADO:
+            raise ValidationError("Não é possível concluir um projeto que está cancelado.")
+
+        projeto.status = StatusProjeto.CONCLUIDO
+        projeto.updated_by = user
+        projeto.save()
+        return projeto
+
+    @staticmethod
+    @transaction.atomic
+    def cancelar(projeto: Projeto, user: Usuario) -> Projeto:
+        """
+        Altera o status para CANCELADO.
+        Regra: Não pode cancelar um projeto Concluído.
+        """
+        if projeto.status == StatusProjeto.CONCLUIDO:
+            raise ValidationError("Não é possível cancelar um projeto já concluído.")
+
+        projeto.status = StatusProjeto.CANCELADO
+        projeto.updated_by = user
+        projeto.save()
         return projeto

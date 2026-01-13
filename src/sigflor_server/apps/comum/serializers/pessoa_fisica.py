@@ -9,7 +9,7 @@ from .enderecos import PessoaFisicaEnderecoNestedSerializer, PessoaFisicaEnderec
 from .contatos import PessoaFisicaContatoNestedSerializer, PessoaFisicaContatoSerializer
 from .documentos import PessoaFisicaDocumentoNestedSerializer, PessoaFisicaDocumentoListSerializer
 from .anexos import AnexoSerializer, AnexoNestedSerializer
-from .deficiencias import DeficienciaNestedSerializer, DeficienciaListSerializer
+# from .deficiencias import DeficienciaNestedSerializer, DeficienciaListSerializer
 
 
 class PessoaFisicaListSerializer(serializers.ModelSerializer):
@@ -40,9 +40,9 @@ class PessoaFisicaSerializer(serializers.ModelSerializer):
         many=True, read_only=True, source='documentos_vinculados'
     )
     anexos = AnexoSerializer(many=True, read_only=True) 
-    deficiencias = DeficienciaListSerializer(
-        many=True, read_only=True
-    )
+    # deficiencias = DeficienciaListSerializer(
+    #     many=True, read_only=True
+    # )
 
     class Meta:
         model = PessoaFisica
@@ -115,9 +115,9 @@ class PessoaFisicaCreateSerializer(serializers.Serializer):
     anexos = AnexoNestedSerializer(
         many=True, required=False, allow_empty=True
     )
-    deficiencias = DeficienciaNestedSerializer(
-        many=True, required=False, allow_empty=True
-    )
+    # deficiencias = DeficienciaNestedSerializer(
+    #     many=True, required=False, allow_empty=True
+    # )
 
     def validate_cpf(self, value):
         cleaned_value = ''.join(filter(str.isdigit, value))
@@ -171,6 +171,6 @@ class PessoaFisicaUpdateSerializer(serializers.Serializer):
     anexos = AnexoNestedSerializer(
         many=True, required=False, allow_empty=True
     )
-    deficiencias = DeficienciaNestedSerializer(
-        many=True, required=False, allow_empty=True
-    )
+    # deficiencias = DeficienciaNestedSerializer(
+    #     many=True, required=False, allow_empty=True
+    # )

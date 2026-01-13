@@ -93,8 +93,32 @@ class FilialService:
     @staticmethod
     @transaction.atomic
     def delete(filial: Filial, user: Usuario) -> None:
+
         FilialService._verificar_acesso_filial(user, filial)
+
+        for vinculo in filial.enderecos_vinculados.filter(deleted_at__isnull=True):
+            EnderecoService.remove_vinculo_filial(vinculo, user=user)
+
+        for vinculo in filial.contatos_vinculados.filter(deleted_at__isnull=True):
+            ContatoService.remove_vinculo_filial(vinculo, user=user)
+
         filial.delete(user=user)
+
+    @staticmethod
+    @transaction.atomic
+    def restore(filial: Filial, user: Usuario) -> Filial:
+
+        FilialService._verificar_acesso_filial(user, filial)
+
+        data_delecao = filial.deleted_at
+        
+        filial.restore(user=user)
+
+        if data_delecao:
+            EnderecoService.restaurar_enderecos_filial(filial, data_delecao, user)
+            ContatoService.restaurar_contatos_filial(filial, data_delecao, user)
+
+        return filial
 
     @staticmethod
     @transaction.atomic

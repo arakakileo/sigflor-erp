@@ -1,3 +1,4 @@
+from typing import Optional
 from django.db.models import QuerySet, Q, Count
 from rest_framework.exceptions import PermissionDenied
 
@@ -7,10 +8,10 @@ from ..models import Filial
 def filial_list(
     *,
     user: Usuario,
-    filters: dict = None,
-    search: str = None,
-    status: str = None,
-    empresa_id: str = None
+    filters: Optional[dict]= None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    empresa_id: Optional[str] = None
 ) -> QuerySet:
     qs = Filial.objects.filter(deleted_at__isnull=True)
 
@@ -50,6 +51,10 @@ def filial_detail(*, user: Usuario, pk) -> Filial:
     #         raise PermissionDenied(f"Usuário não tem acesso à filial {filial.nome}.")
     
     return filial
+
+
+def filial_get_by_id_irrestrito(*, pk: str) -> Optional[Filial]:
+    return Filial.objects.filter(pk=pk).first()
 
 
 def estatisticas_filiais(*, user: Usuario) -> dict:

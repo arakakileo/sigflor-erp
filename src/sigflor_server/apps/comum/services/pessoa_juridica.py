@@ -29,7 +29,6 @@ class PessoaJuridicaService:
         documentos: List[Dict[str, Any]] = None,
         anexos: List[Dict[str, Any]] = None,
     ) -> PessoaJuridica:
-        print('cheguei até aqui!!')
         pessoa = PessoaJuridica(
             razao_social=razao_social,
             cnpj=cnpj,
@@ -112,12 +111,34 @@ class PessoaJuridicaService:
     @staticmethod
     @transaction.atomic
     def delete(pessoa: PessoaJuridica, user=None) -> None:
+
+        for vinculo in pessoa.enderecos_vinculados.filter(deleted_at__isnull=True):
+            EnderecoService.remove_vinculo_pessoa_juridica(vinculo, user=user)
+
+        for vinculo in pessoa.contatos_vinculados.filter(deleted_at__isnull=True):
+            ContatoService.remove_vinculo_pessoa_juridica(vinculo, user=user)
+
+        # for vinculo in pessoa.documentos_vinculados.filter(deleted_at__isnull=True):
+        #     DocumentoService.remove_vinculo_pessoa_juridica(vinculo, user=user)
+
+        # anexos = AnexoService.get_anexos_por_entidade(pessoa)
+        # for anexo in anexos:
+        #     AnexoService.delete(anexo, user=user)
+
         pessoa.delete(user=user)
 
     @staticmethod
     @transaction.atomic
     def restore(pessoa: PessoaJuridica, user=None) -> PessoaJuridica:
+        data_delecao = pessoa.deleted_at
         pessoa.restore(user=user)
+
+        if data_delecao:
+            EnderecoService.restaurar_enderecos_pessoa_juridica(pessoa, data_delecao, user)
+            ContatoService.restaurar_contatos_pessoa_juridica(pessoa, data_delecao, user)
+            DocumentoService.restaurar_documentos_pessoa_juridica(pessoa, data_delecao, user)
+            AnexoService.restaurar_anexos_entidade(pessoa, data_delecao, user)
+
         return pessoa
 
     @staticmethod

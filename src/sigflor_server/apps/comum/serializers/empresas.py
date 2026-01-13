@@ -63,7 +63,7 @@ class EmpresaUpdateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if 'ativa' in self.initial_data or 'ativo' in self.initial_data:
             raise serializers.ValidationError({
-                "ativa": "Para ativar ou desativar empresas use as rotas específicas de ativação/desativação."
+                "ativa": "Para ativar ou desativar empresas use as rotas específicas de planejar/ativar/desativar/concluir."
             })
             
         return attrs

@@ -1,4 +1,5 @@
 from typing import Optional, Any, Callable
+from datetime import timedelta
 from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework.exceptions import ValidationError
@@ -57,6 +58,31 @@ class ContatoService:
 
             vinculo = existentes_map[item_id]
             cls._atualizar_vinculo_existente(vinculo, item, user)
+
+    @classmethod
+    def _restaurar_vinculos_generico(
+        cls, 
+        model_vinculo, 
+        campo_filho, 
+        filtro_pai, 
+        data_delecao_pai, 
+        user
+    ):
+        if not data_delecao_pai: return
+        
+        margem = timedelta(seconds=5)
+        inicio, fim = data_delecao_pai - margem, data_delecao_pai + margem
+
+        vinculos = model_vinculo.objects.filter(
+            **filtro_pai,
+            deleted_at__range=(inicio, fim)
+        )
+
+        for vinculo in vinculos:
+            vinculo.restore(user=user)
+            contato = getattr(vinculo, campo_filho)
+            if contato.deleted_at and inicio <= contato.deleted_at <= fim:
+                contato.restore(user=user)
 
     @classmethod
     def _validar_regras_negocio(cls, existentes_map, lista_contatos):
@@ -242,6 +268,12 @@ class ContatoService:
         ContatoService._verificar_e_apagar_orfao(contato, user)
 
     @classmethod
+    def restaurar_contatos_pessoa_fisica(cls, pessoa, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            PessoaFisicaContato, 'contato', {'pessoa_fisica': pessoa}, data_delecao_pai, user
+        )
+
+    @classmethod
     def atualizar_contatos_pessoa_fisica(cls, pessoa_fisica, lista_contatos: list, user):
         cls._sincronizar_vinculos_generico(
             entidade_pai=pessoa_fisica,
@@ -303,6 +335,12 @@ class ContatoService:
         ContatoService._verificar_e_apagar_orfao(contato, user)
 
     @classmethod
+    def restaurar_contatos_pessoa_juridica(cls, pessoa, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            PessoaJuridicaContato, 'contato', {'pessoa_juridica': pessoa}, data_delecao_pai, user
+        )
+
+    @classmethod
     def atualizar_contatos_pessoa_juridica(cls, pessoa_juridica, lista_contatos: list, user):
         cls._sincronizar_vinculos_generico(
             entidade_pai=pessoa_juridica,
@@ -362,6 +400,12 @@ class ContatoService:
         contato = vinculo.contato
         vinculo.delete(user=user)
         ContatoService._verificar_e_apagar_orfao(contato, user)
+
+    @classmethod
+    def restaurar_contatos_filial(cls, filial, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            FilialContato, 'contato', {'filial': filial}, data_delecao_pai, user
+        )
 
     @classmethod
     def atualizar_contatos_filial(cls, filial, lista_contatos: list, user):

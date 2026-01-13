@@ -86,41 +86,25 @@ class ProjetoViewSet(BaseRBACViewSet):
     @action(detail=True, methods=['post'])
     def planejar(self, request, pk=None):
         projeto = self.get_object()
-        ProjetoService.alterar_status(
-            user=request.user, 
-            projeto=projeto, 
-            novo_status=StatusProjeto.PLANEJADO
-        )
+        ProjetoService.planejar(projeto=projeto, user=request.user)
         return Response(self.get_serializer(projeto).data)
 
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):
         projeto = self.get_object()
-        ProjetoService.alterar_status(
-            user=request.user, 
-            projeto=projeto, 
-            novo_status=StatusProjeto.EM_EXECUCAO
-        )
+        ProjetoService.iniciar(projeto=projeto, user=request.user)
         return Response(self.get_serializer(projeto).data)
 
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
         projeto = self.get_object()
-        ProjetoService.alterar_status(
-            user=request.user, 
-            projeto=projeto, 
-            novo_status=StatusProjeto.CANCELADO
-        )
+        ProjetoService.cancelar(projeto=projeto, user=request.user)
         return Response(self.get_serializer(projeto).data)
         
     @action(detail=True, methods=['post'])
     def concluir(self, request, pk=None):
         projeto = self.get_object()
-        ProjetoService.alterar_status(
-            user=request.user, 
-            projeto=projeto, 
-            novo_status=StatusProjeto.CONCLUIDO
-        )
+        ProjetoService.concluir(projeto=projeto, user=request.user)
         return Response(self.get_serializer(projeto).data)
     
     @action(detail=False, methods=['get'])

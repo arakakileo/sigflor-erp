@@ -23,6 +23,7 @@ class FilialViewSet(BaseRBACViewSet):
         'ativar': 'comum_filiais_escrever',
         'desativar': 'comum_filiais_escrever',
         'suspender': 'comum_filiais_escrever',
+        'restaurar': 'comum_filiais_escrever',
         'ativas': 'comum_filiais_ler',
         'estatisticas': 'comum_filiais_ler',
         'selecao': 'comum_filiais_ler',
@@ -83,7 +84,21 @@ class FilialViewSet(BaseRBACViewSet):
 
     def perform_destroy(self, instance):
         FilialService.delete(instance, user=self.request.user)
-    
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        filial = selectors.filial_get_by_id_irrestrito(pk=pk)
+        
+        if not filial:
+            return Response(
+                {'detail': 'Filial não encontrada.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        FilialService.restore(filial, user=request.user)
+        serializer = self.get_serializer(filial)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):
         filial = self.get_object()

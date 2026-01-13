@@ -11,7 +11,7 @@ from .enderecos import (
 from .contatos import Contato, PessoaFisicaContato, PessoaJuridicaContato, FilialContato
 from .documentos import Documento, PessoaFisicaDocumento, PessoaJuridicaDocumento
 from .anexos import Anexo
-from .deficiencias import Deficiencia
+from .deficiencias import Deficiencia, PessoaFisicaDeficiencia
 from .projeto import Projeto, StatusProjeto
 
 __all__ = [
@@ -44,4 +44,5 @@ __all__ = [
     'PessoaJuridicaDocumento',
     'Anexo',
     'Deficiencia',
+    'PessoaFisicaDeficiencia',
 ]

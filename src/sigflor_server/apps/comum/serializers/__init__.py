@@ -25,8 +25,7 @@ from .documentos import DocumentoSerializer
 from .anexos import AnexoSerializer
 from .deficiencias import (
     DeficienciaSerializer,
-    DeficienciaListSerializer,
-    DeficienciaNestedSerializer
+    DeficienciaSelecaoSerializer
 )
 from .filiais import (
     FilialSerializer,
@@ -65,8 +64,7 @@ __all__ = [
     'DocumentoSerializer',
     'AnexoSerializer',
     'DeficienciaSerializer',
-    'DeficienciaListSerializer',
-    'DeficienciaNestedSerializer',
+    'DeficienciaSelecaoSerializer',
     'FilialSerializer',
     'FilialCreateSerializer',
     'FilialListSerializer',

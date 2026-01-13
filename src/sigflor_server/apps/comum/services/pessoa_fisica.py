@@ -128,6 +128,19 @@ class PessoaFisicaService:
     @staticmethod
     @transaction.atomic
     def delete(pessoa: PessoaFisica, user=None) -> None:
+        for vinculo in pessoa.enderecos_vinculados.filter(deleted_at__isnull=True):
+            EnderecoService.remove_vinculo_pessoa_fisica(vinculo, user=user)
+
+        for vinculo in pessoa.contatos_vinculados.filter(deleted_at__isnull=True):
+            ContatoService.remove_vinculo_pessoa_fisica(vinculo, user=user)
+
+        # for vinculo in pessoa.documentos_vinculados.filter(deleted_at__isnull=True):
+        #     DocumentoService.remove_vinculo_pessoa_fisica(vinculo, user=user)
+
+        # anexos = AnexoService.get_anexos_por_entidade(pessoa)
+        # for anexo in anexos:
+        #     AnexoService.delete(anexo, user=user)
+
         pessoa.delete(user=user)
 
     @staticmethod

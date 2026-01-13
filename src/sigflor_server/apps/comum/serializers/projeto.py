@@ -84,8 +84,7 @@ class ProjetoUpdateSerializer(serializers.ModelSerializer):
             'descricao',
             'filial',
             'data_inicio',
-            'data_fim',
-            'status',
+            'data_fim'
         ]
 
     def validate(self, data):
@@ -94,6 +93,12 @@ class ProjetoUpdateSerializer(serializers.ModelSerializer):
 
         if fim and inicio and fim < inicio:
             raise serializers.ValidationError({"data_fim": "Data de término anterior ao início."})
+        
+        if 'status' in self.initial_data or 'status' in self.initial_data:
+            raise serializers.ValidationError({
+                "status": "Para alterar status de projetos use as rotas específicas de ativação/desativação."
+            })
+        
         return data
 
 class ProjetoSelecaoSerializer(serializers.ModelSerializer):

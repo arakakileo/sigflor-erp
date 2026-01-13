@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import timedelta
 import puremagic
 from django.db import transaction
 from django.db.models import QuerySet
@@ -140,6 +141,21 @@ class DocumentoService:
         vinculo.delete(user=user)
         DocumentoService._verificar_e_apagar_orfao(documento, user)
 
+    @classmethod
+    def restaurar_documentos_pessoa_fisica(cls, pessoa, data_delecao_pai, user):
+        if not data_delecao_pai: return
+        margem = timedelta(seconds=5)
+        inicio, fim = data_delecao_pai - margem, data_delecao_pai + margem
+
+        vinculos = PessoaFisicaDocumento.objects.filter(
+            pessoa_fisica=pessoa,
+            deleted_at__range=(inicio, fim)
+        )
+        for vinculo in vinculos:
+            vinculo.restore(user=user)
+            if vinculo.documento.deleted_at and inicio <= vinculo.documento.deleted_at <= fim:
+                vinculo.documento.restore(user=user)
+
     # =========================================================================
     # 2. PESSOA JURÍDICA (Gestão de Vínculos)
     # =========================================================================
@@ -189,6 +205,21 @@ class DocumentoService:
         documento = vinculo.documento
         vinculo.delete(user=user)
         DocumentoService._verificar_e_apagar_orfao(documento, user)
+
+    @classmethod
+    def restaurar_documentos_pessoa_juridica(cls, pessoa, data_delecao_pai, user):
+        if not data_delecao_pai: return
+        margem = timedelta(seconds=5)
+        inicio, fim = data_delecao_pai - margem, data_delecao_pai + margem
+
+        vinculos = PessoaJuridicaDocumento.objects.filter(
+            pessoa_juridica=pessoa,
+            deleted_at__range=(inicio, fim)
+        )
+        for vinculo in vinculos:
+            vinculo.restore(user=user)
+            if vinculo.documento.deleted_at and inicio <= vinculo.documento.deleted_at <= fim:
+                vinculo.documento.restore(user=user)
 
     # =========================================================================
     # 3. QUERIES DE NEGÓCIO (Alertas e Validade)

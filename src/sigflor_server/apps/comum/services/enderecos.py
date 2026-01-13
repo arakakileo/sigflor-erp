@@ -1,4 +1,5 @@
 from typing import Optional, Any, Callable
+from datetime import timedelta
 from django.db import transaction
 from django.db.models import QuerySet
 from rest_framework.exceptions import ValidationError
@@ -120,6 +121,33 @@ class EnderecoService:
 
             vinculo = existentes_map[item_id]
             cls._atualizar_vinculo_existente(vinculo, item, user)
+
+    @classmethod
+    def _restaurar_vinculos_generico(
+        cls, 
+        model_vinculo, 
+        campo_filho, 
+        filtro_pai, 
+        data_delecao_pai, 
+        user
+    ):
+        if not data_delecao_pai:
+            return
+
+        margem = timedelta(seconds=5)
+        inicio = data_delecao_pai - margem
+        fim = data_delecao_pai + margem
+
+        vinculos = model_vinculo.objects.filter(
+            **filtro_pai,
+            deleted_at__range=(inicio, fim)
+        )
+
+        for vinculo in vinculos:
+            vinculo.restore(user=user)
+            endereco = getattr(vinculo, campo_filho)
+            if endereco.deleted_at and inicio <= endereco.deleted_at <= fim:
+                endereco.restore(user=user)
 
     @classmethod
     def _validar_regras_negocio(cls, existentes_map, lista_enderecos):
@@ -296,6 +324,16 @@ class EnderecoService:
         EnderecoService._verificar_e_apagar_orfao(endereco, user)
 
     @classmethod
+    def restaurar_enderecos_pessoa_fisica(cls, pessoa, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            model_vinculo=PessoaFisicaEndereco,
+            campo_filho='endereco',
+            filtro_pai={'pessoa_fisica': pessoa},
+            data_delecao_pai=data_delecao_pai,
+            user=user
+        )
+
+    @classmethod
     def atualizar_enderecos_pessoa_fisica(cls, pessoa_fisica, lista_enderecos: list, user):
         cls._sincronizar_vinculos_generico(
             entidade_pai=pessoa_fisica,
@@ -369,6 +407,16 @@ class EnderecoService:
         EnderecoService._verificar_e_apagar_orfao(endereco, user)
 
     @classmethod
+    def restaurar_enderecos_pessoa_juridica(cls, pessoa, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            model_vinculo=PessoaJuridicaEndereco,
+            campo_filho='endereco',
+            filtro_pai={'pessoa_juridica': pessoa},
+            data_delecao_pai=data_delecao_pai,
+            user=user
+        )   
+
+    @classmethod
     def atualizar_enderecos_pessoa_juridica(cls, pessoa_juridica, lista_enderecos: list, user):
         cls._sincronizar_vinculos_generico(
             entidade_pai=pessoa_juridica,
@@ -440,6 +488,16 @@ class EnderecoService:
         endereco = vinculo.endereco
         vinculo.delete(user=user)
         EnderecoService._verificar_e_apagar_orfao(endereco, user)
+
+    @classmethod
+    def restaurar_enderecos_filial(cls, filial, data_delecao_pai, user):
+        cls._restaurar_vinculos_generico(
+            model_vinculo=FilialEndereco,
+            campo_filho='endereco',
+            filtro_pai={'filial': filial},
+            data_delecao_pai=data_delecao_pai,
+            user=user
+        )
 
     @classmethod
     def atualizar_enderecos_filial(cls, filial, lista_enderecos: list, user):

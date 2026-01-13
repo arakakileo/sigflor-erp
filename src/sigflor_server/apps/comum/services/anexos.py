@@ -1,6 +1,7 @@
 from typing import Optional
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
+from datetime import timedelta
 
 from ..models import Anexo
 
@@ -77,3 +78,25 @@ class AnexoService:
             mimetype__startswith=mimetype,
             deleted_at__isnull=True
         ))
+
+    @staticmethod
+    def restaurar_anexos_entidade(entidade, data_delecao_pai, user):
+        """
+        Restaura anexos vinculados a qualquer entidade via GFK.
+        """
+        if not data_delecao_pai: return
+        
+        margem = timedelta(seconds=5)
+        inicio = data_delecao_pai - margem
+        fim = data_delecao_pai + margem
+
+        content_type = ContentType.objects.get_for_model(entidade)
+        
+        anexos = Anexo.objects.filter(
+            content_type=content_type,
+            object_id=str(entidade.pk),
+            deleted_at__range=(inicio, fim)
+        )
+        
+        for anexo in anexos:
+            anexo.restore(user=user)
