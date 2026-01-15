@@ -14,13 +14,12 @@ from ..services import PapelService
 from .. import selectors
 
 class PapelViewSet(BaseRBACViewSet):
-    
 
     permissao_leitura = 'autenticacao.view_papel'
     permissao_update = 'autenticacao.change_papel'
     permissao_create = 'autenticacao.add_papel'
     permissao_delete = 'autenticacao.delete_papel'
-    
+
     permissoes_acoes = {
         'usuarios': 'autenticacao.view_papel',
         'adicionar_permissoes': 'autenticacao.change_papel',

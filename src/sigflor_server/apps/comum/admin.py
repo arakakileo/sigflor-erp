@@ -80,7 +80,7 @@ class FilialContatoInline(admin.TabularInline):
 @admin.register(PessoaFisica)
 class PessoaFisicaAdmin(HiddenAdmin):
     search_fields = ['nome_completo', 'cpf', 'rg']
-    inlines = [DeficienciaInline, PessoaFisicaEnderecoInline, PessoaFisicaContatoInline, PessoaFisicaDocumentoInline]
+    # inlines = [DeficienciaInline, PessoaFisicaEnderecoInline, PessoaFisicaContatoInline, PessoaFisicaDocumentoInline]
     # Fieldsets mantidos para o Popup ser completo
     fieldsets = (
         ('Dados Pessoais', {'fields': ('nome_completo', 'cpf', 'rg', 'orgao_emissor', 'data_nascimento')}),

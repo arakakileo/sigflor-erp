@@ -19,8 +19,8 @@ class ClienteService:
         ativo: bool = True,
         empresa_gestora,
         **kwargs
-    ) -> Cliente:
-        
+    )-> Cliente:
+
         cnpj = pessoa_juridica_data.pop('cnpj')
 
         pessoa_juridica, _ = PessoaJuridicaService.get_or_create_by_cnpj(

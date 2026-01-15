@@ -23,3 +23,6 @@ def usuario_list(*, user: Usuario, busca: str = None, ativo: bool = None, papel_
 
 def obter_usuario_por_id(*, pk:str) -> Optional[Usuario]:
     return Usuario.objects.get(pk=pk)
+
+def obter_usuario_por_email(*, email:str) -> Optional[Usuario]:
+    return Usuario.objects.get(email=email)

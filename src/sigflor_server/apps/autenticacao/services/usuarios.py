@@ -1,13 +1,14 @@
-from venv import create
 from django.db import transaction
 from apps.autenticacao.models import Usuario
-from rest_framework.exceptions import ValidationError
 
 class UsuarioService:
 
     @staticmethod
     @transaction.atomic
     def create(*, user: Usuario, password: str, **dados_validos) -> Usuario:
+
+        if not dados_validos['username']:
+            dados_validos['username'] = dados_validos['email']
 
         lista_papeis = dados_validos.pop('papeis', []) 
         lista_filiais = dados_validos.pop('allowed_filiais', [])

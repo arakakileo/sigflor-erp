@@ -6,6 +6,7 @@ from .usuarios import (
     UsuarioAlterarMinhaSenhaSerializer,
     UsuarioResumoSerializer
 )
+from .auth import CustomTokenObtainPairSerializer
 from .permissoes import PermissaoSerializer
 from .papeis import (
     PapelSerializer, 
@@ -23,6 +24,7 @@ __all__ = [
     'UsuarioRedefinirSenhaSerializer',
     'UsuarioAlterarMinhaSenhaSerializer',
     'UsuarioResumoSerializer',
+    'CustomTokenObtainPairSerializer',
     'PermissaoSerializer',
     'PapelSerializer',
     'PapelCreateSerializer',
