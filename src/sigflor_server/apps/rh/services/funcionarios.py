@@ -9,7 +9,6 @@ from apps.autenticacao.models import Usuario
 from apps.comum.models import Empresa, Projeto
 from apps.comum.services import PessoaFisicaService, DocumentoService
 from .dependentes import DependenteService
-from .alocacoes import AlocacaoService
 from ..models import (
     Funcionario,
     EquipeFuncionario,
@@ -68,14 +67,6 @@ class FuncionarioService:
             **dados_cadastrais
         )
         funcionario.save()
-
-        if projeto:
-            AlocacaoService.alocar_funcionario(
-                funcionario=funcionario,
-                projeto=projeto,
-                data_inicio=data_admissao,
-                created_by=user
-            )
 
         return funcionario
 
@@ -221,16 +212,6 @@ class FuncionarioService:
         funcionario.updated_by = updated_by
         funcionario.save()
 
-        # 1. Encerra alocações em projetos ativas
-        Alocacao.objects.filter(
-            funcionario=funcionario,
-            data_fim__isnull=True,
-            deleted_at__isnull=True
-        ).update(
-            data_fim=data_demissao_final,
-            updated_by=updated_by
-        )
-
         # 2. Encerra participações em equipes ativas
         EquipeFuncionario.objects.filter(
             funcionario=funcionario,
@@ -329,46 +310,6 @@ class FuncionarioService:
 
     @staticmethod
     @transaction.atomic
-    def alocar_em_projeto(
-        *,
-        funcionario: Funcionario,
-        projeto,
-        data_inicio,
-        data_fim=None,
-        observacoes: str = None,
-        created_by=None
-    ) -> Alocacao:
-        """
-        Aloca funcionário em um projeto.
-
-        Regra: Encerra alocação anterior se existir.
-        """
-        alocacao_ativa = Alocacao.objects.filter(
-            funcionario=funcionario,
-            data_fim__isnull=True,
-            deleted_at__isnull=True
-        ).first()
-
-        if alocacao_ativa:
-            alocacao_ativa.data_fim = data_inicio
-            alocacao_ativa.updated_by = created_by
-            alocacao_ativa.save()
-
-        funcionario.projeto = projeto
-        funcionario.updated_by = created_by
-        funcionario.save()
-
-        return Alocacao.objects.create(
-            funcionario=funcionario,
-            projeto=projeto,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            observacoes=observacoes,
-            created_by=created_by
-        )
-
-    @staticmethod
-    @transaction.atomic
     def atualizar_flag_dependentes(funcionario: Funcionario) -> None:
         from ..models import Dependente
         tem = Dependente.objects.filter(
@@ -381,9 +322,3 @@ class FuncionarioService:
             funcionario.tem_dependente = tem
             funcionario.save(update_fields=['tem_dependente', 'updated_at'])
 
-    @staticmethod
-    def get_historico_alocacoes(funcionario: Funcionario) -> list:
-        return list(Alocacao.objects.filter(
-            funcionario=funcionario,
-            deleted_at__isnull=True
-        ).select_related('projeto').order_by('-data_inicio'))

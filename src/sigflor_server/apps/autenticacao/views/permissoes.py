@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from apps.comum.views.base import BaseRBACViewSet
 from django.contrib.auth.models import Permission
 from ..serializers import PermissaoSerializer

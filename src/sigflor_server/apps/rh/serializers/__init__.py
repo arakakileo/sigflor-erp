@@ -22,10 +22,6 @@ from .equipes import (
     EquipeFuncionarioSerializer, EquipeFuncionarioCreateSerializer,
     EquipeFuncionarioListSerializer, EquipeFuncionarioUpdateSerializer
 )
-from .alocacoes import (
-    AlocacaoSerializer, AlocacaoCreateSerializer,
-    AlocacaoListSerializer, AlocacaoUpdateSerializer
-)
 
 __all__ = [
     'CargoSerializer',
@@ -53,8 +49,4 @@ __all__ = [
     'EquipeFuncionarioCreateSerializer',
     'EquipeFuncionarioListSerializer',
     'EquipeFuncionarioUpdateSerializer',
-    'AlocacaoSerializer',
-    'AlocacaoCreateSerializer',
-    'AlocacaoListSerializer',
-    'AlocacaoUpdateSerializer',
 ]

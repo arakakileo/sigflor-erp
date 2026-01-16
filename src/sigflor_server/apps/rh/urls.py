@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
@@ -9,7 +8,6 @@ from .views import (
     DependenteViewSet,
     EquipeViewSet,
     EquipeFuncionarioViewSet,
-    AlocacaoViewSet,
 )
 
 router = DefaultRouter()
@@ -19,7 +17,6 @@ router.register(r'funcionarios', FuncionarioViewSet, basename='funcionario')
 router.register(r'dependentes', DependenteViewSet, basename='dependente')
 router.register(r'equipes', EquipeViewSet, basename='equipe')
 router.register(r'equipe-funcionarios', EquipeFuncionarioViewSet, basename='equipe-funcionario')
-router.register(r'alocacoes', AlocacaoViewSet, basename='alocacao')
 
 urlpatterns = [
     path('', include(router.urls)),

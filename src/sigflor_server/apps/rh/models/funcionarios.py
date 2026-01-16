@@ -70,14 +70,14 @@ class Funcionario(SoftDeleteModel):
         help_text='Salário contratual'
     )
 
-    projeto = models.ForeignKey(
-        'comum.Projeto',
-        on_delete=models.PROTECT,
-        related_name='funcionarios',
-        blank=True,
-        null=True,
-        help_text='Projeto/Centro de Custo ao qual o funcionário está alocado'
-    )
+    # projeto = models.ForeignKey(
+    #     'comum.Projeto',
+    #     on_delete=models.PROTECT,
+    #     related_name='funcionarios',
+    #     blank=True,
+    #     null=True,
+    #     help_text='Projeto/Centro de Custo ao qual o funcionário está alocado'
+    # )
 
     peso_corporal = models.DecimalField(
         max_digits=5,
@@ -178,7 +178,6 @@ class Funcionario(SoftDeleteModel):
             models.Index(fields=['status', 'data_admissao']),
             models.Index(fields=['cargo', 'status']),
             models.Index(fields=['empresa', 'status']),
-            models.Index(fields=['projeto']),
         ]
 
     def __str__(self):
@@ -239,6 +238,3 @@ class Funcionario(SoftDeleteModel):
     def empresa_nome(self):
         return self.empresa.nome_fantasia if self.empresa else None
 
-    @property
-    def projeto_nome(self):
-        return self.projeto.descricao if self.projeto else None

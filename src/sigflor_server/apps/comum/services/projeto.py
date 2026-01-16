@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.apps import apps
 from rest_framework.exceptions import ValidationError
 
 from ..models import Projeto, StatusProjeto
@@ -50,10 +51,29 @@ class ProjetoService:
 
     @staticmethod
     @transaction.atomic
-    def delete(*, user: Usuario, projeto: Projeto) -> None:
-        # Muda status para cancelado antes de deletar logicamente?
-        # Ou apenas marca deleted_at. Vamos manter simples:
+    def delete(projeto: Projeto, user: Usuario) -> None:
+        """
+        Exclui um projeto logicamente APENAS se não houver histórico de RH.
+        """
+        
+        try:
+            Equipe = apps.get_model('rh', 'Equipe')
+            
+            if Equipe.objects.filter(projeto=projeto, deleted_at__isnull=True).exists():
+                raise ValidationError({
+                    "detail": "Existem equipes vinculadas a este projeto."
+                })
+
+        except LookupError:
+            pass
+
         projeto.delete(user=user)
+
+    @staticmethod
+    @transaction.atomic
+    def restore(projeto: Projeto, user: Usuario) -> Projeto:
+        projeto.restore(user=user)
+        return projeto
 
     @staticmethod
     @transaction.atomic

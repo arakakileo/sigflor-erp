@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 
-from ..models import Filial
+from ..models import Filial, Projeto
 from ..models.enums import StatusFilial
 from .enderecos import EnderecoService
 from .contatos import ContatoService
@@ -96,12 +96,18 @@ class FilialService:
 
         FilialService._verificar_acesso_filial(user, filial)
 
+        if Projeto.objects.filter(filial=filial, deleted_at__isnull=True).exists():
+            raise ValidationError({
+                "detail": "Não é possível excluir esta filial pois ela possui Projetos vinculados (ativos ou encerrados). Desative a filial se ela não for mais usada."
+            })
+
         for vinculo in filial.enderecos_vinculados.filter(deleted_at__isnull=True):
             EnderecoService.remove_vinculo_filial(vinculo, user=user)
 
         for vinculo in filial.contatos_vinculados.filter(deleted_at__isnull=True):
             ContatoService.remove_vinculo_filial(vinculo, user=user)
-
+            
+        filial.usuarios_com_acesso.clear()
         filial.delete(user=user)
 
     @staticmethod

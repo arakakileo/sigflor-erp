@@ -4,7 +4,6 @@ from .cargo_documento import CargoDocumento
 from .funcionarios import Funcionario
 from .dependentes import Dependente
 from .equipes import Equipe, EquipeFuncionario
-from .alocacoes import Alocacao
 from .enums import NivelCargo, RiscoPadrao, StatusFuncionario
 
 __all__ = [
@@ -14,7 +13,6 @@ __all__ = [
     'Dependente',
     'Equipe',
     'EquipeFuncionario',
-    'Alocacao',
     'RiscoPadrao',
     'NivelCargo',
     'StatusFuncionario',

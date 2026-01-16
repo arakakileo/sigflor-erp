@@ -73,3 +73,6 @@ def projeto_list_selection(*, user, ativo: bool = True) -> QuerySet:
         qs = qs.filter(filial__in=user.allowed_filiais.all())
 
     return qs.only('id', 'numero', 'descricao').order_by('descricao')
+
+def projeto_get_by_id_irrestrito(*, pk: str) -> Optional[Projeto]:
+    return Projeto.objects.filter(pk=pk).first()

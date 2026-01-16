@@ -2,7 +2,7 @@
 from django.contrib import admin
 
 from .models import (
-    Cargo, Funcionario, Dependente, Alocacao, CargoDocumento, Equipe, EquipeFuncionario
+    Cargo, Funcionario, Dependente, CargoDocumento, Equipe, EquipeFuncionario
 )
 
 
@@ -14,15 +14,6 @@ class CargoDocumentoInline(admin.TabularInline):
     extra = 0
     fields = ['documento_tipo', 'obrigatorio', 'condicional']
     raw_id_fields = [] 
-
-
-class AlocacaoInline(admin.TabularInline):
-    """Exibe o histórico de projetos (centros de custo) do funcionário."""
-    model = Alocacao
-    extra = 0
-    fields = ['projeto', 'data_inicio', 'data_fim', 'observacoes']
-    readonly_fields = ['observacoes']
-    raw_id_fields = ['projeto'] # Otimização para muitos projetos
 
 
 class DependenteInline(admin.TabularInline):
@@ -120,7 +111,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'nome',
         'cpf_formatado',
         'cargo_nome',
-        'projeto_nome',
         'status',
         'tem_dependente',
         'tipo_contrato',
@@ -134,7 +124,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'tem_dependente',
         'tipo_contrato',
         'empresa',
-        'projeto', # Filtro crucial para o "Tripé"
         'created_at',
     ]
     search_fields = [
@@ -143,7 +132,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'pessoa_fisica__cpf',
         'cargo__nome',
         'empresa__pessoa_juridica__razao_social',
-        'projeto__descricao',
     ]
     readonly_fields = [
         'id',
@@ -154,22 +142,21 @@ class FuncionarioAdmin(admin.ModelAdmin):
         'cpf_formatado',
         'cargo_nome',
         'empresa_nome',
-        'projeto_nome',
         'created_at',
         'updated_at',
         'deleted_at',
     ]
     # Raw ID fields são vitais aqui para evitar carregar milhares de PFs no dropdown
-    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa', 'projeto']
+    raw_id_fields = ['pessoa_fisica', 'cargo', 'empresa',]
     ordering = ['pessoa_fisica__nome_completo']
-    inlines = [DependenteInline, AlocacaoInline]
+    inlines = [DependenteInline]
 
     fieldsets = (
         ('Identificacao', {
             'fields': ('id', 'matricula', 'pessoa_fisica')
         }),
         ('Dados Profissionais', {
-            'fields': ('cargo', 'empresa', 'projeto')
+            'fields': ('cargo', 'empresa',)
         }),
         ('Contrato', {
             'fields': (
@@ -203,57 +190,6 @@ class FuncionarioAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
-
-# ============ Alocacao ============ #
-
-@admin.register(Alocacao)
-class AlocacaoAdmin(admin.ModelAdmin):
-    list_display = [
-        'funcionario',
-        'projeto',
-        'data_inicio',
-        'data_fim',
-        'observacoes',
-        'created_at',
-    ]
-    list_filter = [
-        'data_inicio',
-        'data_fim',
-        'created_at',
-    ]
-    search_fields = [
-        'funcionario__pessoa_fisica__nome_completo',
-        'funcionario__matricula',
-        'projeto__descricao',
-    ]
-    readonly_fields = [
-        'id',
-        'observacoes',
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ]
-    raw_id_fields = ['funcionario', 'projeto']
-    ordering = ['-data_inicio', 'funcionario__pessoa_fisica__nome_completo']
-
-    fieldsets = (
-        ('Vínculo', {
-            'fields': ('funcionario', 'projeto')
-        }),
-        ('Período', {
-            'fields': ('data_inicio', 'data_fim')
-        }),
-        ('Observações', {
-            'fields': ('observacoes',),
-            'classes': ('collapse',)
-        }),
-        ('Auditoria', {
-            'fields': ('id', 'created_at', 'updated_at', 'deleted_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
 
 # ============ CargoDocumento ============ #
 

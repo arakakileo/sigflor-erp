@@ -12,7 +12,6 @@ from ..serializers import (
     ProjetoSelecaoSerializer
 )
 from ..services import ProjetoService
-from ..models.enums import StatusProjeto
 from .. import selectors
 
 class ProjetoViewSet(BaseRBACViewSet):
@@ -21,6 +20,7 @@ class ProjetoViewSet(BaseRBACViewSet):
     permissao_escrita = 'cadastros_projetos_escrever'
     permissoes_acoes = {
         'ativar': 'cadastros_projetos_escrever',
+        'restaurar': 'comum_projetos_escrever',
         'desativar': 'cadastros_projetos_escrever',
         'selecao': 'cadastros_projetos_ler',
         'estatisticas': 'cadastros_projetos_ler',
@@ -82,6 +82,17 @@ class ProjetoViewSet(BaseRBACViewSet):
             user=self.request.user,
             projeto=instance
         )
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        projeto = selectors.projeto_get_by_id_irrestrito(pk=pk)
+        if not projeto:
+            return Response(
+                {'detail': 'Projeto não encontrado.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        ProjetoService.restore(projeto, user=request.user)
+        return Response(self.get_serializer(projeto).data)
 
     @action(detail=True, methods=['post'])
     def planejar(self, request, pk=None):
