@@ -31,6 +31,12 @@ class Usuario(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    previous_login = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text='Data do login anterior ao atual'
+    )
+    
     created_by = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,

@@ -9,7 +9,7 @@ class UsuarioListSerializer(serializers.ModelSerializer):
     is_staff = serializers.ReadOnlyField()
     sobrenome = serializers.CharField(source='last_name', read_only=True)
     ativo = serializers.BooleanField(source='is_active', read_only=True)
-    ultimo_login = serializers.CharField(source='last_login', read_only=True)
+    ultimo_login = serializers.CharField(source='previous_login', read_only=True)
     
     lista_papeis = serializers.SlugRelatedField(
         source='papeis',
