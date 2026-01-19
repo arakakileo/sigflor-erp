@@ -6,7 +6,7 @@ from .models import (
     Documento, Anexo, Deficiencia, Filial,
     PessoaFisicaEndereco, PessoaFisicaContato, PessoaFisicaDocumento,
     PessoaJuridicaEndereco, PessoaJuridicaContato, PessoaJuridicaDocumento,
-    FilialEndereco, FilialContato
+    FilialEndereco, FilialContato, Projeto
 )
 
 # --- Mixin para ocultar modelos do Menu Principal ---
@@ -153,3 +153,9 @@ class FilialAdmin(admin.ModelAdmin):
     raw_id_fields = ['empresa']
     # Filial tem inlines diretos, pois usa tabela de vínculo própria
     inlines = [FilialEnderecoInline, FilialContatoInline]
+
+@admin.register(Projeto)
+class ProjetoAdmin(admin.ModelAdmin):
+    list_display = ['numero', 'descricao', 'status', 'cliente', 'empresa', 'filial']
+    search_fields = ['numero', 'descricao']
+    raw_id_fields = ['cliente', 'empresa', 'filial']

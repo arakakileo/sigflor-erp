@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.autenticacao.serializers import UsuarioResumoSerializer
 from ..models import Cliente, Empresa
 from .pessoa_juridica import (
     PessoaJuridicaSerializer, 
@@ -24,6 +25,8 @@ class ClienteListSerializer(serializers.ModelSerializer):
 class ClienteSerializer(serializers.ModelSerializer):
 
     pessoa_juridica = PessoaJuridicaSerializer(read_only=True)
+    created_by = UsuarioResumoSerializer()
+    updated_by = UsuarioResumoSerializer()
 
     class Meta:
         model = Cliente

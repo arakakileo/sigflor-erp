@@ -44,6 +44,8 @@ class ProjetoViewSet(BaseRBACViewSet):
         ativo = self.request.query_params.get('ativo')
         filial_id = self.request.query_params.get('filial')
         cliente_id = self.request.query_params.get('cliente')
+        empresa_id = self.request.query_params.get('empresa')
+
 
         if ativo is not None:
             ativo = ativo.lower() == 'true'
@@ -53,7 +55,8 @@ class ProjetoViewSet(BaseRBACViewSet):
             search=busca,
             ativo=ativo,
             filial_id=filial_id,
-            cliente_id=cliente_id
+            cliente_id=cliente_id,
+            empresa_id=empresa_id
         )
 
     def create(self, request, *args, **kwargs):

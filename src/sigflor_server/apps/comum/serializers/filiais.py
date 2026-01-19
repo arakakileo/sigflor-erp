@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.autenticacao.serializers import UsuarioResumoSerializer
 from ..models import Filial
 from ..serializers.enderecos import FilialEnderecoNestedSerializer, FilialEnderecoSerializer
 from ..serializers.contatos import FilialContatoNestedSerializer, FilialContatoSerializer
@@ -24,6 +25,8 @@ class FilialSerializer(serializers.ModelSerializer):
     empresa_nome = serializers.ReadOnlyField()
     enderecos = FilialEnderecoSerializer(many=True, read_only=True, source='enderecos_vinculados')
     contatos = FilialContatoSerializer(many=True, read_only=True, source='contatos_vinculados')
+    created_by = UsuarioResumoSerializer()
+    updated_by = UsuarioResumoSerializer()
 
     class Meta:
         model = Filial
@@ -38,10 +41,12 @@ class FilialSerializer(serializers.ModelSerializer):
             'empresa',
             'empresa_nome',
             'is_ativa',
+            'created_by',
+            'updated_by',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'is_ativa', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_ativa', 'created_by', 'updated_by', 'created_at', 'updated_at']
 
 class FilialCreateSerializer(serializers.ModelSerializer):
     enderecos = FilialEnderecoNestedSerializer(many=True, required=True, allow_empty=False)
