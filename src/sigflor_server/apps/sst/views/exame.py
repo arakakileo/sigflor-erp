@@ -10,9 +10,6 @@ from .. import selectors
 
 
 class ExameViewSet(BaseRBACViewSet):
-    """
-    CRUD para gerenciar o cadastro mestre de Exames (SST).
-    """
     
     permissao_leitura = 'sst_exame_ler'
     permissao_escrita = 'sst_exame_escrever'

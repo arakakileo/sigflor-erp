@@ -1,4 +1,3 @@
-import re
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -21,12 +20,15 @@ class CargoViewSet(BaseRBACViewSet):
     
     permissao_leitura = 'rh_cargos_ler'
     permissao_escrita = 'rh_cargos_escrever'
+    
     permissoes_acoes =  {
         'ativar': 'rh_cargos_escrever',
         'desativar': 'rh_cargos_escrever',
+        'restaurar': 'rh_cargos_escrever',
         'funcionarios': 'rh_cargos_ler',
         'ativos': 'rh_cargos_ler',
         'estatisticas': 'rh_cargos_ler',
+        'selecao': 'rh_cargos_ler',
     }
 
     queryset = Cargo.objects.filter(deleted_at__isnull=True)
@@ -50,35 +52,56 @@ class CargoViewSet(BaseRBACViewSet):
         if ativo is not None:
             ativo = ativo.lower() == 'true'
 
-        if self.action == 'selecao':
-            return selectors.cargo_list_selection()
-            
-        return selectors.cargo_list(search=search, cbo=cbo, ativo=ativo)
+        return selectors.cargo_list(
+            user=self.request.user,
+            search=search,
+            cbo=cbo,
+            ativo=ativo
+        )
     
+    def retrieve(self, request, pk=None):
+        cargo = selectors.cargo_detail(user=request.user, pk=pk)
+        serializer = self.get_serializer(cargo)
+        return Response(serializer.data)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
         cargo = CargoService.create(
             user=request.user,
             **serializer.validated_data
         )
-        return Response(CargoSerializer(cargo).data, status=status.HTTP_201_CREATED)
-    
-    def perform_update(self, serializer):
-        CargoService.update(
-            user = self.request.user,
-            cargo=serializer.instance,
+        output_serializer = CargoSerializer(cargo)        
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        cargo = CargoService.update(
+            cargo=instance,
+            user=request.user,
             **serializer.validated_data
         )
-
-    def retrieve(self, request, pk=None):
-        cargo = selectors.cargo_detail(user = request.user, pk=pk)
-        serializer = self.get_serializer(cargo)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        output_serializer = CargoSerializer(cargo)
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     def perform_destroy(self, instance):
         CargoService.delete(instance, user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def restaurar(self, request, pk=None):
+        cargo = selectors.cargo_get_by_id_irrestrito(user=request.user, pk=pk)
+        
+        if not cargo:
+            return Response(
+                {'detail': 'Cargo não encontrado.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        CargoService.restore(cargo, user=request.user)
+        return Response(self.get_serializer(cargo).data)
 
     @action(detail=True, methods=['post'])
     def ativar(self, request, pk=None):
@@ -103,5 +126,6 @@ class CargoViewSet(BaseRBACViewSet):
 
     @action(detail=False, methods=['get'])
     def selecao(self, request):
-        cargos = selectors.cargo_list_selection()
-        return Response(self.get_serializer(cargos, many=True).data)
+        cargos = selectors.cargo_list_selection(user=request.user)
+        serializer = self.get_serializer(cargos, many=True)
+        return Response(serializer.data)

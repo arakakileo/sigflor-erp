@@ -74,8 +74,8 @@ class FilialViewSet(BaseRBACViewSet):
             user=request.user,
             **serializer.validated_data
         )
-        read_serializer = FilialSerializer(filial_atualizada)
-        return Response(read_serializer.data, status=status.HTTP_200_OK)
+        output_serializer = FilialSerializer(filial_atualizada)
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         filial = selectors.filial_detail(user=request.user,pk=pk)

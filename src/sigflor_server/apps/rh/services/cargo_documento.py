@@ -15,7 +15,7 @@ class CargoDocumentoService:
         cargo: Cargo,
         documento_tipo: str,
         obrigatorio: bool = True,
-        condicional: Optional[str] = None,
+        condicional: Optional[str] = '',
         created_by=None,
     ) -> CargoDocumento:
         """

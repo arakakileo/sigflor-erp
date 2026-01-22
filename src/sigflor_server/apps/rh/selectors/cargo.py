@@ -1,18 +1,19 @@
-from django.db.models import QuerySet, Q, Count
+from django.db.models import QuerySet, Q
 from typing import Optional
 
-from ..models import Cargo, Funcionario, RiscoPadrao
+from ..models import Cargo, Funcionario
 from apps.autenticacao.models.usuarios import Usuario
 
 def cargo_list(
     *,
-    search: Optional[str],
-    cbo: Optional[str],
-    ativo: Optional[bool]
-) -> QuerySet:
+    user: Usuario,
+    search: Optional[str] = None,
+    cbo: Optional[str] = None,
+    ativo: Optional[bool] = None
+) -> QuerySet[Cargo]:
     
     qs = Cargo.objects.filter(deleted_at__isnull=True).prefetch_related(
-        'documentos_obrigatorios__documento'
+        'documentos_obrigatorios'
     )
 
     if cbo:
@@ -29,17 +30,20 @@ def cargo_list(
 
     return qs.order_by('nome')
 
-def cargo_detail(*, user:Usuario, pk) -> Cargo:
+def cargo_detail(*, user: Usuario, pk: str) -> Cargo:
     return Cargo.objects.prefetch_related(
-        'documentos_obrigatorios__documento'
+        'documentos_obrigatorios'
     ).get(pk=pk, deleted_at__isnull=True)
 
-def cargo_list_selection() -> QuerySet:
+def cargo_get_by_id_irrestrito(*, user: Usuario, pk: str) -> Optional[Cargo]:
+    return Cargo.objects.filter(pk=pk).first()
+
+def cargo_list_selection(*, user: Usuario) -> QuerySet[Cargo]:
     return Cargo.objects.filter(
         deleted_at__isnull=True
     ).only('id', 'nome', 'cbo').order_by('nome')
 
-def funcionarios_por_cargo(*, user: Usuario, cargo_id: str) -> QuerySet:
+def funcionarios_por_cargo(*, user: Usuario, cargo_id: str) -> QuerySet[Funcionario]:
     qs = Funcionario.objects.filter(
         cargo_id=cargo_id,
         deleted_at__isnull=True

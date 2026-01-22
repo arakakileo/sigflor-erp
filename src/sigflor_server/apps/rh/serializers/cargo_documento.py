@@ -35,7 +35,7 @@ class CargoDocumentoSerializer(serializers.ModelSerializer):
 class CargoDocumentoNestedSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(required=False)
-    documento_tipo = serializers.ChoiceField(choices=TipoDocumento.choices)
+    documento_tipo = serializers.ChoiceField(choices=TipoDocumento.choices, required=True)
 
     class Meta:
         model = CargoDocumento

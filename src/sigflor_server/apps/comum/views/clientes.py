@@ -81,8 +81,8 @@ class ClienteViewSet(BaseRBACViewSet):
             updated_by=request.user,
             **serializer.validated_data
         )
-        read_serializer = ClienteSerializer(cliente_atualizado)
-        return Response(read_serializer.data, status=status.HTTP_200_OK)
+        output_serializer = ClienteSerializer(cliente_atualizado)
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
         cliente = selectors.cliente_detail(user = request.user, pk=pk)

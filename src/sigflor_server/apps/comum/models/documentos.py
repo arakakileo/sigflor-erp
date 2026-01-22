@@ -53,7 +53,6 @@ class Documento(SoftDeleteModel):
 
     @property
     def vencido(self) -> bool:
-        """Verifica se o documento está vencido."""
         from django.utils import timezone
         if self.data_validade:
             return self.data_validade < timezone.now().date()
@@ -116,3 +115,4 @@ class PessoaJuridicaDocumento(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.pessoa_juridica} - {self.documento}"
+

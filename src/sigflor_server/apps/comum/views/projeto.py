@@ -66,7 +66,8 @@ class ProjetoViewSet(BaseRBACViewSet):
             user=request.user,
             **serializer.validated_data
         )
-        return Response(ProjetoSerializer(projeto).data, status=status.HTTP_201_CREATED)
+        output_serializer = ProjetoSerializer(projeto)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
         ProjetoService.update(
