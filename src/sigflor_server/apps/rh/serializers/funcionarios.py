@@ -22,7 +22,6 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
     cpf_formatado = serializers.ReadOnlyField()
     cargo_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
-    projeto_nome = serializers.ReadOnlyField()
 
     class Meta:
         model = Funcionario
@@ -35,8 +34,6 @@ class FuncionarioListSerializer(serializers.ModelSerializer):
             'cargo_nome',
             'empresa',
             'empresa_nome',
-            'projeto',
-            'projeto_nome',
             'status',
             'tipo_contrato',
             'data_admissao',
@@ -52,7 +49,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
     is_ativo = serializers.ReadOnlyField()
     cargo_nome = serializers.ReadOnlyField()
     empresa_nome = serializers.ReadOnlyField()
-    projeto_nome = serializers.ReadOnlyField()
 
     class Meta:
         model = Funcionario
@@ -68,8 +64,6 @@ class FuncionarioSerializer(serializers.ModelSerializer):
             'empresa_nome',
             'cargo',
             'cargo_nome',
-            'projeto',
-            'projeto_nome',
             # Dados contratuais
             'tipo_contrato',
             'data_admissao',
@@ -122,7 +116,6 @@ class FuncionarioCreateSerializer(serializers.ModelSerializer):
             'pessoa_fisica',
             'empresa',
             'cargo',
-            'projeto',
             'tipo_contrato',
             'data_admissao',
             'salario_nominal',
@@ -179,7 +172,6 @@ class FuncionarioUpdateSerializer(serializers.ModelSerializer):
         model = Funcionario
         fields = [
             'cargo',
-            'projeto',
             'salario_nominal',
             # Dados físicos
             'peso_corporal',

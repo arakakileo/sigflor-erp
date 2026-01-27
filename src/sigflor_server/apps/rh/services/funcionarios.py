@@ -31,7 +31,6 @@ class FuncionarioService:
         tipo_contrato: str,
         data_admissao,
         salario_nominal: Optional[Decimal] = None,
-        projeto: Optional[Projeto] = None,
         **dados_cadastrais 
     ) -> Funcionario:
         
@@ -62,7 +61,6 @@ class FuncionarioService:
             tipo_contrato=tipo_contrato,
             data_admissao=data_admissao,
             salario_nominal=salario_final,
-            projeto=projeto,
             created_by=user,
             **dados_cadastrais
         )
@@ -113,47 +111,20 @@ class FuncionarioService:
     @transaction.atomic
     def update(funcionario: Funcionario, updated_by=None, **kwargs) -> Funcionario:
         """
-        Atualiza funcionário, seus dados pessoais e gerencia a troca de Projeto (Alocação).
+        Atualiza funcionário e seus dados pessoais.
         """
         
         # 1. Extração de Dados Aninhados (Pessoa Física)
         # Removemos do kwargs para não atrapalhar o setattr do funcionário
         pessoa_fisica_data = kwargs.pop('pessoa_fisica', None)
 
-        # 2. Gestão de Alocação (Projeto)
-        if 'projeto' in kwargs:
-            novo_projeto = kwargs.pop('projeto')
-            novo_projeto_id = getattr(novo_projeto, 'id', novo_projeto)
-            
-            if novo_projeto_id != funcionario.projeto_id:
-                
-                data_hoje = timezone.now().date()
-
-                if novo_projeto_id:
-                    projeto_instance = novo_projeto
-                    if not isinstance(projeto_instance, Projeto):
-                        projeto_instance = Projeto.objects.get(id=novo_projeto_id)
-                    
-                    AlocacaoService.alocar_funcionario(
-                        funcionario=funcionario,
-                        projeto=projeto_instance,
-                        data_inicio=data_hoje,
-                        created_by=updated_by
-                    )
-                else:
-                    alocacao_ativa = AlocacaoService.get_alocacao_ativa(funcionario)
-                    if alocacao_ativa:
-                        AlocacaoService.encerrar_alocacao(
-                            alocacao=alocacao_ativa,
-                            data_fim=data_hoje,
-                            updated_by=updated_by
-                        )
-                    funcionario.projeto = None
-
-        # 3. Validações de Negócio (Cargo/Salário)
-        novo_cargo = kwargs.get('cargo')
-        novo_salario = kwargs.get('salario_nominal')
-        cargo_ref = novo_cargo if novo_cargo else funcionario.cargo
+        # 3. Validações de Negócio (Status/Cargo/Salário)
+        novo_status = kwargs.get('status')
+        if novo_status == StatusFuncionario.ATIVO:
+            # Validação Inter-Módulos (RH -> SST)
+            # Verifica se funcionário tem ASO Admissional APTO antes de ativar
+            from apps.sst.services.aso import ASOService
+            ASOService.validar_pendencias_admissional(funcionario)
 
         if novo_salario is not None and cargo_ref and cargo_ref.salario_base:
             if Decimal(str(novo_salario)) < cargo_ref.salario_base:
@@ -176,7 +147,7 @@ class FuncionarioService:
             PessoaFisicaService.update(
                 pessoa=funcionario.pessoa_fisica,
                 updated_by=updated_by,
-                **pessoa_fisica_data # Repassa endereços, contatos, etc.
+                **pessoa_fisica_data
             )
         
         return funcionario
@@ -208,7 +179,7 @@ class FuncionarioService:
 
         funcionario.status = StatusFuncionario.DEMITIDO
         funcionario.data_demissao = data_demissao_final
-        funcionario.projeto = None  # Remove do projeto
+
         funcionario.updated_by = updated_by
         funcionario.save()
 

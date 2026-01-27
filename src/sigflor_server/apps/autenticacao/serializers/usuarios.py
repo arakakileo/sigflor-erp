@@ -25,11 +25,11 @@ class UsuarioListSerializer(serializers.ModelSerializer):
         slug_field='nome'
     )
 
-    lista_permissoes_diretas = serializers.SlugRelatedField(
-        source='permissoes_diretas',
+    lista_permissoes = serializers.SlugRelatedField(
+        source='user_permissions',
         many=True,
         read_only=True,
-        slug_field='name'
+        slug_field='codename'
     )
     
     class Meta:
@@ -45,7 +45,7 @@ class UsuarioListSerializer(serializers.ModelSerializer):
             'ativo', 
             'lista_papeis', 
             'lista_filiais', 
-            'lista_permissoes_diretas',
+            'lista_permissoes',
             'ultimo_login'
         ]
 
@@ -74,8 +74,8 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         required=False
     )
 
-    lista_permissoes_diretas_ids = serializers.PrimaryKeyRelatedField(
-        source='permissoes_diretas',
+    lista_permissoes_ids = serializers.PrimaryKeyRelatedField(
+        source='user_permissions',
         many=True,
         queryset=Permission.objects.all(),
         required=False
@@ -91,7 +91,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             'senha',
             'lista_papeis_ids', 
             'lista_filiais_ids', 
-            'lista_permissoes_diretas_ids',
+            'lista_permissoes_ids',
             'ativo'
         ]
 
@@ -114,8 +114,8 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         required=False
     )
 
-    lista_permissoes_diretas_ids = serializers.PrimaryKeyRelatedField(
-        source='permissoes_diretas',
+    lista_permissoes_ids = serializers.PrimaryKeyRelatedField(
+        source='user_permissions',
         many=True,
         queryset=Permission.objects.all(),
         required=False
@@ -130,7 +130,7 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
             'sobrenome',
             'lista_papeis_ids', 
             'lista_filiais_ids', 
-            'lista_permissoes_diretas_ids',
+            'lista_permissoes_ids',
             'ativo'
         ]
 

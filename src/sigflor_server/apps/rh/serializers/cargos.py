@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.autenticacao.serializers import UsuarioResumoSerializer
 from apps.comum.models.enums import TipoDocumento
-from apps.sst.serializers import CargoExameNestedSerializer, CargoExameSerializer
+from apps.sst.serializers import CargoExameNestedSerializer, CargoExameSerializer, CargoEpiNestedSerializer
 from ..models import Cargo, CargoDocumento
 from ..models.enums import NivelCargo
 
@@ -68,6 +68,10 @@ class CargoSerializer(serializers.ModelSerializer):
         many=True, 
         read_only=True,
     )
+    epis_obrigatorios = CargoEpiNestedSerializer(
+        many=True, 
+        read_only=True,
+    )
     created_by = UsuarioResumoSerializer()
     updated_by = UsuarioResumoSerializer()
     class Meta:
@@ -88,6 +92,7 @@ class CargoSerializer(serializers.ModelSerializer):
             'ativo',
             'documentos_obrigatorios',
             'exames_obrigatorios',
+            'epis_obrigatorios',
             'funcionarios_count',
             'created_at',
             'created_by',

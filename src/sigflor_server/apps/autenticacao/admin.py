@@ -23,7 +23,7 @@ class UsuarioAdmin(BaseUserAdmin):
     ordering = ['username']
     
     # allowed_filiais precisa estar aqui para a caixa de seleção funcionar
-    filter_horizontal = ['papeis', 'permissoes_diretas', 'allowed_filiais']
+    filter_horizontal = ['papeis', 'user_permissions', 'allowed_filiais']
 
     # Organização do formulário
     fieldsets = (
@@ -39,7 +39,7 @@ class UsuarioAdmin(BaseUserAdmin):
         
         ('RBAC Customizado (SigFlor)', {
             # Adicionei 'allowed_filiais' aqui para aparecer na tela
-            'fields': ('papeis', 'permissoes_diretas', 'allowed_filiais'),
+            'fields': ('papeis', 'user_permissions', 'allowed_filiais'),
         }),
         
         ('Auditoria e Datas', {

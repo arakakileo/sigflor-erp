@@ -15,15 +15,15 @@ from .. import selectors
 
 class PapelViewSet(BaseRBACViewSet):
 
-    permissao_leitura = 'autenticacao.view_papel'
-    permissao_update = 'autenticacao.change_papel'
-    permissao_create = 'autenticacao.add_papel'
-    permissao_delete = 'autenticacao.delete_papel'
+    permissao_leitura = 'autenticacao_papel_ler'
+    permissao_update = 'autenticacao_papel_escrever'
+    permissao_create = 'autenticacao_papel_escrever'
+    permissao_delete = 'autenticacao_papel_escrever'
 
     permissoes_acoes = {
-        'usuarios': 'autenticacao.view_papel',
-        'adicionar_permissoes': 'autenticacao.change_papel',
-        'remover_permissoes': 'autenticacao.change_papel',
+        'usuarios': 'autenticacao_papel_ler',
+        'adicionar_permissoes': 'autenticacao_papel_escrever',
+        'remover_permissoes': 'autenticacao_papel_escrever',
     }
 
     queryset = Papel.objects.filter(deleted_at__isnull=True)

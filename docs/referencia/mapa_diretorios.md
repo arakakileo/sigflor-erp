@@ -11,6 +11,15 @@ sigflor_server/
 │       ├── manage.py
 │       ├── core/               # Configurações centrais do Django (settings, urls)
 │       └── apps/               # Contém todos os módulos de negócio
+│           ├── autenticacao/   # MÓDULO AUTENTICAÇÃO: Usuários e Permissões (RBAC)
+│           │   ├── models/
+│           │   │   ├── usuarios.py
+│           │   │   ├── papeis.py
+│           │   │   └── ...
+│           │   ├── services/
+│           │   ├── views/
+│           │   └── backends.py     # Backend customizado de autenticação
+│           │
 │           ├── comum/          # KERNEL: Dados mestres e entidades compartilhadas
 │           │   ├── models/
 │           │   │   ├── base.py

@@ -40,6 +40,7 @@ class TipoContrato(models.TextChoices):
 
 
 class StatusFuncionario(models.TextChoices):
+    AGUARDANDO_ADMISSAO = 'AGUARDANDO_ADMISSAO', 'Aguardando Admissão'
     ATIVO = 'ATIVO', 'Ativo'
     AFASTADO = 'AFASTADO', 'Afastado'
     FERIAS = 'FERIAS', 'Em Férias'

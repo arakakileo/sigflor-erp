@@ -12,7 +12,7 @@ class UsuarioService:
 
         lista_papeis = dados_validos.pop('papeis', []) 
         lista_filiais = dados_validos.pop('allowed_filiais', [])
-        lista_permissoes = dados_validos.pop('permissoes_diretas', [])
+        lista_permissoes = dados_validos.pop('user_permissions', [])
 
         novo_usuario = Usuario.objects.create_user(
             password=password,
@@ -27,7 +27,7 @@ class UsuarioService:
             novo_usuario.allowed_filiais.set(lista_filiais)
 
         if len(lista_permissoes) > 0:
-            novo_usuario.permissoes_diretas.set(lista_permissoes)
+            novo_usuario.user_permissions.set(lista_permissoes)
 
         return novo_usuario
 
@@ -39,7 +39,7 @@ class UsuarioService:
         
         lista_papeis = dados_novos.pop('papeis', None)
         lista_filiais = dados_novos.pop('allowed_filiais', None)
-        lista_permissoes = dados_novos.pop('permissoes_diretas', None)
+        lista_permissoes = dados_novos.pop('user_permissions', None)
 
         for campo, valor in dados_novos.items():
             if hasattr(usuario_para_editar, campo):
@@ -57,7 +57,7 @@ class UsuarioService:
             usuario_para_editar.allowed_filiais.set(lista_filiais)
 
         if lista_permissoes is not None:
-            usuario_para_editar.permissoes_diretas.set(lista_permissoes)
+            usuario_para_editar.user_permissions.set(lista_permissoes)
 
         return usuario_para_editar
 

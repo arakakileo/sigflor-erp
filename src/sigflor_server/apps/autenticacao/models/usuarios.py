@@ -67,12 +67,7 @@ class Usuario(AbstractUser):
         related_name='usuarios'
     )
 
-    permissoes_diretas = models.ManyToManyField(
-        'auth.Permission',
-        blank=True,
-        related_name='usuarios_diretos',
-        help_text='Permissões específicas além das conferidas pelos papéis.'
-    )
+
 
     allowed_filiais = models.ManyToManyField(
         'comum.Filial',

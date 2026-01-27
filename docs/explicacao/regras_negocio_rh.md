@@ -11,9 +11,9 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 **Atores:** Administrativo de RH.
 
 **Pré-condições:**
-*   [Cargos](../rh/cargos.md) e [Projetos](../core/projeto.md) devem estar previamente cadastrados.
-*   [Tipos de Documento](../core/documentos.md) devem estar configurados.
-*   [Regras de `CargoDocumento`](rh/cargo_documento.md) devem estar definidas.
+*   [Cargos](../referencia/rh/cargos.md) e [Projetos](../referencia/core/projeto.md) devem estar previamente cadastrados.
+*   [Tipos de Documento](../referencia/core/documentos.md) devem estar configurados.
+*   [Regras de `CargoDocumento`](../referencia/rh/cargo_documento.md) devem estar definidas.
 
 **Fluxo:**
 1.  **Início do Cadastro:** O usuário de RH inicia o processo de admissão, fornecendo:
@@ -21,19 +21,19 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
     *   **Dados Contratuais:** Cargo, Empresa empregadora, Salário Nominal, Tipo de Contrato, Data de Admissão, Turno, PIS/NIS, Dados da CTPS.
     *   **Dados Complementares:** Peso, Altura, Indicação, Tamanhos de Uniforme.
 2.  **Gerenciamento de `PessoaFisica`:**
-    *   O sistema (`FuncionarioService`) utiliza o CPF para verificar se a `PessoaFisica` já existe ([`PessoaFisicaService`](../core/pessoa_fisica.md)).
+    *   O sistema (`FuncionarioService`) utiliza o CPF para verificar se a `PessoaFisica` já existe ([`PessoaFisicaService`](../referencia/core/pessoa_fisica.md)).
     *   Se existir, os dados da `PessoaFisica` existente são atualizados com as informações fornecidas.
     *   Se não existir, uma nova `PessoaFisica` é criada com os dados informados.
 3.  **Geração de Matrícula:** O sistema gera automaticamente uma `matricula` única para o novo funcionário (ex: `AAAANNNC`).
 4.  **Validação de Salário:**
-    *   Se o `salario_nominal` for informado, ele é validado para ser igual ou superior ao `salario_base` do [Cargo](rh/cargos.md) selecionado.
-    *   Se o `salario_nominal` **não** for informado, o sistema assume o `salario_base` do [Cargo](rh/cargos.md) como padrão.
-5.  **Criação de `Funcionario`:** O sistema cria a entidade [`Funcionario`](rh/funcionarios.md), vinculando-a à `PessoaFisica` existente/criada, ao `Cargo`, `Empresa` e ao `Projeto` inicial (se informado).
-6.  **Gerenciamento de Endereços:** O usuário fornece os dados do endereço principal. O sistema ([`EnderecoService`](../core/enderecos.md)) cria ou vincula o `core.Endereco` à `PessoaFisica` via `PessoaFisicaEndereco`.
-7.  **Gerenciamento de Contatos:** O usuário fornece os contatos (telefone, e-mail) e os contatos de emergência. O sistema ([`ContatoService`](../core/contatos.md)) realiza um `get_or_create` para cada contato (`core.Contato`) e cria os vínculos (`PessoaFisicaContato`), definindo as flags `principal` e `contato_emergencia`.
-8.  **Gerenciamento de Documentos:** O usuário faz o upload dos documentos necessários. O sistema ([`DocumentoService`](../core/documentos.md)) cria as entidades `core.Documento` para cada arquivo e os vincula à `PessoaFisica` via `PessoaFisicaDocumento`.
+    *   Se o `salario_nominal` for informado, ele é validado para ser igual ou superior ao `salario_base` do [Cargo](../referencia/rh/cargos.md) selecionado.
+    *   Se o `salario_nominal` **não** for informado, o sistema assume o `salario_base` do [Cargo](../referencia/rh/cargos.md) como padrão.
+5.  **Criação de `Funcionario`:** O sistema cria a entidade [`Funcionario`](../referencia/rh/funcionarios.md), vinculando-a à `PessoaFisica` existente/criada, ao `Cargo`, `Empresa` e ao `Projeto` inicial (se informado).
+6.  **Gerenciamento de Endereços:** O usuário fornece os dados do endereço principal. O sistema ([`EnderecoService`](../referencia/core/enderecos.md)) cria ou vincula o `core.Endereco` à `PessoaFisica` via `PessoaFisicaEndereco`.
+7.  **Gerenciamento de Contatos:** O usuário fornece os contatos (telefone, e-mail) e os contatos de emergência. O sistema ([`ContatoService`](../referencia/core/contatos.md)) realiza um `get_or_create` para cada contato (`core.Contato`) e cria os vínculos (`PessoaFisicaContato`), definindo as flags `principal` e `contato_emergencia`.
+8.  **Gerenciamento de Documentos:** O usuário faz o upload dos documentos necessários. O sistema ([`DocumentoService`](../referencia/core/documentos.md)) cria as entidades `core.Documento` para cada arquivo e os vincula à `PessoaFisica` via `PessoaFisicaDocumento`.
 9.  **Validação de Documentos Obrigatórios por Cargo:**
-    *   O sistema consulta as regras em [`hr.CargoDocumento`](rh/cargo_documento.md) para o `Cargo` do funcionário.
+    *   O sistema consulta as regras em [`hr.CargoDocumento`](../referencia/rh/cargo_documento.md) para o `Cargo` do funcionário.
     *   Verifica se todos os documentos marcados como obrigatórios para aquele cargo foram fornecidos e estão válidos (se tiverem `data_validade`).
     *   Se houver pendências, o sistema pode:
         *   Impedir a conclusão da admissão.
@@ -54,8 +54,8 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 **Fluxo:**
 1.  **Início do Cadastro:** O usuário de RH acessa o perfil de um `Funcionario` e inicia o cadastro de um dependente.
 2.  **Fornecimento de Dados:** Informa os dados pessoais do dependente (Nome Completo, CPF, Data de Nascimento, Parentesco, se é dependente para IRRF).
-3.  **Gerenciamento de `PessoaFisica` do Dependente:** O sistema ([`DependenteService`](rh/dependentes.md)) utiliza o CPF para `get_or_create` a `PessoaFisica` do dependente.
-4.  **Criação de `Dependente`:** Cria a entidade [`Dependente`](rh/dependentes.md), vinculando-a ao `Funcionario` e à `PessoaFisica` do dependente.
+3.  **Gerenciamento de `PessoaFisica` do Dependente:** O sistema ([`DependenteService`](../referencia/rh/dependentes.md)) utiliza o CPF para `get_or_create` a `PessoaFisica` do dependente.
+4.  **Criação de `Dependente`:** Cria a entidade [`Dependente`](../referencia/rh/dependentes.md), vinculando-a ao `Funcionario` e à `PessoaFisica` do dependente.
 5.  **Atualização do `Funcionario`:** A flag `tem_dependente` no `Funcionario` é atualizada automaticamente para `True`.
 6.  **Gerenciamento de Documentos do Dependente:** O usuário anexa documentos específicos do dependente (Certidão de Nascimento, Carteira de Vacinação, Declaração Escolar).
 7.  **Conclusão:** O dependente é registrado e associado ao funcionário.
@@ -69,12 +69,12 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 **Atores:** Equipe de SST.
 
 **Pré-condições:**
-*   rh/funcionarios.md cadastrado.
-*   [Exames](../core/exame.md) e [`CargoExame`](sst/saude_ocupacional.md) configurados.
+*   [Funcionário](../referencia/rh/funcionarios.md) cadastrado.
+*   [Exames](../referencia/core/exame.md) e [`CargoExame`](../referencia/sst/saude_ocupacional.md) configurados.
 
 **Fluxo:**
 1.  **Solicitação de ASO:**
-    *   A equipe de SST cria um novo [`ASO`](sst/saude_ocupacional.md) para um `Funcionario`, definindo o `tipo` (Admissional, Periódico, Demissional, etc.). O `status` inicial é `ABERTO`.
+    *   A equipe de SST cria um novo [`ASO`](../referencia/sst/saude_ocupacional.md) para um `Funcionario`, definindo o `tipo` (Admissional, Periódico, Demissional, etc.). O `status` inicial é `ABERTO`.
     *   O sistema (`ASOService`) pré-popula a lista de exames esperados (entidades `sst.ExameRealizado` com `data_realizacao` e `resultado` vazios):
         *   **ASO Demissional:** Todos os exames do `Cargo` via `CargoExame`, independente do vencimento.
         *   **ASO Periódico:** Somente exames vencidos ou a vencer (em período configurável).
@@ -109,7 +109,7 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 2.  **Alocação de Funcionário:**
     *   O usuário seleciona um `Funcionario` e um `Alojamento`.
     *   Define a `data_entrada` do funcionário no alojamento.
-    *   O sistema (`AlojamentoService` ou similar) cria um registro em [`alojamento.AlojamentoFuncionario`](alojamento/alojamentos.md).
+    *   O sistema (`AlojamentoService` ou similar) cria um registro em [`alojamento.AlojamentoFuncionario`](../referencia/rh/alocacao.md).
     *   **Regra:** Se o funcionário já estiver em outro alojamento ativo, a alocação anterior é automaticamente encerrada (com `data_saida` preenchida).
 3.  **Desalocação de Funcionário:** O usuário define a `data_saida` para um registro de `AlojamentoFuncionario`, liberando a vaga.
 4.  **Monitoramento:** O sistema pode monitorar a ocupação atual dos alojamentos e gerar relatórios de custos.

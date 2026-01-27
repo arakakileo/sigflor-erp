@@ -17,3 +17,20 @@ class Resultado(models.TextChoices):
     APTO = 'APTO', 'Apto'
     INAPTO = 'INAPTO', 'Inapto'
     APTO_COM_RESTRICOES = 'APTO_COM_RESTRICOES', 'Apto com Restrições'
+
+class StatusExame(models.TextChoices):
+    PENDENTE = 'PENDENTE', 'Pendente'
+    REALIZADO = 'REALIZADO', 'Realizado'
+    CANCELADO = 'CANCELADO', 'Cancelado'
+
+class ResultadoExame(models.TextChoices):
+    NORMAL = 'NORMAL', 'Normal'
+    ALTERADO = 'ALTERADO', 'Alterado'
+
+class UnidadeEPI(models.TextChoices):
+    UNIDADE = "UN", "Unidade"
+    PAR = "PAR", "Par"
+    KIT = "KIT", "Kit"
+    METRO = "M", "Metro"
+    LITRO = "L", "Litro"
+    CAIXA = "CX", "Caixa"
