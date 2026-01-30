@@ -2,7 +2,11 @@ from rest_framework import serializers
 
 from apps.autenticacao.serializers import UsuarioResumoSerializer
 from apps.comum.models.enums import TipoDocumento
-from apps.sst.serializers import CargoExameNestedSerializer, CargoExameSerializer, CargoEpiNestedSerializer
+from apps.sst.serializers import (
+    CargoExameSerializer, 
+    CargoExameNestedSerializer,
+    CargoEpiNestedSerializer,   
+) 
 from ..models import Cargo, CargoDocumento
 from ..models.enums import NivelCargo
 
@@ -72,8 +76,10 @@ class CargoSerializer(serializers.ModelSerializer):
         many=True, 
         read_only=True,
     )
+
     created_by = UsuarioResumoSerializer()
     updated_by = UsuarioResumoSerializer()
+    
     class Meta:
         model = Cargo
         fields = [
@@ -110,6 +116,7 @@ class CargoCreateSerializer(serializers.ModelSerializer):
 
     documentos_obrigatorios = CargoDocumentoNestedSerializer(many=True, required=True)
     exames_obrigatorios = CargoExameNestedSerializer(many=True, required=True)
+    epis_obrigatorios = CargoEpiNestedSerializer(many=True, required=True)
     descricao = serializers.CharField(required=True)
     salario_base = serializers.DecimalField(max_digits=10, decimal_places=2, required=True)
     nivel = serializers.ChoiceField(choices=NivelCargo.choices, required=True)
@@ -134,10 +141,11 @@ class CargoCreateSerializer(serializers.ModelSerializer):
             'risco_acidente',
             'ativo',
             'documentos_obrigatorios',
-            'exames_obrigatorios'
+            'exames_obrigatorios',
+            'epis_obrigatorios'
         ]
 
-    def validate_documentos(self, value):
+    def validate_documentos_obrigatorios(self, value):
         tipos_vistos = set()
         for item in value:
             tipo = item.get('documento_tipo')
@@ -164,6 +172,7 @@ class CargoCreateSerializer(serializers.ModelSerializer):
 class CargoUpdateSerializer(serializers.ModelSerializer):
     documentos_obrigatorios = CargoDocumentoNestedSerializer(many=True, required=False)
     exames_obrigatorios = CargoExameNestedSerializer(many=True, required=False)
+    epis_obrigatorios = CargoEpiNestedSerializer(many=True, required=False)
 
     class Meta:
         model = Cargo
@@ -180,11 +189,38 @@ class CargoUpdateSerializer(serializers.ModelSerializer):
             'risco_acidente',
             'ativo',
             'documentos_obrigatorios',
-            'exames_obrigatorios'
+            'exames_obrigatorios',
+            'epis_obrigatorios',
         ]
         extra_kwargs = {
             'nivel': {'choices': NivelCargo.choices},
         }
+
+    def validate_documentos_obrigatorios(self, value):
+        for item in value:
+            # Em Updates parciais, o DRF ignora required=True nos nested serializers.
+            # Precisamos garantir manualmente que os campos obrigatórios estejam presentes se o item for enviado.
+            if 'documento_tipo' not in item:
+                 raise serializers.ValidationError("O campo 'documento_tipo' é obrigatório para cada documento.")
+            if 'obrigatorio' not in item:
+                 raise serializers.ValidationError("O campo 'obrigatorio' é obrigatório para cada documento.")
+        return value
+
+    def validate_exames_obrigatorios(self, value):
+        for item in value:
+             if 'exame' not in item:
+                 raise serializers.ValidationError("O campo 'exame_id' é obrigatório para cada exame.")
+             if 'periodicidade_meses' not in item:
+                 raise serializers.ValidationError("O campo 'periodicidade_meses' é obrigatório para cada exame.")
+        return value
+
+    def validate_epis_obrigatorios(self, value):
+        for item in value:
+             if 'tipo_epi' not in item:
+                 raise serializers.ValidationError("O campo 'tipo_epi_id' é obrigatório para cada EPI.")
+             if 'periodicidade_troca_dias' not in item:
+                 raise serializers.ValidationError("O campo 'periodicidade_troca_dias' é obrigatório para cada EPI.")
+        return value
 
 
 class CargoSelecaoSerializer(serializers.ModelSerializer):

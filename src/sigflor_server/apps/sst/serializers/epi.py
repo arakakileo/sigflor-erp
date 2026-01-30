@@ -50,16 +50,25 @@ class CargoEPISerializer(serializers.ModelSerializer):
 
 
 class CargoEpiNestedSerializer(serializers.ModelSerializer):
+    tipo_epi_id = serializers.PrimaryKeyRelatedField(
+        queryset=TipoEPI.objects.filter(deleted_at__isnull=True),
+        source='tipo_epi',
+        required=True
+    )
     nome = serializers.CharField(source='tipo_epi.nome', read_only=True)
     unidade = serializers.CharField(source='tipo_epi.unidade', read_only=True)
+    periodicidade_troca_dias = serializers.IntegerField(required=True)
+    quantidade_padrao = serializers.IntegerField(required=False, default=1)
 
     class Meta:
         model = CargoEPI
         fields = [
             'id', 
+            'tipo_epi_id',
             'nome',
             'unidade',
             'periodicidade_troca_dias', 
             'quantidade_padrao', 
             'observacoes', 
         ]
+        read_only_fields = ['id', 'nome', 'unidade']

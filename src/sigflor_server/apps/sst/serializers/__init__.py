@@ -7,6 +7,7 @@ from .exame import (
 from .aso import ASOSerializer, ASOCreateSerializer, ASOConclusaoSerializer
 from .exame_realizado import ExameRealizadoSerializer, ExameRealizadoUpdateSerializer
 from .epi import TipoEPISerializer, EPISerializer, CargoEPISerializer, CargoEpiNestedSerializer
+from .entrega_epi import EntregaEPIReadSerializer, EntregaEPICreateSerializer
 
 __all__ = [
     'ExameSerializer',
@@ -22,4 +23,6 @@ __all__ = [
     'EPISerializer',
     'CargoEPISerializer',
     'CargoEpiNestedSerializer',
+    'EntregaEPIReadSerializer',
+    'EntregaEPICreateSerializer',
 ]

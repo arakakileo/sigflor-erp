@@ -33,6 +33,10 @@ class TipoEPI(SoftDeleteModel):
     def __str__(self):
         return self.nome
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class EPI(SoftDeleteModel):
     """
@@ -74,6 +78,10 @@ class EPI(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.tipo.nome} - CA: {self.ca} ({self.fabricante})"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class CargoEPI(SoftDeleteModel):
@@ -118,3 +126,7 @@ class CargoEPI(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.cargo.nome} necessita de {self.tipo_epi.nome}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

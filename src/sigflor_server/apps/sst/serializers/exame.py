@@ -4,8 +4,8 @@ from ..models import Exame, CargoExame
 
 class ExameSerializer(serializers.ModelSerializer):
 
-    created_by = UsuarioResumoSerializer()
-    updated_by = UsuarioResumoSerializer()
+    created_by = UsuarioResumoSerializer(read_only=True)
+    updated_by = UsuarioResumoSerializer(read_only=True)
 
     class Meta:
         model = Exame
@@ -18,7 +18,7 @@ class ExameSerializer(serializers.ModelSerializer):
             'created_by',
             'updated_by',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        read_only_fields = ['id', 'created_at', 'updated_at',]
 
 class ExameSelecaoSerializer(serializers.ModelSerializer):
     class Meta:

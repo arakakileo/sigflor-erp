@@ -1,7 +1,8 @@
 from .exame import ExameViewSet
 from .aso import ASOViewSet, ExameRealizadoViewSet
 
-from .epi import TipoEPIViewSet, EPIViewSet, CargoEPIViewSet
+from .epi import TipoEPIViewSet, EPIViewSet
+from .entrega_epi import EntregaEPIViewSet
 
 __all__ = [
     'ExameViewSet',
@@ -9,5 +10,5 @@ __all__ = [
     'ExameRealizadoViewSet',
     'TipoEPIViewSet',
     'EPIViewSet',
-    'CargoEPIViewSet',
+    'EntregaEPIViewSet',
 ]

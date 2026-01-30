@@ -31,8 +31,23 @@ def cargo_list(
     return qs.order_by('nome')
 
 def cargo_detail(*, user: Usuario, pk: str) -> Cargo:
+    from django.db.models import Prefetch
+    from apps.rh.models import CargoDocumento, Cargo
+    from apps.sst.models import CargoExame, CargoEPI
+
     return Cargo.objects.prefetch_related(
-        'documentos_obrigatorios'
+        Prefetch(
+            'documentos_obrigatorios',
+            queryset=CargoDocumento.objects.filter(deleted_at__isnull=True)
+        ),
+        Prefetch(
+            'exames_obrigatorios',
+            queryset=CargoExame.objects.filter(deleted_at__isnull=True)
+        ),
+        Prefetch(
+            'epis_obrigatorios',
+            queryset=CargoEPI.objects.filter(deleted_at__isnull=True)
+        )
     ).get(pk=pk, deleted_at__isnull=True)
 
 def cargo_get_by_id_irrestrito(*, user: Usuario, pk: str) -> Optional[Cargo]:

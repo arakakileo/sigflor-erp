@@ -7,16 +7,16 @@ from .views import (
     ExameRealizadoViewSet,
     TipoEPIViewSet,
     EPIViewSet,
-    CargoEPIViewSet
+    EntregaEPIViewSet
 )
 
 router = DefaultRouter()
 router.register(r'exames', ExameViewSet, basename='exame')
 router.register(r'asos', ASOViewSet, basename='aso')
 router.register(r'exames-realizados', ExameRealizadoViewSet, basename='exame-realizado')
-router.register(r'tipos-epi', TipoEPIViewSet, basename='tipo-epi')
-router.register(r'epis', EPIViewSet, basename='epi')
-router.register(r'cargos-epis', CargoEPIViewSet, basename='cargo-epi')
+router.register(r'tipos-epi', TipoEPIViewSet, basename='tipos-epi')
+router.register(r'epis', EPIViewSet, basename='epis')
+router.register(r'entregas-epi', EntregaEPIViewSet, basename='entregas-epi')
 
 urlpatterns = [
     path('', include(router.urls)),

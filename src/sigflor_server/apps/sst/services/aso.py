@@ -10,12 +10,13 @@ from apps.sst.models.enums import Status, StatusExame, Tipo
 class ASOService:
 
     @staticmethod
+    @staticmethod
     @transaction.atomic
     def gerar_solicitacao(
         *,
         funcionario: Funcionario,
         tipo: str,
-        created_by: Usuario
+        user: Usuario
     ) -> ASO:
         """
         Gera uma solicitação de ASO.
@@ -62,8 +63,9 @@ class ASOService:
             funcionario=funcionario,
             tipo=tipo,
             status=Status.ABERTO,
-            created_by=created_by
+            created_by=user
         )
+        # TODO: Atualizar created_by se o modelo suportar ou usar 'user' para log
         aso.save()
         
         # Busca exames obrigatórios do cargo
@@ -78,7 +80,7 @@ class ASOService:
                 aso=aso,
                 exame=ce.exame,
                 status=StatusExame.PENDENTE,
-                created_by=created_by
+                created_by=user
             )
             
         return aso
@@ -92,7 +94,7 @@ class ASOService:
         resultado: str,
         arquivo=None,
         observacoes: str = '',
-        updated_by: Usuario
+        user: Usuario
     ) -> ExameRealizado:
         """
         Registra o resultado de um exame e calcula validade.
@@ -137,14 +139,14 @@ class ASOService:
                 # Para MVP, seguimos sem quebrar.
                 pass
         
-        exame_realizado.updated_by = updated_by
+        exame_realizado.updated_by = user
         exame_realizado.save()
         
         # Atualiza status do ASO
         aso = exame_realizado.aso
         if aso.status == Status.ABERTO:
             aso.status = Status.EM_ANDAMENTO
-            aso.updated_by = updated_by
+            aso.updated_by = user
             aso.save()
             
         return exame_realizado
@@ -160,7 +162,7 @@ class ASOService:
         medico_coordenador: str,
         medico_examinador: str,
         observacoes: str = '',
-        updated_by: Usuario
+        user: Usuario
     ) -> ASO:
         """
         Finaliza o ASO.
@@ -186,13 +188,13 @@ class ASOService:
         aso.medico_examinador = medico_examinador
         aso.observacoes = observacoes
         aso.status = Status.FINALIZADO
-        aso.updated_by = updated_by
+        aso.updated_by = user
         aso.save()
         
         return aso
 
     @staticmethod
-    def validar_pendencias_admissional(funcionario: Funcionario):
+    def validar_pendencias_admissional(funcionario: Funcionario, user: Usuario = None):
         """
         Verifica se o funcionário possui ASO Admissional APTO e VÁLIDO.
         Usado pelo serviço de RH antes de ativar o funcionário.

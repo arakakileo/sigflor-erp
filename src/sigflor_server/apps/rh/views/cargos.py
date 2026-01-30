@@ -84,6 +84,10 @@ class CargoViewSet(BaseRBACViewSet):
             user=request.user,
             **serializer.validated_data
         )
+        
+        # Recarregar objeto via selector para garantir que os vínculos (prefetch) estejam atualizados
+        cargo = selectors.cargo_detail(user=request.user, pk=cargo.pk)
+        
         output_serializer = CargoSerializer(cargo)
         return Response(output_serializer.data, status=status.HTTP_200_OK)
 

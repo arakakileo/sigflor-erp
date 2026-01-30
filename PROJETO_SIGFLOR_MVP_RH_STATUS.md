@@ -58,6 +58,12 @@ O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependê
 
 ### Módulo `rh` (Recursos Humanos)
 
+### Normas e Padrões de Desenvolvimento (Atualizado 2026-01-27)
+> [!IMPORTANT]
+> **Services e Selectors:** TODOS os métodos de Services e Selectors DEVEM aceitar o parâmetro `user` (tipo `Usuario`).
+> - Services: Para auditoria (`created_by`, `updated_by`).
+> - Selectors: Para filtragem futura de permissões/filiais.
+
 | Entidade | Model | Serializer | Service | View | Selectors | Status |
 |:---------|:-----:|:----------:|:-------:|:----:|:---------:|:------:|
 | Cargo | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -83,10 +89,14 @@ O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependê
 | ASO | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Exame | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | ExameRealizado | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| TipoEPI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| EPI (Catálogo) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CargoEPI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Observação:**
 - **Módulo SST Completo** (Aguardando apenas Migrations e Testes).
 - Implementado fluxo automático de geração de solicitação e validação de pendências.
+- **EPIs:** Implementado gestão completa de EPIs, catálogos (com CA) e vínculos por cargo (com validade de troca).
 
 ---
 
@@ -116,14 +126,13 @@ O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependê
 |:-:|:-------|:------|:-------:|:------:|
 | 2.1 | Validar fluxo de gestão de ASO (Testes manuais) | Fluxo 5.3 | Alto | ⬜ |
 | 2.2 | Validar fluxo de alojamento | Fluxo 5.4 | Médio | ⬜ |
+| 2.3 | **Novo:** Validar fluxo de entrega de EPIs | - | Médio | ⬜ |
 
 ### PRIORIDADE 3: Qualidade e Infraestrutura
 
 | # | Tarefa | Descrição | Esforço | Status |
 |:-:|:-------|:----------|:-------:|:------:|
-| 3.1 | Criar migrations pendentes (SST, alterações RH) | `makemigrations` | Médio | ⚠️ (Manual) |
-| 3.2 | Executar migrations | `migrate` | Baixo | ⬜ |
-| 3.3 | Testes unitários para Services críticos (Funcionario, Equipe, ASO) | `tests/` | Alto | ⬜ |
+| 3.1 | Testes unitários para Services críticos (Funcionario, Equipe, ASO, EPI) | `tests/` | Alto | ⬜ |
 
 ---
 
@@ -132,7 +141,7 @@ O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependê
 ### O que está COMPLETO:
 - ✅ Módulo `comum` (Core)
 - ✅ Módulo `rh` (Completo)
-- ✅ Módulo `sst` (Completo em código)
+- ✅ Módulo `sst` (Completo em código: ASO, Exames, EPIs)
 
 ### O que FALTA CRIAR:
 - ❌ App `alojamento` completo.
@@ -150,6 +159,12 @@ O MVP do Sigflor concentra-se no módulo de **Recursos Humanos** e suas dependê
 
 | Data | Alteração |
 | :--- | :--- |
+| 2026-01-27 | **Refatoração CargoService:** Atualização do método `update` para utilizar métodos de Full Sync (`atualizar_*_cargo`). Garante exclusão de itens removidos das listas. |
+| 2026-01-27 | **Refatoração Serviços Auxiliares de Cargo (Exame/EPI/Documento):** Implementação de métodos de sincronização (`atualizar_*_cargo`) para suporte a Full Sync no `CargoService`. Implementação de métodos de validação (`validar_*_funcionario`) em `ExameService` e `EPIService`. Padronização de Auditoria: `configurar_*` apenas define `created_by`, preservando `updated_by`. |
+| 2026-01-27 | **Implementação Fluxo Entrega EPI (Task 2.3):** Criação de model `EntregaEPI`, service com cálculo de validade (baseado no Cargo) e API `/sst/entregas-epi/`. |
+| 2026-01-27 | **Padronização de Auditoria e Validação:** Implementação de `save()` com `full_clean()` nos models de EPI. Refatoração de Services (EPI/ASO) para preenchimento automático de `created_by` e `updated_by` via parâmetro `user`. |
+| 2026-01-27 | **Refatoração CargoEPI (SST):** Alteração da arquitetura de `CargoEPI` para aninhamento direto em `Cargo`. Remoção da API isolada `/sst/cargos-epis/` e centralização da gestão no `CargoService` via `EPIService`. |
+| 2026-01-26 | **Implementação EPI (SST):** Criação dos domínios `TipoEPI`, `EPI` e `CargoEPI`. Implementação de Serializers, Services, Selectors e Views padronizadas (BaseRBACViewSet). Integração com `CargoSerializer` para exibir EPIs obrigatórios. |
 | 2026-01-26 | **Implementação ASO (SST):** Implementação completa do ciclo de vida de ASO e Exames Realizados. Integração com RH para validação de ativação de funcionário. Refatoração de Enums. |
 | 2026-01-26 | **Validação RH e SST Parcial (+ Refatoração Funcionario):** Correção do modelo `Funcionario` (remoção de Alocação). Validação completa dos domínios `Equipe` e `Exame`. |
 | 2026-01-26 | **Atualização de Status (Pós-Auditoria Inicial):** Identificado remoção do domínio `Alocacao`. Identificado estado de `Equipe` e `SST`. |
