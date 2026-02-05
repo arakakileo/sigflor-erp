@@ -13,7 +13,7 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 **Pré-condições:**
 *   [Cargos](../referencia/rh/cargos.md) e [Projetos](../referencia/core/projeto.md) devem estar previamente cadastrados.
 *   [Tipos de Documento](../referencia/core/documentos.md) devem estar configurados.
-*   [Regras de `CargoDocumento`](../referencia/rh/cargo_documento.md) devem estar definidas.
+*   [Regras de `CargoDocumento`](../referencia/rh/cargos.md#6-documentos-obrigatorios) devem estar definidas.
 
 **Fluxo:**
 1.  **Início do Cadastro:** O usuário de RH inicia o processo de admissão, fornecendo:
@@ -33,13 +33,17 @@ Este documento descreve os principais fluxos de negócio do MVP do módulo de Re
 7.  **Gerenciamento de Contatos:** O usuário fornece os contatos (telefone, e-mail) e os contatos de emergência. O sistema ([`ContatoService`](../referencia/core/contatos.md)) realiza um `get_or_create` para cada contato (`core.Contato`) e cria os vínculos (`PessoaFisicaContato`), definindo as flags `principal` e `contato_emergencia`.
 8.  **Gerenciamento de Documentos:** O usuário faz o upload dos documentos necessários. O sistema ([`DocumentoService`](../referencia/core/documentos.md)) cria as entidades `core.Documento` para cada arquivo e os vincula à `PessoaFisica` via `PessoaFisicaDocumento`.
 9.  **Validação de Documentos Obrigatórios por Cargo:**
-    *   O sistema consulta as regras em [`hr.CargoDocumento`](../referencia/rh/cargo_documento.md) para o `Cargo` do funcionário.
+    *   O sistema consulta as regras em [`hr.CargoDocumento`](../referencia/rh/cargos.md#6-documentos-obrigatorios) para o `Cargo` do funcionário.
     *   Verifica se todos os documentos marcados como obrigatórios para aquele cargo foram fornecidos e estão válidos (se tiverem `data_validade`).
     *   Se houver pendências, o sistema pode:
         *   Impedir a conclusão da admissão.
         *   Marcar a admissão como "Pendente de Documentos".
         *   Gerar alertas para o RH.
-10. **Conclusão:** O funcionário é registrado no sistema com status `ATIVO` e alocado ao `Projeto` inicial.
+10. **Aguardando Admissão:** O funcionário é criado com status `AGUARDANDO_ADMISSAO` e disparado o alerta para realização do [**ASO Admissional**](../referencia/sst/saude_ocupacional.md).
+11. **Contratação Efetiva:**
+    *   Após o candidato realizar o ASO (apto), entregar os EPIs e Documentos Obrigatórios.
+    *   O RH aciona a ação de **Contratar**.
+    *   O sistema valida todas as pendências e, se OK, altera o status para `ATIVO`.
 
 ---
 

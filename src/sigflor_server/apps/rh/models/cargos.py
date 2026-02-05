@@ -67,10 +67,10 @@ class Cargo(SoftDeleteModel):
         help_text='Descrição do risco ergonômico ou indicação de ausência.'
     )
 
-    risco_acidente = models.CharField(
+    risco_mecanico = models.CharField(
         max_length=255,
-        default=RiscoPadrao.ACIDENTE,
-        help_text='Descrição do risco de acidente ou indicação de ausência.'
+        default=RiscoPadrao.MECANICO,
+        help_text='Descrição do risco mecânico ou indicação de ausência.'
     )
 
     ativo = models.BooleanField(
@@ -115,7 +115,7 @@ class Cargo(SoftDeleteModel):
             self.risco_biologico != RiscoPadrao.BIOLOGICO,
             self.risco_quimico != RiscoPadrao.QUIMICO,
             self.risco_ergonomico != RiscoPadrao.ERGONOMICO,
-            self.risco_acidente != RiscoPadrao.ACIDENTE
+            self.risco_mecanico != RiscoPadrao.MECANICO
         ])
 
 

@@ -1,7 +1,8 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from datetime import date
 
-from apps.sst.models import TipoEPI, EPI, CargoEPI
+from apps.sst.models import TipoEPI, EPI, CargoEPI, EntregaEPI
 
 class EPIService:
 
@@ -149,8 +150,6 @@ class EPIService:
         Valida se o funcionário possui todos os EPIs obrigatórios entregues e válidos.
         Considera entregas recentes que ainda não venceram.
         """
-        from apps.sst.models import EntregaEPI
-        from datetime import date
 
         cargo = funcionario.cargo
 

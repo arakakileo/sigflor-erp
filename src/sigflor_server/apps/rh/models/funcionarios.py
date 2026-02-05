@@ -56,7 +56,7 @@ class Funcionario(SoftDeleteModel):
     status = models.CharField(
         max_length=30,
         choices=StatusFuncionario.choices,
-        default=StatusFuncionario.ATIVO
+        default=StatusFuncionario.AGUARDANDO_ADMISSAO
     )
 
     tipo_contrato = models.CharField(
@@ -104,35 +104,43 @@ class Funcionario(SoftDeleteModel):
 
     ctps_numero = models.CharField(
         max_length=20,
-        help_text='Número da CTPS'
+        help_text='Número da CTPS',
+        blank=True,
+        null=True
     )
     ctps_serie = models.CharField(
         max_length=10,
-        help_text='Série da CTPS'
+        help_text='Série da CTPS',
+        blank=True,
+        null=True
     )
     ctps_uf = models.CharField(
         max_length=2,
         choices=UF.choices,
-        help_text='UF de emissão da CTPS'
+        help_text='UF de emissão da CTPS',
+        blank=True,
+        null=True
     )
     pis_pasep = models.CharField(
         max_length=15,
-        help_text='Número do PIS/PASEP'
+        help_text='Número do PIS/PASEP',
+        blank=True,
+        null=True
     )
 
-    banco = models.CharField(max_length=100, blank=True, default='')
-    agencia = models.CharField(max_length=20, blank=True, default='')
-    conta_corrente = models.CharField(max_length=30, blank=True, default='')
+    banco = models.CharField(max_length=100, blank=True, null=True)
+    agencia = models.CharField(max_length=20, blank=True, null=True)
+    conta_corrente = models.CharField(max_length=30, blank=True, null=True)
     tipo_conta = models.CharField(
         max_length=20,
         choices=TipoConta.choices,
         blank=True, 
-        default='',
+        null=True,
     )
     chave_pix = models.CharField(
         max_length=100,
         blank=True, 
-        default='',
+        null=True,
         help_text='Chave PIX'
     )
 

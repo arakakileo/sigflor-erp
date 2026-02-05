@@ -15,7 +15,7 @@ class RiscoPadrao:
     BIOLOGICO = 'Ausência de risco biológico'
     QUIMICO = 'Ausência de risco químico'
     ERGONOMICO = 'Ausência de risco ergonômico'
-    ACIDENTE = 'Ausência de risco de acidente'
+    MECANICO = 'Ausência de risco mecânico'
 
 
 class Parentesco(models.TextChoices):

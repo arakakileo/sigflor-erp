@@ -51,6 +51,7 @@ class PessoaFisicaService:
             observacoes=observacoes,
             created_by=created_by,
         )
+
         pessoa.save()
 
         if enderecos:
@@ -98,6 +99,7 @@ class PessoaFisicaService:
         for attr, value in kwargs.items():
             if hasattr(pessoa, attr):
                 setattr(pessoa, attr, value)
+
         pessoa.updated_by = updated_by
         pessoa.save()
 
@@ -161,7 +163,7 @@ class PessoaFisicaService:
     def get_or_create_by_cpf(cpf: str, **defaults) -> tuple[PessoaFisica, bool]:
         cpf_limpo = ''.join(filter(str.isdigit, cpf))
         pessoa = PessoaFisicaService.get_by_cpf(cpf_limpo)
-        
+
         if pessoa:
             novo_nome = defaults.get('nome_completo', '').strip()
             nome_banco = pessoa.nome_completo.strip()

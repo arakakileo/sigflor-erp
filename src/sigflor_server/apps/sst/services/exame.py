@@ -133,15 +133,13 @@ class ExameService:
             for doc in CargoExame.objects.filter(cargo=cargo, deleted_at__isnull=True)
         }
 
-        print(existentes)
-        
         processados_ids = set()
         resultado = []
-
+        print(exames_data)
         for data in exames_data:
             exame = data.get('exame')
             if not exame: continue
-            
+            print(f'exame: {exame}')
             # Ajuste: ExameService anterior esperava 'exame_id' no loop mas 'exame' no create.
             # Aqui ajustamos para garantir 'exame' objeto.
             

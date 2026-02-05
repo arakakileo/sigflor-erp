@@ -68,3 +68,27 @@ A interação com este modelo deve ser feita exclusivamente através do `CargoSe
     -   Altera o status `ativo` do cargo.
     -   **Regra:** Um cargo não pode ser inativado se ainda houver `Funcionario`s ativos vinculados a ele. Deve ser sugerida uma migração de cargo para esses funcionários primeiro.
 -   Encapsular toda a lógica de validação, como a verificação de CBO, se necessário, e o tratamento de exceções (ex: `NomeDuplicadoError`, `CargoAtivoComFuncionariosError`).
+
+---
+
+## 6. Documentos Obrigatórios (`hr.CargoDocumento`)
+
+### 6.1. Visão Geral
+A entidade **Cargo Documento** (agora unificada ao domínio Cargo) define quais documentos são obrigatórios para cada Cargo.
+
+### 6.2. Estrutura do Modelo
+| Atributo | Tipo Django | Regras |
+| :--- | :--- | :--- |
+| **id** | `UUIDField` | PK. |
+| **cargo** | `ForeignKey` | `hr.Cargo`. |
+| **documento_tipo** | `CharField` | Enum `core.Documento.Tipo`. (Ex: CNH, RG, Diploma). |
+| **obrigatorio** | `BooleanField` | Se o documento bloqueia a admissão/ativação. |
+| **condicional** | `TextField` | (Opcional) Regra textual (ex: "Apenas se dirigir"). |
+
+**Constraint:** Único por `(cargo, documento_tipo)`.
+
+### 6.3. Camada de Serviço
+A gestão é feita pelos métodos do próprio `CargoService`:
+- `vincular_documento_cargo(...)`
+- `get_documentos_cargo(...)`
+- `validar_documentos_funcionario(funcionario)`: Usado na admissão/ativação.

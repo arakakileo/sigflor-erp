@@ -2,11 +2,11 @@ from rest_framework import serializers
 
 from apps.autenticacao.serializers import UsuarioResumoSerializer
 from apps.comum.models.enums import TipoDocumento
-from apps.sst.serializers import (
+from apps.sst.serializers.exame import (
     CargoExameSerializer, 
     CargoExameNestedSerializer,
-    CargoEpiNestedSerializer,   
-) 
+)
+from apps.sst.serializers.epi import CargoEpiNestedSerializer 
 from ..models import Cargo, CargoDocumento
 from ..models.enums import NivelCargo
 
@@ -93,7 +93,7 @@ class CargoSerializer(serializers.ModelSerializer):
             'risco_biologico',
             'risco_quimico',
             'risco_ergonomico',
-            'risco_acidente',
+            'risco_mecanico',
             'tem_risco',
             'ativo',
             'documentos_obrigatorios',
@@ -124,7 +124,7 @@ class CargoCreateSerializer(serializers.ModelSerializer):
     risco_biologico = serializers.CharField(required=True, allow_blank=True)
     risco_quimico = serializers.CharField(required=True, allow_blank=True)
     risco_ergonomico = serializers.CharField(required=True, allow_blank=True)
-    risco_acidente = serializers.CharField(required=True, allow_blank=True)
+    risco_mecanico = serializers.CharField(required=True, allow_blank=True)
     
     class Meta:
         model = Cargo
@@ -138,7 +138,7 @@ class CargoCreateSerializer(serializers.ModelSerializer):
             'risco_biologico',
             'risco_quimico',
             'risco_ergonomico',
-            'risco_acidente',
+            'risco_mecanico',
             'ativo',
             'documentos_obrigatorios',
             'exames_obrigatorios',
@@ -159,7 +159,7 @@ class CargoCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         riscos = [
             'risco_fisico', 'risco_biologico', 'risco_quimico', 
-            'risco_ergonomico', 'risco_acidente'
+            'risco_ergonomico', 'risco_mecanico'
         ]
 
         for risco in riscos:
@@ -186,7 +186,7 @@ class CargoUpdateSerializer(serializers.ModelSerializer):
             'risco_biologico',
             'risco_quimico',
             'risco_ergonomico',
-            'risco_acidente',
+            'risco_mecanico',
             'ativo',
             'documentos_obrigatorios',
             'exames_obrigatorios',
@@ -201,25 +201,25 @@ class CargoUpdateSerializer(serializers.ModelSerializer):
             # Em Updates parciais, o DRF ignora required=True nos nested serializers.
             # Precisamos garantir manualmente que os campos obrigatórios estejam presentes se o item for enviado.
             if 'documento_tipo' not in item:
-                 raise serializers.ValidationError("O campo 'documento_tipo' é obrigatório para cada documento.")
+                raise serializers.ValidationError("O campo 'documento_tipo' é obrigatório para cada documento.")
             if 'obrigatorio' not in item:
-                 raise serializers.ValidationError("O campo 'obrigatorio' é obrigatório para cada documento.")
+                raise serializers.ValidationError("O campo 'obrigatorio' é obrigatório para cada documento.")
         return value
 
     def validate_exames_obrigatorios(self, value):
         for item in value:
-             if 'exame' not in item:
-                 raise serializers.ValidationError("O campo 'exame_id' é obrigatório para cada exame.")
-             if 'periodicidade_meses' not in item:
-                 raise serializers.ValidationError("O campo 'periodicidade_meses' é obrigatório para cada exame.")
+            if 'exame' not in item:
+                raise serializers.ValidationError("O campo 'exame_id' é obrigatório para cada exame.")
+            if 'periodicidade_meses' not in item:
+                raise serializers.ValidationError("O campo 'periodicidade_meses' é obrigatório para cada exame.")
         return value
 
     def validate_epis_obrigatorios(self, value):
         for item in value:
-             if 'tipo_epi' not in item:
-                 raise serializers.ValidationError("O campo 'tipo_epi_id' é obrigatório para cada EPI.")
-             if 'periodicidade_troca_dias' not in item:
-                 raise serializers.ValidationError("O campo 'periodicidade_troca_dias' é obrigatório para cada EPI.")
+            if 'tipo_epi' not in item:
+                raise serializers.ValidationError("O campo 'tipo_epi_id' é obrigatório para cada EPI.")
+            if 'periodicidade_troca_dias' not in item:
+                raise serializers.ValidationError("O campo 'periodicidade_troca_dias' é obrigatório para cada EPI.")
         return value
 
 
@@ -228,4 +228,49 @@ class CargoSelecaoSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Cargo
+    class Meta:
+        model = Cargo
         fields = ['id', 'label', 'cbo']
+
+# ============================================================================
+# CargoDocumento Serializers (Anteriormente em cargo_documento.py)
+# ============================================================================
+
+class CargoDocumentoListSerializer(serializers.ModelSerializer):
+    cargo_nome = serializers.ReadOnlyField(source='cargo.nome')
+    tipo_display = serializers.ReadOnlyField(source='get_documento_tipo_display')
+
+    class Meta:
+        model = CargoDocumento
+        fields = [
+            'id',
+            'cargo',
+            'cargo_nome',
+            'documento_tipo',
+            'tipo_display',
+            'obrigatorio',
+        ]
+
+
+class CargoDocumentoCreateSerializer(serializers.ModelSerializer):
+
+    documento_tipo = serializers.ChoiceField(choices=TipoDocumento.choices)
+
+    class Meta:
+        model = CargoDocumento
+        fields = [
+            'cargo',
+            'documento_tipo',
+            'obrigatorio',
+            'condicional',
+        ]
+
+
+class CargoDocumentoUpdateSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = CargoDocumento
+        fields = [
+            'obrigatorio',
+            'condicional',
+        ]

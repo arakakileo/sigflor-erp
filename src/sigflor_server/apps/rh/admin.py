@@ -61,7 +61,7 @@ class CargoAdmin(admin.ModelAdmin):
         'risco_biologico',
         'risco_quimico',
         'risco_ergonomico',
-        'risco_acidente',
+        'risco_mecanico',
         'created_at',
     ]
     search_fields = [
@@ -85,7 +85,7 @@ class CargoAdmin(admin.ModelAdmin):
             'fields': ('nome', 'salario_base', 'cbo', 'nivel')
         }),
         ('Riscos Ocupacionais', {
-            'fields': ('risco_fisico', 'risco_biologico', 'risco_quimico', 'risco_ergonomico', 'risco_acidente'),
+            'fields': ('risco_fisico', 'risco_biologico', 'risco_quimico', 'risco_ergonomico', 'risco_mecanico'),
             'classes': ('collapse',) # Escondido por padrão para limpar a tela
         }),
         ('Descricao', {

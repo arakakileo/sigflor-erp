@@ -2,9 +2,7 @@
 from .cargos import (
     CargoSerializer, CargoCreateSerializer,
     CargoListSerializer, CargoUpdateSerializer,
-    CargoSelecaoSerializer
-)
-from .cargo_documento import (
+    CargoSelecaoSerializer,
     CargoDocumentoSerializer, CargoDocumentoCreateSerializer,
     CargoDocumentoListSerializer, CargoDocumentoUpdateSerializer
 )

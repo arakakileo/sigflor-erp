@@ -1,7 +1,8 @@
 from django.db.models import QuerySet, Q
 from typing import Optional
+from django.db.models import Prefetch
 
-from ..models import Cargo, Funcionario
+from ..models import Cargo, CargoDocumento, Funcionario
 from apps.autenticacao.models.usuarios import Usuario
 
 def cargo_list(
@@ -31,8 +32,7 @@ def cargo_list(
     return qs.order_by('nome')
 
 def cargo_detail(*, user: Usuario, pk: str) -> Cargo:
-    from django.db.models import Prefetch
-    from apps.rh.models import CargoDocumento, Cargo
+    
     from apps.sst.models import CargoExame, CargoEPI
 
     return Cargo.objects.prefetch_related(
@@ -71,3 +71,23 @@ def funcionarios_por_cargo(*, user: Usuario, cargo_id: str) -> QuerySet[Funciona
         ).distinct()
 
     return qs.order_by('pessoa_fisica__nome_completo')
+
+# ============================================================================
+# CargoDocumento (Anteriormente em apps/rh/selectors/cargo_documento.py)
+# ============================================================================
+
+def cargo_documento_list(*, user: Usuario, cargo_id: str = None, apenas_obrigatorios: bool = False) -> QuerySet:
+    """Lista documentos de cargo."""
+    qs = CargoDocumento.objects.filter(deleted_at__isnull=True).select_related('cargo')
+
+    if cargo_id:
+        qs = qs.filter(cargo_id=cargo_id)
+
+    if apenas_obrigatorios:
+        qs = qs.filter(obrigatorio=True)
+
+    return qs.order_by('cargo__nome', 'documento_tipo')
+
+def cargo_documento_detail(*, user: Usuario, pk) -> CargoDocumento:
+    cargo_doc = CargoDocumento.objects.select_related('cargo').get(pk=pk, deleted_at__isnull=True)
+    return cargo_doc

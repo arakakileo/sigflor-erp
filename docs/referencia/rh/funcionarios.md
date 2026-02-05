@@ -36,10 +36,10 @@ Este modelo gerencia o ciclo de vida do colaborador na empresa, desde a admissã
 **Dados de Documentação Trabalhista:**
 | Atributo | Tipo Django | Tipo PostgreSQL | Constraints e Regras |
 | :--- | :--- | :--- | :--- |
-| **ctps_numero** | `models.CharField` | `VARCHAR(20)` | `null=True`, `blank=True`. |
-| **ctps_serie** | `models.CharField` | `VARCHAR(10)` | `null=True`, `blank=True`. |
+| **ctps_numero** | `models.CharField` | `VARCHAR(20)` | `null=True`, `blank=True`. **Obrigatório para Contratação.** |
+| **ctps_serie** | `models.CharField` | `VARCHAR(10)` | `null=True`, `blank=True`. **Obrigatório para Contratação.** |
 | **ctps_uf** | `models.CharField` | `VARCHAR(2)` | `choices=core.Endereco.UF.choices`. `null=True`, `blank=True`. |
-| **pis_pasep** | `models.CharField` | `VARCHAR(15)` | `null=True`, `blank=True`. |
+| **pis_pasep** | `models.CharField` | `VARCHAR(15)` | `null=True`, `blank=True`. **Obrigatório para Contratação.** |
 
 **Dados Bancários:**
 | Atributo | Tipo Django | Tipo PostgreSQL | Constraints e Regras |
@@ -138,6 +138,15 @@ A interação com `Funcionario` será gerenciada por este serviço, encapsulando
     -   Consulta `CargoDocumentoService.get_documentos_obrigatorios_para_cargo(funcionario.cargo)`.
     -   Para cada `CargoDocumento` obrigatório, verifica se existe um `core.Documento` do `documento_tipo` correspondente (e válido, se aplicável) vinculado à `PessoaFisica` do funcionário.
     -   Se um documento obrigatório não for encontrado, a admissão pode ser impedida, marcada como pendente, ou um aviso pode ser gerado (decisão a ser refinada).
+
+-   **`contratar(funcionario: Funcionario, user: Usuario) -> Funcionario:`**:
+    -   **Objetivo:** Efetivar a contratação e ativar o funcionário.
+    -   **Validações:**
+        1.  **Cadastrais:** Verifica se CTPS, PIS e Endereço estão preenchidos.
+        2.  **ASO:** Verifica se existe um ASO Admissional `FINALIZADO` e `APTO`.
+        3.  **Documentos:** Verifica se todos os `CargoDocumento` obrigatórios foram entregues.
+        4.  **EPIs:** Verifica se todos os `CargoEPI` obrigatórios foram entregues e estão válidos.
+    -   **Efeito:** Muda status para `ATIVO`.
 
 -   **`demitir_funcionario(*, funcionario: Funcionario, data_demissao: date, motivo: str) -> Funcionario:`**:
     -   Define `data_demissao` e altera o `status` para `DEMITIDO`.

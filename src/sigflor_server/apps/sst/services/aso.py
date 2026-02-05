@@ -1,9 +1,11 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils.dateparse import parse_date
+from dateutil.relativedelta import relativedelta
 
 from apps.autenticacao.models import Usuario
 from apps.rh.models import Funcionario
-from apps.sst.models import ASO, ExameRealizado
+from apps.sst.models import ASO, ExameRealizado, CargoExame
 from apps.sst.models.enums import Status, StatusExame, Tipo
 
 
@@ -99,9 +101,7 @@ class ASOService:
         """
         Registra o resultado de um exame e calcula validade.
         """
-        from django.utils.dateparse import parse_date
-        from dateutil.relativedelta import relativedelta
-        import datetime
+
         
         exame_realizado.data_realizacao = data_realizacao
         exame_realizado.resultado = resultado
@@ -117,8 +117,6 @@ class ASOService:
         
         if cargo:
             try:
-                # Import evita circular dependency se houver, mas idealmente models ja estao carregados
-                from apps.sst.models import CargoExame
                 
                 cargo_exame = CargoExame.objects.filter(
                     cargo=cargo,

@@ -66,6 +66,23 @@ class FuncionarioService:
         )
         funcionario.save()
 
+        # Trigger Automático: Geração de ASO Admissional
+        # Import local para evitar ciclo, já que ASO depende de Funcionario
+        from apps.sst.services.aso import ASOService
+        from apps.sst.models.aso import Tipo as TipoASO
+
+        try:
+            ASOService.gerar_solicitacao(
+                funcionario=funcionario,
+                tipo=TipoASO.ADMISSIONAL,
+                user=user
+            )
+        except Exception:
+            # Em caso de erro no ASO, não impedimos a criação do funcionário no MVP,
+            # mas idealmente deveria rollbackar ou logar. Pelo atomic, se der erro crítico, rollbacka.
+            # Vamos deixar o erro subir para o usuário saber que falhou algo.
+            raise
+
         return funcionario
 
     @staticmethod
@@ -210,6 +227,54 @@ class FuncionarioService:
             coordenador=None,
             updated_by=updated_by
         )
+
+        return funcionario
+
+    @staticmethod
+    @transaction.atomic
+    def contratar(funcionario: Funcionario, user: Usuario) -> Funcionario:
+        """
+        Efetiva a contratação do funcionário.
+        Valida compliance (ASO, Documentos, EPIs) e dados cadastrais obrigatórios.
+        """
+        
+        # 1. Validação de Dados Cadastrais Obrigatórios (que eram opcionais no cadastro)
+        erros_cadastro = []
+        if not funcionario.ctps_numero: erros_cadastro.append('Número da CTPS')
+        if not funcionario.pis_pasep: erros_cadastro.append('PIS/PASEP')
+        if not funcionario.endereco.exists(): erros_cadastro.append('Endereço')
+        
+        if erros_cadastro:
+            raise ValidationError(
+                f'Para contratar, preencha os seguintes dados obrigatórios: {", ".join(erros_cadastro)}.'
+            )
+
+        # 2. Validação de Compliance - ASO
+        from apps.sst.services.aso import ASOService
+        ASOService.validar_pendencias_admissional(funcionario)
+
+        # 3. Validação de Compliance - Documentos
+        from apps.rh.services.cargos import CargoService
+        docs_status = CargoService.validar_documentos_funcionario(funcionario)
+        if not docs_status['valido']:
+            faltantes = [d['tipo_display'] for d in docs_status['documentos_faltantes']]
+            raise ValidationError(
+                f'Documentos obrigatórios pendentes: {", ".join(faltantes)}.'
+            )
+
+        # 4. Validação de Compliance - EPIs
+        from apps.sst.services.epi import EPIService
+        epis_status = EPIService.validar_epis_funcionario(funcionario)
+        if not epis_status['valido']:
+            faltantes = [e['nome'] for e in epis_status['epis_faltantes']]
+            raise ValidationError(
+                f'EPIs obrigatórios não entregues: {", ".join(faltantes)}.'
+            )
+
+        # 5. Efetivação
+        funcionario.status = StatusFuncionario.ATIVO
+        funcionario.updated_by = user
+        funcionario.save()
 
         return funcionario
 

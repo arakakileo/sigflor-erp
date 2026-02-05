@@ -38,13 +38,12 @@ O submódulo de **Saúde Ocupacional** no módulo de SST (Saúde e Segurança do
 | **id** | `models.UUIDField` | `UUID` | `primary_key=True`, `default=uuid.uuid4`, `editable=False` |
 | **funcionario**| `models.ForeignKey` | `UUID` | `to='hr.Funcionario'`, `on_delete=models.PROTECT`. |
 | **tipo** | `models.CharField` | `VARCHAR(30)` | `choices=ASO.Tipo.choices` (Enum: `ADMISSIONAL`, `PERIODICO`, `DEMISSIONAL`, `RETORNO_AO_TRABALHO`, `MUDANCA_DE_FUNCAO`). `null=False`, `blank=False`. |
-| **status** | `models.CharField` | `VARCHAR(20)` | `choices=ASO.Status.choices` (Enum: `ABERTO`, `EM_ANDAMENTO`, `FINALIZADO`, `CANCELADO`). `default='ABERTO'`. |
+| **status** | `models.CharField` | `VARCHAR(20)` | `choices=ASO.Status.choices` (Enum: `ABERTO`, `FINALIZADO`). `default='ABERTO'`. |
 | **data_solicitacao** | `models.DateField` | `DATE` | `auto_now_add=True`. Data de criação/solicitação do ASO. |
 | **data_finalizacao**| `models.DateField` | `DATE` | `null=True`, `blank=True`. Preenchido quando o ASO é `FINALIZADO`. |
-| **medico_responsavel` | `models.CharField` | `VARCHAR(255)` | `null=True`, `blank=True`. Nome e CRM do médico que assinou. Preenchido ao `FINALIZAR`. |
-| **resultado_final` | `models.CharField` | `VARCHAR(30)` | `choices=ASO.Resultado.choices` (Enum: `APTO`, `INAPTO`, `APTO_COM_RESTRICOES`). `null=True`, `blank=True`. Preenchido ao `FINALIZAR`. |
+| **medico_responsavel** | `models.CharField` | `VARCHAR(255)` | `null=True`, `blank=True`. Nome e CRM do médico que assinou. Preenchido ao `FINALIZAR`. |
+| **resultado_final** | `models.CharField` | `VARCHAR(30)` | `choices=ASO.Resultado.choices` (Enum: `APTO`, `INAPTO`). `null=True`, `blank=True`. Preenchido ao `FINALIZAR`. |
 | **observacoes**| `models.TextField`| `TEXT` | `null=True`, `blank=True`. |
-| **documento_aso_pdf**| `models.ForeignKey` | `UUID` | `to='core.Documento'`, `null=True`, `blank=True`, `on_delete=models.SET_NULL`. **Regra:** Link para o PDF escaneado do ASO completo. Anexado somente quando o ASO é `FINALIZADO`. |
 
 ### Enums para `ASO`
 ```python
@@ -57,14 +56,11 @@ class Tipo(models.TextChoices):
 
 class Status(models.TextChoices):
     ABERTO = 'ABERTO', 'Aberto'
-    EM_ANDAMENTO = 'EM_ANDAMENTO', 'Em Andamento'
     FINALIZADO = 'FINALIZADO', 'Finalizado'
-    CANCELADO = 'CANCELADO', 'Cancelado'
 
 class Resultado(models.TextChoices):
     APTO = 'APTO', 'Apto'
     INAPTO = 'INAPTO', 'Inapto'
-    APTO_COM_RESTRICOES = 'APTO_COM_RESTRICOES', 'Apto com Restrições'
 ```
 
 ### 2.4. Modelo `sst.ExameRealizado` (Registro de Exame Individual)
@@ -74,9 +70,9 @@ class Resultado(models.TextChoices):
 | **id** | `models.UUIDField` | `UUID` | `primary_key=True`, `default=uuid.uuid4`, `editable=False` |
 | **aso** | `models.ForeignKey` | `UUID` | `to='sst.ASO'`, `on_delete=models.CASCADE`. Vínculo com o ASO pai. |
 | **exame** | `models.ForeignKey` | `UUID` | `to='core.Exame'`, `on_delete=models.PROTECT`. O tipo de exame realizado. |
-| **data_realizacao**| `models.DateField` | `DATE` | `null=False`, `blank=False`. Data específica em que *este* exame foi feito. |
-| **data_vencimento**| `models.DateField` | `DATE` | `null=False`, `blank=False`. **Regra:** Calculado automaticamente. |
-| **resultado**| `models.CharField` | `VARCHAR(30)` | `choices=ExameRealizado.Resultado.choices` (Enum: `NORMAL`, `ALTERADO`, `NAO_REALIZADO`). `null=False`, `blank=False`. |
+| **data_realizacao**| `models.DateField` | `DATE` | `null=True`, `blank=True`. Data específica em que *este* exame foi feito. |
+| **data_vencimento**| `models.DateField` | `DATE` | `null=True`, `blank=True`. **Regra:** Calculado automaticamente. |
+| **resultado**| `models.CharField` | `VARCHAR(30)` | `choices=ExameRealizado.Resultado.choices` (Enum: `NORMAL`, `ALTERADO`, `NAO_REALIZADO`). `null=True`. |
 | **observacoes**| `models.TextField`| `TEXT` | `null=True`, `blank=True`. |
 
 ### Enum para `ExameRealizado`
@@ -84,7 +80,7 @@ class Resultado(models.TextChoices):
 class Resultado(models.TextChoices):
     NORMAL = 'NORMAL', 'Normal'
     ALTERADO = 'ALTERADO', 'Alterado'
-    NAO_REALIZADO = 'NAO_REALIZADO', 'Não Realizado'
+    PENDENTE = 'PENDENTE', 'Pendente'
 ```
 
 ---
@@ -94,71 +90,32 @@ class Resultado(models.TextChoices):
 -   `sst.CargoExame` N:1 `hr.Cargo`
 -   `sst.CargoExame` N:1 `core.Exame`
 -   `sst.ASO` N:1 `hr.Funcionario`
--   `sst.ASO` N:1 `core.Documento` (para o PDF do ASO)
 -   `sst.ExameRealizado` N:1 `sst.ASO`
 -   `sst.ExameRealizado` N:1 `core.Exame`
 
 ---
 
-## 4. Estratégia de Indexação
+## 4. Camada de Serviço (`ASOService`)
 
--   **`sst.ASO`:** `(funcionario, status, data_solicitacao)`
--   **`sst.ExameRealizado`:** `(funcionario, exame, data_vencimento)`, `(aso, exame)`
--   **`sst.CargoExame`:** `(cargo, exame)` (já coberto pelo UniqueConstraint)
+A lógica de negócio para ASOs é centralizada no `ASOService`.
 
----
-
-## 5. Camada de Serviço (`SSTService` / `ASOService`)
-
-A lógica de negócio para ASOs é complexa e será encapsulada em serviços dedicados, possivelmente `ASOService`.
-
-### 5.1. `solicitar_aso(*, funcionario: Funcionario, tipo: ASO.Tipo) -> ASO:`
+### 4.1. `gerar_solicitacao(*, funcionario: Funcionario, tipo: ASO.Tipo, user: Usuario) -> ASO:`
 -   Cria um novo `ASO` com `status='ABERTO'`.
--   **Lógica de Pré-população:**
-    -   Se `tipo='DEMISSIONAL'`: Popula automaticamente todos os `ExameRealizado` necessários para o `Cargo` atual do funcionário, buscando em `CargoExame`, **independentemente da data de vencimento**. Define `data_vencimento` como a data do ASO + periodicidade, mas sinaliza que o exame deve ser feito.
-    -   Se `tipo='PERIODICO'`: Identifica os exames vencidos ou a vencer (dentro de um período configurável, ex: 60 dias) para o `Funcionario` com base nos `ExameRealizado` anteriores e `CargoExame`. Adiciona **apenas** esses exames ao `ASO`.
-    -   Para outros tipos: Popula com base em exames relevantes para o cargo.
--   Os `ExameRealizado` são criados com `data_realizacao` e `resultado` vazios.
+-   **Lógica Automática:** Identifica os exames exigidos pelo `Cargo` do funcionário (via `CargoExame`).
+-   Cria os registros de `ExameRealizado` com status `PENDENTE` para cada exame obrigatório.
 
-### 5.2. `registrar_exame(*, aso: ASO, exame: Exame, data_realizacao: date, resultado: ExameRealizado.Resultado) -> ExameRealizado:`
--   Recebe o `ASO` em `status='ABERTO'` ou `EM_ANDAMENTO`.
--   Busca o `CargoExame` correspondente para obter a `periodicidade_meses`.
--   Calcula `data_vencimento = data_realizacao + periodicidade_meses`.
--   Atualiza um `ExameRealizado` existente ou cria um novo.
--   **Validação:** Se o `ASO` é `PERIODICO`, impede a adição de exames que já estão válidos (não vencidos).
--   Atualiza o `status` do `ASO` para `EM_ANDAMENTO` se for o primeiro exame registrado.
+### 4.2. `concluir(*, aso: ASO, medico: str, resultado: Resultado, user: Usuario) -> ASO:`
+-   Valida se todos os exames foram registrados (nenhum pendente/sem data).
+-   Define `data_finalizacao` e `status='FINALIZADO'`.
 
-### 5.3. `finalizar_aso(*, aso: ASO, medico_responsavel: str, resultado_final: ASO.Resultado, documento_pdf: File = None) -> ASO:`
--   Recebe o `ASO` em `status='EM_ANDAMENTO'`.
--   Valida se todos os `ExameRealizado` obrigatórios foram registrados.
--   Define `data_finalizacao`, `medico_responsavel`, `resultado_final`.
--   Se `documento_pdf` for fornecido, cria um `core.Documento` e o vincula a `documento_aso_pdf`.
--   Atualiza o `status` do `ASO` para `FINALIZADO`.
-
-### 5.4. `get_exames_a_vencer(*, funcionario: Funcionario = None, dias: int = 90) -> QuerySet[ExameRealizado]:`
--   Retorna uma lista de `ExameRealizado` (para um funcionário ou todos) cuja `data_vencimento` está dentro do período especificado. Base para notificações.
-
-### 5.5. `editar_exame_realizado(*, exame_realizado: ExameRealizado, data: dict) -> ExameRealizado:`
--   Permite a edição dos campos `data_realizacao`, `resultado`, `observacoes`.
--   Recalcula `data_vencimento` se `data_realizacao` for alterada.
-
-### 5.6. `excluir_exame_realizado(*, exame_realizado: ExameRealizado)`
--   Realiza o soft delete do `ExameRealizado`.
+### 4.3.Integração com RH
+-   Ao tentar ativar um funcionário (`FuncionarioService.ativar`), o sistema verifica se existe um ASO Admissional `FINALIZADO` e `APTO`.
 
 ---
 
-## 6. Endpoints da API (Exemplos)
+## 5. Endpoints (API)
 
--   `POST /api/sst/asos/`: Criar um ASO (Solicitar).
--   `GET /api/sst/asos/{id}/`: Obter detalhes de um ASO.
--   `POST /api/sst/asos/{aso_id}/exames/`: Registrar um exame individual para um ASO.
--   `PATCH /api/sst/asos/{aso_id}/exames/{exame_realizado_id}/`: Editar um exame individual.
--   `DELETE /api/sst/asos/{aso_id}/exames/{exame_realizado_id}/`: Soft delete de um exame individual.
--   `POST /api/sst/asos/{id}/finalizar/`: Finalizar um ASO.
--   `GET /api/sst/exames-a-vencer/`: Listar exames próximos do vencimento.
+-   `POST /api/sst/asos/gerar_solicitacao/`: Criar um ASO.
+-   `POST /api/sst/asos/{id}/concluir/`: Finalizar.
+-   `POST /api/sst/exames-realizados/{id}/registrar_resultado/`: Preencher data e resultado de um exame.
 
----
-
-## 7. Próximos Passos
-
-Com o módulo SST e a saúde ocupacional detalhados, podemos agora focar na especificação do módulo RH, começando com `Cargo` e `Funcionario`, que agora terão relações claras com `SST` e `Core`.
